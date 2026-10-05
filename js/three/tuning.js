@@ -8,6 +8,23 @@
 export const UNIT = 0.01; // 논리 1px → 월드 0.01. 보드 1280×720 → 12.8×7.2
 
 export const TUNING = {
+  kuwahara: {
+    preset: "weak", // [임시] 끄기 / 약 / 중. 원본 디테일을 남겨 둔다.
+    strengths: { off: 0, weak: 0.85, medium: 1 },
+    radius: 4.5, // 필터 해상도 픽셀. UI에서 2~6 조절.
+    sectorMode: "select", // select: 최소 분산 색면 / blend: 이전의 부드러운 평균
+    anisotropy: 2, // 작은 값일수록 결을 따라 길게 늘어난다.
+    resolutionScale: 0.75,
+    maxFilterSize: 1600, // 높은 DPR/4K에서도 필터의 긴 변을 제한한다.
+  },
+  outline: {
+    thickness: 1, // CSS px. 0이면 끄기. DPR에 관계없이 같은 화면 굵기.
+    opacity: 1,
+    color: "#51351f",
+    depthThreshold: 0.015,
+    normalThreshold: 0.65,
+    normalThicknessRatio: 0.4, // 주요 내부 꺾임은 실루엣보다 가늘게.
+  },
   camera: {
     /** 프리셋: elevation은 수평선 기준 각도(90 = 완전 탑다운), azimuth는 좌우 회전 */
     presets: {
@@ -119,12 +136,17 @@ export const TUNING = {
   },
 
   light: {
-    key: { color: "#fff0d8", intensity: 2.8, elevation: 48, azimuth: -55, distance: 18 },
-    fill: { color: "#dae4ed", intensity: 0.7, elevation: 35, azimuth: 130, distance: 14 },
-    hemi: { sky: "#fff5e2", ground: "#a38d70", intensity: 1.65 },
-    exposure: 1.02,
-    shadow: { mapSize: 2048, radius: 3.5, bias: -0.0012, normalBias: 0.02 },
+    // Late afternoon: low warm light from the back-left window side.
+    key: { color: "#ffdfb5", intensity: 3.0, elevation: 28, azimuth: -115, distance: 18 },
+    fill: { color: "#dce6ed", intensity: 1.0, elevation: 35, azimuth: 30, distance: 14 },
+    hemi: { sky: "#fff0da", ground: "#aaa0ad", intensity: 1.15 },
+    // Local warm pools distinguish the living corners without darkening file labels.
+    practical: { color: "#ffdda1", intensity: 4.2, distance: 4.8, glow: 0.55 },
+    exposure: 1.12,
+    shadow: { mapSize: 2048, radius: 7, bias: -0.0012, normalBias: 0.02, intensity: 0.55 },
   },
+
+  wallWash: { amount: 0.8, scale: 1.25 },
 
   card: {
     thickness: 0.055, // 기준 두께. 실제 두께는 파일 크기로 곱해진다
@@ -136,6 +158,12 @@ export const TUNING = {
     thicknessReferenceKb: 700 * 1024, // 이 크기에서 max에 닿는다
     corner: 0.09,
     bevel: 0.012,
+    // [임시] 형태로 읽히는 파일. 크기=두께 관계는 각 재질 안에서 유지한다.
+    forms: {
+      card: { thickness: 1 },
+      photo: { aspect: 1.25, thickness: 0.22, corner: 0.012, bevel: 0.002, edge: "#eee7d7" },
+      note: { aspect: 1, thickness: 0.35, corner: 0.012, bevel: 0.002, fold: 0.16, edge: "#e4cc73" },
+    },
     faceColor: "#f5efdf",
     edgeTint: 0.16,
     /**
@@ -194,6 +222,7 @@ export const TUNING = {
   },
 
   pile: {
+    maxHeight: 0.48, // 전체 대기열에 대한 남은 비율로 낮아진다.
     cardGap: 0.014,
     maxVisible: 14,
     jitter: 0.02,

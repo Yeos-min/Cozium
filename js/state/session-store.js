@@ -11,6 +11,7 @@
  * 이동 이력(배치)은 메모리에만 있다. 새로고침하면 사라진다. (§7)
  */
 import { LAYOUT_DEFAULTS, placeItems, slotCount } from "../ui/layout.js";
+import { floorSlotCount, placeFloorItems } from "../ui/floor-layout.js";
 
 export const SELECTABLE_STATUSES = new Set(["idle", "conflict", "error"]);
 export const BOARD_STATUSES = new Set(["idle", "conflict", "error", "moving"]);
@@ -82,7 +83,13 @@ export class SessionStore {
 
   /** 요청한 정원과 보드 슬롯 수 중 작은 쪽 */
   get capacity() {
-    return Math.min(this.#capacity, slotCount(this.#bounds, this.#layoutConfig));
+    const countSlots = this.#layoutConfig.mode === "floor" ? floorSlotCount : slotCount;
+    return Math.min(this.#capacity, countSlots(this.#bounds, this.#layoutConfig));
+  }
+
+  #place(args) {
+    const place = this.#layoutConfig.mode === "floor" ? placeFloorItems : placeItems;
+    return place({ ...args, seed: this.#seed, config: this.#layoutConfig });
   }
 
   get files() {
@@ -309,7 +316,7 @@ export class SessionStore {
     const { width, height } = this.card;
     return this.boardEntries
       .filter((entry) => entry.position)
-      .map((entry) => ({ x: entry.position.x, y: entry.position.y, width, height, group: entry.group }));
+      .map((entry) => ({ ...entry.position, width, height, group: entry.group }));
   }
 
   /**
@@ -331,16 +338,16 @@ export class SessionStore {
     if (pull <= 0) return [];
 
     const candidates = this.#queue.splice(0, pull);
-    const placed = placeItems({
+    const placed = this.#place({
       items: candidates.map((id) => this.#files.get(id).item),
       bounds: this.#bounds,
       existing: this.#obstacles(),
-      seed: this.#seed,
-      config: this.#layoutConfig,
     });
     const ids = [];
     const leftovers = [];
-    for (const id of candidates) {
+    // 배치 순서대로 stackSeq를 부여한다. 사용자가 나중에 포갤 때 쌓기 순서로 쓴다.
+    const ordered = [...candidates].sort((a, b) => (placed.get(a)?.order ?? 0) - (placed.get(b)?.order ?? 0));
+    for (const id of ordered) {
       const spot = placed.get(id);
       if (!spot) {
         leftovers.push(id); // 빈 슬롯이 없다. 더미에 되돌린다
@@ -360,16 +367,16 @@ export class SessionStore {
 
   /** 상자 배치가 바뀌면 보드 카드를 전부 다시 놓는다. 자리가 모자라면 더미로 돌아간다. */
   setBounds(bounds) {
+    if (this.#layoutConfig.mode === "floor" && ["x", "y", "width", "height"].every(key => bounds[key] === this.#bounds[key])) return;
     this.#bounds = { ...bounds };
     const entries = this.boardEntries.filter((entry) => entry.status !== "moving");
-    const placed = placeItems({
+    const placed = this.#place({
       items: entries.map((entry) => entry.item),
       bounds: this.#bounds,
-      seed: this.#seed,
-      config: this.#layoutConfig,
     });
     const leftovers = [];
-    for (const entry of entries) {
+    const ordered = [...entries].sort((a, b) => (placed.get(a.id)?.order ?? 0) - (placed.get(b.id)?.order ?? 0));
+    for (const entry of ordered) {
       const spot = placed.get(entry.id);
       if (!spot) {
         entry.status = "queued";

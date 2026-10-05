@@ -7,6 +7,7 @@
 import { CSS2DObject } from "./scene-kit.js";
 import { loadModel } from "./assets.js";
 import { makeBoxTexture } from "./card-face.js";
+import { makeTextOverlay } from "./text-overlay.js";
 import { TUNING, springStep } from "./tuning.js";
 
 export class BoxObject {
@@ -62,6 +63,7 @@ export class BoxObject {
     this.front.castShadow = true;
     this.front.receiveShadow = true;
     this.parts.add(this.front);
+    this.textOverlay = makeTextOverlay(THREE, this.front, null, 4);
 
     // Four separate rims leave the box genuinely OPEN (the old slab was a lid).
     this.rim = new THREE.Group();
@@ -147,6 +149,7 @@ export class BoxObject {
       bodyColor,
     });
     this.frontMaterial.needsUpdate = true;
+    this.textOverlay.setTexture(this.frontMaterial.map.userData.textTexture);
     this.rimMaterial.color.set(virtual ? TUNING.box.virtualRimColor : TUNING.box.rimColor);
     this.isSelf = isSelf;
 
@@ -217,6 +220,7 @@ export class BoxObject {
 
   dispose() {
     this.disposed = true;
+    this.textOverlay.dispose();
     this.labelObject.removeFromParent();
     this.label.remove();
     this.group.removeFromParent();

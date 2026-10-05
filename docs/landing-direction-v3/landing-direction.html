@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cozium</title>
+  <script>
+    const target = new URL("../../index.html", location.href);
+    target.search = location.search;
+    target.hash = location.hash;
+    location.replace(target.href);
+  </script>
+</head>
+<body><p><a href="../../index.html">Cozium으로 이동하기</a></p></body>
+</html>

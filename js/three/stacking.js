@@ -8,6 +8,7 @@
  * 그냥 겹쳐만 두면 얇은 카드가 두꺼운 카드 속을 뚫고 지나간다.
  */
 import { TUNING } from "./tuning.js";
+import { fileFootprint, formStyle } from "./file-form.js";
 
 /**
  * 파일 크기 → 두께 배율. 로그 척도라 3KB와 600MB가 둘 다 알아볼 수 있게 벌어진다.
@@ -22,34 +23,48 @@ export function thicknessMultiplier(size) {
 }
 
 /** 파일 크기 → 월드 두께 */
-export function thicknessOf(size) {
-  return TUNING.card.thickness * thicknessMultiplier(size);
+export function thicknessOf(size, extension) {
+  return TUNING.card.thickness * thicknessMultiplier(size) * formStyle(extension).thickness;
+}
+
+/** 대기 더미는 추상적인 묶음이다. 큰 대기열도 꺼낸 비율만큼 높이가 줄어든다. */
+export function reservePileShape(remaining, peak) {
+  if (remaining <= 0) return { layers: 0, height: 0 };
+  const ratio = Math.min(1, remaining / Math.max(1, peak));
+  return {
+    layers: Math.min(remaining, Math.max(1, Math.ceil(TUNING.pile.maxVisible * ratio))),
+    height: Math.min(remaining * TUNING.card.thickness,
+      TUNING.card.thickness + (TUNING.pile.maxHeight - TUNING.card.thickness) * ratio),
+  };
 }
 
 /**
  * 책상에 놓인 카드들의 높이를 구한다.
  *
- * @param {Array<{id: string, x: number, y: number, size: number}>} entries
+ * @param {Array<{id: string, x: number, y: number, size: number, extension?: string}>} entries
  *   논리 좌표(카드 좌상단)와 파일 크기. **아래에 깔릴 것부터** 순서대로 넘긴다 (stackSeq 순).
  * @param {{width: number, height: number}} card  논리 카드 크기
  * @returns {Map<string, number>} id → 얹힐 월드 높이 (책상이 0)
  */
 export function stackHeights(entries, card) {
-  const minOverlap = card.width * card.height * TUNING.card.stackOverlap;
   const heights = new Map();
   const laid = [];
 
   for (const entry of entries) {
+    const footprint = fileFootprint(entry.extension, card);
+    const x = entry.x + (card.width - footprint.width) / 2;
+    const y = entry.y + (card.height - footprint.height) / 2;
     let rest = 0;
     for (const other of laid) {
-      const overlapX = Math.min(entry.x + card.width, other.x + card.width) - Math.max(entry.x, other.x);
-      const overlapY = Math.min(entry.y + card.height, other.y + card.height) - Math.max(entry.y, other.y);
+      const overlapX = Math.min(x + footprint.width, other.x + other.width) - Math.max(x, other.x);
+      const overlapY = Math.min(y + footprint.height, other.y + other.height) - Math.max(y, other.y);
+      const minOverlap = Math.min(footprint.width * footprint.height, other.width * other.height) * TUNING.card.stackOverlap;
       // 살짝 스친 것만으로 떠오르면 책상이 들썩여 보인다
       if (overlapX <= 0 || overlapY <= 0 || overlapX * overlapY < minOverlap) continue;
       rest = Math.max(rest, other.top);
     }
     heights.set(entry.id, rest);
-    laid.push({ x: entry.x, y: entry.y, top: rest + thicknessOf(entry.size) + TUNING.card.stackGap });
+    laid.push({ x, y, ...footprint, top: rest + thicknessOf(entry.size, entry.extension) + TUNING.card.stackGap });
   }
 
   return heights;

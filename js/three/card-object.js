@@ -8,20 +8,29 @@
 import { familyColor } from "../ui/board-layout.js";
 import { loadModel } from "./assets.js";
 import { makeCardTexture } from "./card-face.js";
+import { makeTextOverlay } from "./text-overlay.js";
+import { fileFootprint, formStyle } from "./file-form.js";
 import { thicknessMultiplier } from "./stacking.js";
 import { TUNING, springStep } from "./tuning.js";
 
-let sharedGeometry = null;
+const sharedGeometries = new Map();
 
 /** 모서리 둥근 직사각형을 눕혀서 판으로. UV는 0..1로 정규화한다. */
-function buildCardGeometry(THREE, width, depth, thickness) {
+export function buildCardGeometry(THREE, width, depth, thickness, style = {}) {
   const w = width;
   const h = depth;
-  const r = Math.min(TUNING.card.corner, Math.min(w, h) / 2 - 0.01);
+  const r = Math.min(style.corner ?? TUNING.card.corner, Math.min(w, h) / 2 - 0.01);
+  const fold = Math.min(w, h) * (style.fold ?? 0);
   const shape = new THREE.Shape();
   shape.moveTo(-w / 2 + r, -h / 2);
-  shape.lineTo(w / 2 - r, -h / 2);
-  shape.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
+  if (fold) {
+    // 메모지 오른쪽 아래가 안으로 접힌 실루엣. 표면의 접힘과 같은 크기다.
+    shape.lineTo(w / 2 - fold, -h / 2);
+    shape.lineTo(w / 2, -h / 2 + fold);
+  } else {
+    shape.lineTo(w / 2 - r, -h / 2);
+    shape.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
+  }
   shape.lineTo(w / 2, h / 2 - r);
   shape.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2);
   shape.lineTo(-w / 2 + r, h / 2);
@@ -29,7 +38,7 @@ function buildCardGeometry(THREE, width, depth, thickness) {
   shape.lineTo(-w / 2, -h / 2 + r);
   shape.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
 
-  const bevel = TUNING.card.bevel;
+  const bevel = Math.min(style.bevel ?? TUNING.card.bevel, thickness / 3);
   const geometry = new THREE.ExtrudeGeometry(shape, {
     depth: Math.max(0.001, thickness - bevel * 2),
     bevelEnabled: true,
@@ -73,15 +82,23 @@ export class CardObject {
     this.THREE = THREE;
     this.id = id;
     this.item = item;
-    this.width = width;
-    this.depth = depth;
+    const style = formStyle(item.extension);
+    const footprint = fileFootprint(item.extension, { width, height: depth });
+    this.width = width = footprint.width;
+    this.depth = depth = footprint.height;
+    this.form = style.kind;
     this.color = familyColor(item.family);
     this.disposed = false;
 
-    if (!sharedGeometry) sharedGeometry = buildCardGeometry(THREE, width, depth, TUNING.card.thickness);
-    this.geometry = sharedGeometry;
+    const baseThickness = TUNING.card.thickness * style.thickness;
+    const geometryKey = JSON.stringify([width, depth, baseThickness, style]);
+    if (!sharedGeometries.has(geometryKey)) {
+      sharedGeometries.set(geometryKey, buildCardGeometry(THREE, width, depth, baseThickness, style));
+    }
+    this.geometry = sharedGeometries.get(geometryKey);
 
     const tint = new THREE.Color(this.color).lerp(new THREE.Color(TUNING.card.faceColor), 1 - TUNING.card.edgeTint);
+    if (style.edge) tint.set(style.edge);
     this.baseSideColor = tint.clone();
     this.statusColors = {
       conflict: new THREE.Color(TUNING.card.conflictColor),
@@ -89,7 +106,7 @@ export class CardObject {
     };
     this.faceMaterial = new THREE.MeshStandardMaterial({
       map: makeCardTexture(THREE, item, this.color, loadThumbnail),
-      roughness: 0.82,
+      roughness: this.form === "photo" ? 0.58 : this.form === "note" ? 0.9 : 0.82,
       metalness: 0.02,
       emissive: new THREE.Color("#000000"),
       emissiveIntensity: 1,
@@ -111,10 +128,11 @@ export class CardObject {
     this.mesh.userData.cardId = id;
     // 파일 크기만큼 두꺼워지고, 책상 위에 얹힌다 (지오메트리는 y=0을 중심으로 만들어져 있다)
     this.thicknessScale = thicknessMultiplier(item.size);
-    this.thickness = TUNING.card.thickness * this.thicknessScale;
+    this.thickness = baseThickness * this.thicknessScale;
     this.mesh.scale.y = this.thicknessScale;
     this.mesh.position.y = this.thickness / 2;
     this.group.add(this.mesh);
+    this.textOverlay = makeTextOverlay(THREE, this.mesh, this.faceMaterial.map.userData.textTexture, 0);
 
     // 집기 판정을 너그럽게 하는 보이지 않는 상자
     this.hitbox = new THREE.Mesh(
@@ -261,6 +279,7 @@ export class CardObject {
 
   dispose() {
     this.disposed = true;
+    this.textOverlay.dispose();
     this.faceMaterial.dispose();
     this.sideMaterial.dispose();
     this.hitbox.geometry.dispose();
@@ -270,6 +289,6 @@ export class CardObject {
 }
 
 export function disposeSharedCardGeometry() {
-  sharedGeometry?.dispose();
-  sharedGeometry = null;
+  for (const geometry of sharedGeometries.values()) geometry.dispose();
+  sharedGeometries.clear();
 }

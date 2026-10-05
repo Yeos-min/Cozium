@@ -1,0 +1,117 @@
+{
+  "designStatus": "box draft 2; user visual review pending",
+  "svgCount": 13,
+  "xmlValid": true,
+  "allLocalReferencesValid": true,
+  "allSvgIdsUnique": true,
+  "visibleTextNodes": {
+    "cozium-box-front.svg": [
+      "Cozium"
+    ],
+    "cozium-box.svg": [
+      "Cozium"
+    ]
+  },
+  "initialCompositionTextNodes": 0,
+  "manifestLayers": 3,
+  "manifestItems": 80,
+  "logicalAssets": 83,
+  "uniqueInitialImages": 10,
+  "decorativeCursorRemoved": true,
+  "uniqueItemIds": 80,
+  "grid": [
+    10,
+    8
+  ],
+  "boundsValid": true,
+  "sourceSelfContained": true,
+  "collectionBox": {
+    "file": "cozium-box.svg",
+    "front": "cozium-box-front.svg",
+    "size": [
+      240,
+      180
+    ],
+    "opening": [
+      66,
+      64,
+      112,
+      21
+    ],
+    "interior": [
+      [
+        66.2,
+        71.5
+      ],
+      [
+        188.8,
+        72.7
+      ],
+      [
+        171.6,
+        87.5
+      ],
+      [
+        55.6,
+        86
+      ]
+    ]
+  },
+  "boxHasNoFiltersGradientsPatternsOrBadge": true,
+  "nonBoxSvgHashChanges": 0,
+  "files": {
+    "cozium-box-front.svg": [
+      240,
+      180
+    ],
+    "cozium-box.svg": [
+      240,
+      180
+    ],
+    "desktop-composition.svg": [
+      1672,
+      941
+    ],
+    "icons/archive.svg": [
+      68,
+      68
+    ],
+    "icons/audio.svg": [
+      68,
+      68
+    ],
+    "icons/document.svg": [
+      68,
+      68
+    ],
+    "icons/folder-sage.svg": [
+      68,
+      68
+    ],
+    "icons/folder-sand.svg": [
+      68,
+      68
+    ],
+    "icons/photo.svg": [
+      68,
+      68
+    ],
+    "icons/video.svg": [
+      68,
+      68
+    ],
+    "monitor-frame.svg": [
+      1672,
+      941
+    ],
+    "taskbar.svg": [
+      1634,
+      56
+    ],
+    "wallpaper.svg": [
+      1672,
+      941
+    ]
+  },
+  "totalSvgBytes": 45934
+}

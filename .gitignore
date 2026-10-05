@@ -1,0 +1,21 @@
+# Local experiments and preserved source history
+/_archive/
+/output/
+/.claude/
+/.codex/
+/.agents/
+
+# Dependencies and local configuration
+node_modules/
+.env
+.env.*
+!.env.example
+*.local
+*.log
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/

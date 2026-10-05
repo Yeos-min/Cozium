@@ -1,5 +1,8 @@
 /** Procedural room dressing. Decorative objects never participate in file hit testing. */
 import * as THREE from "three";
+import { loadModel } from "./assets.js";
+import { shelfFrames } from "./shelf-frame.js";
+import { TUNING } from "./tuning.js";
 
 const materials = new Map();
 function material(color) {
@@ -83,10 +86,90 @@ function lamp(parent, x, y, z, size = 1) {
   cylinder(group, 0.24, 0.28, 0.06, [0, 0.03, 0], "#937959");
   cylinder(group, 0.035, 0.035, 0.58, [0, 0.33, 0], "#937959");
   const shade = cylinder(group, 0.22, 0.4, 0.4, [0, 0.73, 0], "#efdfb6");
-  shade.material = new THREE.MeshStandardMaterial({ color: "#f4e4c1", emissive: "#edd8a5", emissiveIntensity: 0.32, roughness: 1 });
-  const light = new THREE.PointLight("#ffe2ac", 1.6, 3.5, 2);
+  const practical = TUNING.light.practical;
+  shade.material = new THREE.MeshStandardMaterial({ color: "#f4e4c1", emissive: practical.color, emissiveIntensity: practical.glow, roughness: 1 });
+  const light = new THREE.PointLight(practical.color, practical.intensity, practical.distance, 2);
+  light.name = "corner-lamp-light";
   light.position.set(0, 0.62, 0);
   group.add(light);
+  return group;
+}
+
+function mug(parent, x, y, z) {
+  const group = new THREE.Group();
+  group.position.set(x, y, z);
+  parent.add(group);
+  cylinder(group, 0.12, 0.105, 0.23, [0, 0.115, 0], "#e8dec8");
+  cylinder(group, 0.10, 0.10, 0.006, [0, 0.233, 0], "#71604c");
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.022, 6, 12), material("#e8dec8"));
+  handle.position.set(0.14, 0.12, 0);
+  group.add(handle);
+}
+
+/** These props reuse the existing plant footprint; the file floor and shelf slots stay clear. */
+function bedsideCorner(parent, x, z, back) {
+  const group = new THREE.Group();
+  group.name = "bedside-corner";
+  group.position.set(x, 0, z);
+  parent.add(group);
+  roomBox(group, [1.1, 0.1, 0.94], [0, 1.14, 0], "#b9946d");
+  roomBox(group, [0.97, 0.38, 0.82], [0, 0.89, 0], "#b9946d");
+  roomBox(group, [0.85, 0.28, 0.055], [0, 0.89, 0.44], "#c8ac87", 0.02);
+  roomBox(group, [0.16, 0.035, 0.045], [0, 0.91, 0.48], "#8b7659", 0.01);
+  for (const dx of [-0.43, 0.43]) for (const dz of [-0.34, 0.34]) {
+    roomBox(group, [0.09, 0.7, 0.09], [dx, 0.35, dz], "#a88a64", 0.015);
+  }
+  const bedsideLamp = lamp(group, -0.22, 1.2, 0.13, 0.68);
+  bedsideLamp.name = "bedside-lamp";
+  plant(group, 0.24, 1.2, -0.23, 0.55);
+  mug(group, 0.3, 1.2, 0.27);
+
+  const shelf = new THREE.Group();
+  shelf.name = "bedside-wall-shelf";
+  shelf.position.set(x - 0.37, 2.72, back + 0.2);
+  parent.add(shelf);
+  roomBox(shelf, [1.28, 0.08, 0.42], [0, 0, 0], "#b9946d", 0.02);
+  for (const dx of [-0.43, 0.43]) roomBox(shelf, [0.07, 0.23, 0.25], [dx, -0.14, -0.05], "#b9946d", 0.01);
+  for (let i = 0; i < 3; i++) {
+    const height = 0.46 + i * 0.04;
+    roomBox(shelf, [0.13, height, 0.26], [-0.42 + i * 0.15, 0.04 + height / 2, 0], ["#859073", "#c4a58a", "#ddd0b3"][i], 0.01);
+  }
+  plant(shelf, 0.31, 0.04, 0, 0.36);
+}
+
+function deskDetails(parent, right, half) {
+  const group = new THREE.Group();
+  group.name = "desk-corner";
+  parent.add(group);
+  // The rug stays beneath the desk, outside the 12.8-wide file floor.
+  roomBox(group, [1.84, 0.018, 3.82], [right, 0.012, -0.3], "#c5ab96", 0.008);
+  for (const z of [-1.99, -1.87, 1.27, 1.39]) {
+    roomBox(group, [1.74, 0.003, 0.045], [right, 0.023, z], "#e7dcca", 0);
+  }
+  const keyboard = new THREE.Group();
+  keyboard.position.set(right - 0.32, 1.69, -1.0);
+  keyboard.rotation.y = -Math.PI / 2;
+  group.add(keyboard);
+  roomBox(keyboard, [0.82, 0.035, 0.3], [0, 0, 0], "#ddd3bf", 0.015);
+  for (let row = 0; row < 2; row++) for (let col = 0; col < 8; col++) {
+    roomBox(keyboard, [0.075, 0.012, 0.065], [-0.335 + col * 0.095, 0.026, -0.065 + row * 0.085], "#eee5d5", 0.004);
+  }
+  mug(group, right - 0.5, 1.68, 0.23);
+
+  const pinboard = new THREE.Group();
+  pinboard.name = "desk-pinboard";
+  pinboard.position.set(half.x - 0.24, 3.05, -0.4);
+  pinboard.rotation.y = -Math.PI / 2;
+  group.add(pinboard);
+  roomBox(pinboard, [1.75, 1.15, 0.07], [0, 0, 0], "#b9946d");
+  roomBox(pinboard, [1.59, 0.99, 0.012], [0, 0, 0.043], "#baaa8b", 0);
+  for (const [x, y, color, angle] of [[-0.44, 0.12, "#ede3ce", -0.08], [0.16, 0.22, "#ded69d", 0.06], [0.42, -0.24, "#a7b295", -0.05]]) {
+    const note = roomBox(pinboard, [0.42, 0.38, 0.008], [x, y, 0.058], color, 0.008);
+    note.rotation.z = angle;
+    const pin = new THREE.Mesh(new THREE.SphereGeometry(0.024, 6, 4), material("#856953"));
+    pin.position.set(x, y + 0.14, 0.08);
+    pinboard.add(pin);
+  }
 }
 
 function wallArt(parent, x, y, z, w, h, variant = 0) {
@@ -126,15 +209,32 @@ export function furnishRoom(parent, half) {
   const wood = "#b9946d";
 
   // Bed along the left wall, clear of the playable floor.
-  roomBox(parent, [2.55, 0.35, 4.05], [left, 0.36, -0.9], wood, 0.09);
-  roomBox(parent, [2.6, 1.65, 0.18], [left, 0.95, -2.92], wood, 0.12);
-  roomBox(parent, [2.43, 0.45, 3.85], [left, 0.73, -0.87], "#f1eadd", 0.16);
-  roomBox(parent, [2.4, 0.23, 2.7], [left, 1.0, -0.26], "#a0a286", 0.1);
-  roomBox(parent, [2.42, 0.11, 0.4], [left, 1.14, -1.55], "#b7b59b", 0.06);
+  const bedFallback = new THREE.Group();
+  bedFallback.name = "procedural-bed";
+  parent.add(bedFallback);
+  roomBox(bedFallback, [2.55, 0.35, 4.05], [left, 0.36, -0.9], wood, 0.09);
+  roomBox(bedFallback, [2.6, 1.65, 0.18], [left, 0.95, -2.92], wood, 0.12);
+  roomBox(bedFallback, [2.43, 0.45, 3.85], [left, 0.73, -0.87], "#f1eadd", 0.16);
+  roomBox(bedFallback, [2.4, 0.23, 2.7], [left, 1.0, -0.26], "#a0a286", 0.1);
+  roomBox(bedFallback, [2.42, 0.11, 0.4], [left, 1.14, -1.55], "#b7b59b", 0.06);
   for (const dx of [-0.59, 0.59]) {
-    const pillow = roomBox(parent, [1.04, 0.26, 0.65], [left + dx, 1.07, -2.13], "#ece3cd", 0.12);
+    const pillow = roomBox(bedFallback, [1.04, 0.26, 0.65], [left + dx, 1.07, -2.13], "#ece3cd", 0.12);
     pillow.rotation.y = dx * 0.1;
   }
+  loadModel(THREE, "bed").then((model) => {
+    if (!model) return;
+    if (parent.userData.disposed) {
+      model.traverse((child) => {
+        if (child.isMesh) for (const mat of (Array.isArray(child.material) ? child.material : [child.material])) mat.dispose();
+      });
+      return;
+    }
+    model.name = "imported-bed";
+    model.position.add(new THREE.Vector3(left, 0, -0.9));
+    parent.add(model);
+    parent.remove(bedFallback);
+    bedFallback.traverse((child) => child.geometry?.dispose());
+  });
   // A narrow checked rug under the bed, never under file cards.
   roomBox(parent, [2.9, 0.025, 4.7], [left + 0.1, 0.015, -0.55], "#d4c9af", 0.01);
   for (let row = 0; row < 7; row++) for (let col = 0; col < 4; col++) {
@@ -174,12 +274,14 @@ export function furnishRoom(parent, half) {
   roomBox(parent, [0.85, 0.9, 0.12], [right - 0.9, 1.3, 1.02], "#808b6d", 0.08);
   for (const dx of [-0.32, 0.32]) for (const dz of [-0.31, 0.31]) roomBox(parent, [0.07, 0.8, 0.07], [right - 0.9 + dx, 0.42, 0.6 + dz], "#6e624d", 0.015);
   books(parent, right, 1.68, 0.4);
-  lamp(parent, right + 0.25, 1.68, 1.12, 0.75);
+  const deskLamp = lamp(parent, right + 0.25, 1.68, 1.12, 0.75);
+  deskLamp.name = "desk-lamp";
+  deskDetails(parent, right, half);
 
   wallArt(parent, -0.5, 3.5, back + 0.04, 1.7, 2.12);
   wallArt(parent, 2.0, 3.38, back + 0.04, 1.05, 1.48, 1);
   wallArt(parent, 5.0, 3.5, back + 0.04, 1.2, 1.7, 1);
-  plant(parent, left + 0.05, 0, -4.35, 1.35);
+  bedsideCorner(parent, left + 0.05, -4.35, back);
   plant(parent, right - 0.03, 0, -3.7, 1.6);
 
   // Soft sun patches: low-opacity floor shapes, no screen-space postprocessing.
@@ -220,20 +322,19 @@ export function buildFolderShelf(parent, slots, width, depth, shelfY, height) {
   plant(parent, max - 0.45, top, z, 0.72);
 }
 
-/** 고정 크기의 수납칸. 벽 방향과 단 높이를 포함하며 위 칸에 장식이 끼지 않는다. */
+/** 인접한 수납칸이 판과 경계 기둥을 공유한다. 상자는 별도 오브젝트로 집어 옮긴다. */
 export function buildShelfCells(parent, slots) {
-  for (const slot of slots) {
+  for (const frame of shelfFrames(slots)) {
     const group = new THREE.Group();
-    group.position.set(slot.x, slot.y, slot.z);
-    group.rotation.y = slot.yaw;
+    group.name = "shared-shelf-frame";
+    group.userData.slotIds = frame.slotIds;
+    group.position.set(frame.x, 0, frame.z);
+    group.rotation.y = frame.yaw;
     parent.add(group);
-    const { width: w, depth: d, height: h } = slot;
-    roomBox(group, [w + 0.2, 0.12, d + 0.32], [0, -0.06, 0], "#a78058", 0.02);
-    roomBox(group, [w + 0.2, 0.12, d + 0.32], [0, h + 0.19, 0], "#ba9468", 0.02);
-    roomBox(group, [w + 0.2, h + 0.25, 0.08], [0, h / 2 + 0.065, -d / 2 - 0.12], "#917451", 0);
-    for (const sign of [-1, 1]) {
-      roomBox(group, [0.08, h + 0.25, d + 0.32], [sign * (w / 2 + 0.06), h / 2 + 0.065, 0], "#a78058", 0.015);
-      if (slot.y < 0.5) roomBox(group, [0.12, slot.y - 0.12, d * 0.8], [sign * (w / 2 - 0.08), -(slot.y + 0.12) / 2, 0], "#876c4e", 0.02);
+    for (const part of frame.parts) {
+      const color = part.kind === "back" ? "#b2a084" : part.kind === "foot" ? "#957a5b" : "#b9946d";
+      const mesh = roomBox(group, part.size, part.position, color, part.kind === "back" ? 0 : 0.015);
+      mesh.name = `shelf-${part.kind}`;
     }
   }
 }

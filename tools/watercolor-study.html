@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="../"><title>침대 · 수채화 룩 비교</title>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f0ece3;color:#484b42;font:15px system-ui}header{max-width:1280px;margin:auto;padding:22px 24px}h1{font-size:24px;margin:0 0 6px}p{margin:0 0 16px;color:#73786a}.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}select,button{font:inherit;padding:8px 12px;border:1px solid #ccc8bb;border-radius:6px;background:#fffc}#view{position:relative;width:min(100%,1280px);aspect-ratio:16/9;margin:auto}.board-canvas{width:100%;height:100%;display:block}.board-labels{position:absolute;inset:0;pointer-events:none}pre{max-width:1280px;margin:16px auto;padding:0 24px;white-space:pre-wrap;font-size:13px}a{color:#526d65}
+</style>
+<header><h1>침대 · 수채화 룩 비교</h1><p>같은 모델·카메라에서 필터와 조명의 차이를 확인합니다.</p>
+<div class="controls"><label>비교 <select id="look"><option value="before">이전 설정</option><option value="filter">필터만 변경</option><option value="after" selected>필터 + 오후 조명</option></select></label><label><input id="ink" type="checkbox" checked>외곽선</label><label>필터 <select id="strength"><option value="off">끄기</option><option value="weak" selected>약</option><option value="medium">중</option></select></label><button id="measure" disabled>처리 시간 비교</button><a href="?storage=memory&delay=0&seed=123">방에서 보기</a></div></header>
+<main id="view"></main><pre id="status">침대 불러오는 중…</pre>
+<script type="module">
+import { SceneKit } from './js/three/scene-kit.js';
+import { TUNING, directionFromAngles } from './js/three/tuning.js';
+const controls={look:document.querySelector('#look'),ink:document.querySelector('#ink'),strength:document.querySelector('#strength'),measure:document.querySelector('#measure')};
+const status=document.querySelector('#status');
+const current=structuredClone({filter:TUNING.kuwahara,outline:TUNING.outline,light:TUNING.light});
+const previous={filter:{preset:'weak',strengths:{off:0,weak:.65,medium:.9},radius:4,anisotropy:1,sectorMode:'blend',resolutionScale:.5,maxFilterSize:1280},outline:{thickness:1.25,opacity:.6,color:'#584632',depthThreshold:.015,normalThreshold:.35,normalThicknessRatio:1},light:{key:{color:'#fff0d8',intensity:2.8,elevation:48,azimuth:-55,distance:18},fill:{color:'#dae4ed',intensity:.7,elevation:35,azimuth:130,distance:14},hemi:{sky:'#fff5e2',ground:'#a38d70',intensity:1.65},exposure:1.02}};
+const kit=new SceneKit(document.querySelector('#view'));
+kit.renderer.setPixelRatio(1);
+function resize(){kit.resize();kit.camera.fov=48;kit.camera.position.set(-2.9,3.3,4.1);kit.camera.lookAt(-6.2,1.35,-2);kit.camera.updateProjectionMatrix();}
+resize();addEventListener('resize',resize);
+function draw(){kit.kuwahara.render(kit.scene,kit.camera);}
+function apply(mode=controls.look.value){
+  const look=mode==='after'?current:previous;
+  Object.assign(TUNING.kuwahara,mode==='before'?previous.filter:current.filter);
+  TUNING.kuwahara.preset=controls.strength.value;
+  Object.assign(TUNING.outline,mode==='before'?previous.outline:current.outline);
+  if(!controls.ink.checked)TUNING.outline.thickness=0;
+  const lights=kit.scene.children.filter(n=>n.isDirectionalLight);
+  for(const [light,key] of [[lights[0],'key'],[lights[1],'fill']]){const setting=look.light[key],dir=directionFromAngles(setting.elevation,setting.azimuth);light.color.set(setting.color);light.intensity=setting.intensity;light.position.set(dir.x*setting.distance,dir.y*setting.distance,dir.z*setting.distance);}
+  const hemi=kit.scene.children.find(n=>n.isHemisphereLight);hemi.color.set(look.light.hemi.sky);hemi.groundColor.set(look.light.hemi.ground);hemi.intensity=look.light.hemi.intensity;
+  kit.renderer.toneMappingExposure=look.light.exposure;
+  kit.keyLight.shadow.intensity=look.light.shadow?.intensity??1;
+  kit.keyLight.shadow.radius=look.light.shadow?.radius??3.5;
+  kit.roomGroup.traverse(node=>{const uniforms=node.material?.userData.wallWashUniforms;if(uniforms)uniforms.wallWashAmount.value=mode==='after'?TUNING.wallWash.amount:0;});
+  kit.kuwahara.resize();draw();
+}
+try{
+  const start=performance.now();
+  while(!kit.roomGroup.getObjectByName('imported-bed')){if(performance.now()-start>10000)throw new Error('침대 로딩 시간 초과');await new Promise(requestAnimationFrame);}
+  draw();apply();status.textContent='로딩 완료 · 원본 GLB 유지 · 파일명 텍스트 제외는 실제 방에서도 유지';controls.measure.disabled=false;
+  for(const input of [controls.look,controls.ink,controls.strength])input.addEventListener('change',()=>apply());
+  controls.measure.addEventListener('click',async()=>{
+    controls.measure.disabled=true;const lines=[];const gl=kit.renderer.getContext();
+    for(const [mode,label] of [['before','이전'],['filter','필터만'],['after','전체 조정']]){
+      apply(mode);for(let i=0;i<5;i++)draw();gl.finish();await new Promise(requestAnimationFrame);
+      const begin=performance.now();for(let i=0;i<20;i++){draw();gl.finish();}
+      lines.push(`${label}: ${((performance.now()-begin)/20).toFixed(2)} ms/render`);
+      if(gl.getError()!==gl.NO_ERROR)throw new Error('WebGL 오류');
+    }
+    apply();status.textContent=`${kit.renderer.domElement.width} × ${kit.renderer.domElement.height} · CPU+GPU 동기화, 20회 평균\n${lines.join('\n')}\n고정된 가구 장면의 처리 시간이며 전체 게임 FPS가 아닙니다.`;controls.measure.disabled=false;
+  });
+}catch(error){status.textContent='실패: '+error.message;console.error(error);}
+</script></html>

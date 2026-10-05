@@ -1,7 +1,7 @@
 /**
  * assets.js — 3D 모델 교체 지점. **여기만 고치면 프리미티브가 실제 모델로 바뀐다.**
  *
- * 지금은 전부 `null`이라 코드가 만든 프리미티브(둥근 카드, 나무 상자)를 쓴다.
+ * `null`인 슬롯은 코드가 만든 프리미티브(둥근 카드, 나무 상자)를 쓴다.
  * `models/` 폴더에 .glb를 넣고 아래 경로를 채우면 그 모델이 대신 들어간다.
  * 규격과 주의사항은 `models/README.md`에 있다.
  *
@@ -16,6 +16,8 @@
  * @property {[number,number,number]} [rotation]  라디안. 축이 안 맞을 때
  * @property {[number,number,number]} [offset]    월드 단위 위치 보정
  * @property {boolean} [fit=true]            아래 크기에 맞춰 자동 정규화
+ * @property {string} [nodeName]            GLTFLoader가 불러온 이름으로 일부 오브젝트만 선택
+ * @property {boolean} [opaque=false]       불필요한 GLB 투명 설정 보정
  */
 
 /** @type {Record<string, ModelSlot>} */
@@ -34,6 +36,8 @@ export const MODEL_MANIFEST = {
   pile: { url: null },
   // 책상. fit=false로 두고 scale로 맞추는 편이 낫다
   desk: { url: null, fit: false },
+  // 침대만 내보낸 GLB 전체를 사용하므로 내부 오브젝트 이름 변경에 영향받지 않는다.
+  bed: { url: "./models/Bed.glb", opaque: true, offset: [0, 0.04, 0] },
 };
 
 /** 모델을 정규화해 넣을 기준 크기 (월드 단위) */
@@ -41,6 +45,7 @@ export const SLOT_SIZE = {
   card: { x: 1.72, y: 0.055, z: 1.04 },
   box: { x: 2.0, y: 0.66, z: 1.12 },
   pile: { x: 1.5, y: 0.5, z: 0.92 },
+  bed: { x: 2.55, y: 1.8, z: 4.05 },
 };
 
 const cache = new Map();
@@ -88,7 +93,16 @@ export async function loadModel(THREE, kind, family) {
       );
     }
     const source = await cache.get(url);
-    const object = source.clone(true);
+    const selected = slot.nodeName ? source.getObjectByName(slot.nodeName) : source;
+    if (!selected) throw new Error(`모델 오브젝트를 찾을 수 없습니다: ${slot.nodeName}`);
+    // Keep the selected node's world transform, then normalize a wrapper group.
+    const object = slot.nodeName ? new THREE.Group() : source.clone(true);
+    if (slot.nodeName) {
+      source.updateMatrixWorld(true);
+      const instance = selected.clone(true);
+      selected.matrixWorld.decompose(instance.position, instance.quaternion, instance.scale);
+      object.add(instance);
+    }
 
     if (slot.fit !== false && SLOT_SIZE[kind]) {
       const target = SLOT_SIZE[kind];
@@ -112,6 +126,16 @@ export async function loadModel(THREE, kind, family) {
 
     object.traverse((child) => {
       if (child.isMesh) {
+        if (slot.opaque) {
+          const opaqueMaterial = (sourceMaterial) => {
+            const result = sourceMaterial.clone();
+            result.transparent = false;
+            result.opacity = 1;
+            result.depthWrite = true;
+            return result;
+          };
+          child.material = Array.isArray(child.material) ? child.material.map(opaqueMaterial) : opaqueMaterial(child.material);
+        }
         child.castShadow = true;
         child.receiveShadow = true;
       }

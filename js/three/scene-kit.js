@@ -14,6 +14,8 @@ import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer
 
 import { BOARD_SIZE, boxZoneFor, playBoundsFor } from "../ui/board-layout.js";
 import { loadModel } from "./assets.js";
+import { KuwaharaEffect } from "./kuwahara-effect.js";
+import { addWallWash } from "./wall-wash.js";
 import { furnishRoom, buildShelfCells, disposeRoomGroup } from "./cozy-room.js";
 import { moveWalker, safeWalkPosition } from "./walk-collision.js";
 import { TUNING, UNIT, directionFromAngles, springStep } from "./tuning.js";
@@ -121,11 +123,12 @@ export class SceneKit {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = TUNING.light.exposure;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.domElement.classList.add("board-canvas");
+    this.kuwahara = new KuwaharaEffect(this.renderer, TUNING.kuwahara, TUNING.outline);
 
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.domElement.classList.add("board-labels");
@@ -159,6 +162,7 @@ export class SceneKit {
     this.keyLight.shadow.radius = shadow.radius;
     this.keyLight.shadow.bias = shadow.bias;
     this.keyLight.shadow.normalBias = shadow.normalBias;
+    this.keyLight.shadow.intensity = shadow.intensity ?? 1;
     const extent = Math.max(BOARD_SIZE.width, BOARD_SIZE.height) * UNIT * 0.62;
     const shadowCamera = this.keyLight.shadow.camera;
     shadowCamera.left = -extent;
@@ -238,6 +242,7 @@ export class SceneKit {
     };
 
     const wallMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0 });
+    addWallWash(wallMaterial, TUNING.wallWash);
     const trimMaterial = new THREE.MeshStandardMaterial({ color: trimColor, roughness: 0.8, metalness: 0 });
     const spans = [
       { w: this.roomHalf.x * 2 + wallThickness * 2, d: wallThickness, x: 0, z: -this.roomHalf.z },
@@ -527,6 +532,7 @@ export class SceneKit {
     if (this.isWalking) this.camera.fov = this.#walkFov();
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
+    this.kuwahara.resize();
     this.labelRenderer.setSize(width, height);
     if (this.mode === "orbit") Object.assign(this.orbit, this.#orbitTarget(TUNING.camera.presets[this.presetId]));
     this.#applyCamera();
@@ -598,7 +604,7 @@ export class SceneKit {
       if (this.mode === "walk") this.#stepWalk(dt);
       else this.#stepOrbit(dt);
       onFrame(dt);
-      this.renderer.render(this.scene, this.camera);
+      this.kuwahara.render(this.scene, this.camera);
       this.labelRenderer.render(this.scene, this.camera);
     });
   }
@@ -610,7 +616,9 @@ export class SceneKit {
   }
 
   dispose() {
+    if (this.roomGroup) this.roomGroup.userData.disposed = true;
     this.renderer.setAnimationLoop(null);
+    this.kuwahara.dispose();
     this.scene.traverse((object) => {
       if (object.isMesh) {
         object.geometry?.dispose();

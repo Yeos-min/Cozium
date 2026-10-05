@@ -11,13 +11,13 @@ Node 20 이상.
 node helper/desktop-helper.mjs
 ```
 
-실행하면 랜덤 포트와 일회용 토큰을 만들고 브라우저를 `https://…/?helper=PORT&token=…`로 연다. 웹 페이지는 주소창에서 토큰을 지우고 메모리에만 둔다.
+실행하면 랜덤 포트와 일회용 토큰을 만들고 지정한 `--app` 주소에 `?helper=PORT&token=…`를 붙여 브라우저를 연다. 기본은 첫 허용 출처의 루트이며, 새 랜딩은 연결 정보를 보존해 `app.html`로 이어 준다. 웹 페이지는 주소창에서 토큰을 지우고 메모리에만 둔다.
 브라우저가 안 열리면 콘솔의 포트와 토큰을 페이지에 직접 넣는다.
 
 개발용(localhost:5173 페이지 + 가짜 바탕화면):
 
 ```bash
-node helper/desktop-helper.mjs --dev --app http://localhost:5173 --desktop "C:\Users\me\Desktop\_test" --no-open
+node helper/desktop-helper.mjs --dev --app http://localhost:5173/app.html --desktop "C:\Users\me\Desktop\_test" --no-open
 ```
 
 | 옵션 | 뜻 |
@@ -25,7 +25,7 @@ node helper/desktop-helper.mjs --dev --app http://localhost:5173 --desktop "C:\U
 | `--desktop <경로>` | 바탕화면 대신 쓸 폴더. **테스트는 반드시 이걸로.** 기본은 레지스트리의 `User Shell Folders\Desktop` (OneDrive 리디렉션 대응), 없으면 `%USERPROFILE%\Desktop` |
 | `--origin <url>` | 허용할 페이지 출처. 여러 번 가능. 기본은 배포 origin |
 | `--dev` | `http://localhost:5173`, `http://127.0.0.1:5173`도 허용 |
-| `--app <url>` | 브라우저로 열 페이지. 기본은 첫 허용 출처 |
+| `--app <url>` | 브라우저로 열 페이지. 기본은 첫 허용 출처. 배포 주소를 직접 지정할 때는 저장소 경로와 `app.html`까지 포함 |
 | `--port <n>` | 고정 포트. 기본 0 = 랜덤 |
 | `--no-open` | 브라우저를 열지 않음 |
 | `--idle-minutes <n>` | 요청 없이 이 시간이 지나면 종료. 기본 15 |
@@ -78,5 +78,12 @@ npm test
 
 ## 배포
 
+GitHub Pages에서 실행할 때는 페이지의 출처와 실제 정리 앱 주소를 구분한다. `OWNER`, `REPOSITORY`와 테스트 폴더 경로는 실제 값으로 바꾼다.
+
+```bash
+node helper/desktop-helper.mjs --origin https://OWNER.github.io --app https://OWNER.github.io/REPOSITORY/app.html --desktop "<테스트 폴더의 절대 경로>"
+```
+
+`--origin`에는 저장소 경로를 넣지 않는다. 배포된 HTTPS 페이지에서 localhost Helper로 연결하는 브라우저 권한 흐름은 실제 기기에서 별도 확인이 필요하다.
 지금은 `.mjs` 파일 하나다. Node가 없는 사람을 위한 단일 exe(Node SEA)와 SmartScreen·코드 서명은 다음 단계다.
 GitHub Releases에 올린다.

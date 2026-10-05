@@ -88,9 +88,19 @@ export class Onboarding {
       if (this.#helperProvider) this.#onStart(this.#helperProvider);
     });
 
-    loadSample.addEventListener("click", () => {
-      if (this.#memoryProvider) this.#guard(() => this.#onStart(this.#memoryProvider), "가상 파일을 열지 못했습니다");
-    });
+    loadSample.addEventListener("click", () => this.startSample());
+  }
+
+  /** 랜딩 CTA와 기존 체험 버튼이 같은 시작 경로를 쓴다. */
+  async startSample() {
+    if (!this.#memoryProvider) return false;
+    return this.#guard(() => this.#onStart(this.#memoryProvider), "가상 파일을 열지 못했습니다");
+  }
+
+  /** 파일은 사용자가 직접 드롭할 때만 읽는다. */
+  focusWebImport() {
+    this.#els.webDrop.focus({ preventScroll: true });
+    this.#els.webDrop.scrollIntoView({ block: "center" });
   }
 
   /** URL의 ?helper=PORT&token=… 로도, 폼으로도 온다. */
@@ -121,13 +131,15 @@ export class Onboarding {
   }
 
   async #guard(task, failureTitle) {
-    if (this.#busy) return;
+    if (this.#busy) return false;
     this.#busy = true;
     this.refresh();
     try {
       await task();
+      return true;
     } catch (error) {
       this.#status.logError(failureTitle, error?.message);
+      return false;
     } finally {
       this.#busy = false;
       this.refresh();
