@@ -1,0 +1,36 @@
+{
+  "tool": "built-in image_gen.imagegen",
+  "mode": "edit compositing, then transparent background extraction",
+  "savedPaths": {
+    "sceneGuide": "D:/울산대/3학년 2학기/웹디자인2/Project/desktop-cleanup-prototype/docs/landing-direction-v3/assets/box-perspective-scene.png",
+    "sprite": "D:/울산대/3학년 2학기/웹디자인2/Project/desktop-cleanup-prototype/assets/landing/parts/room-v3/closed-box-room-v3.png"
+  },
+  "canvas": [
+    1672,
+    941
+  ],
+  "sourceRect": [
+    691,
+    540,
+    322,
+    183
+  ],
+  "sourceContact": [
+    249,
+    181
+  ],
+  "roomFoot": [
+    940,
+    721
+  ],
+  "prompts": [
+    {
+      "role": "room edit target + approved carton design reference",
+      "text": "Use case: compositing / precise-object-edit.\nImage 1 is the EDIT TARGET: the wide illustrated room with empty sunlit floor. Keep its full 1672x941 wide composition, furniture, plants, wall, window, floorboard lines, foreground files, door, colors and existing sunlight unchanged.\nImage 2 is the APPROVED BOX DESIGN to insert. Preserve its broad low kraft carton, one ivory horizontal packing tape with the exact green serif word \"Cozium\", small side carrying slot, restrained dark outlines and quiet texture. Do not redesign the brand or add decorations.\n\nInsert exactly ONE closed carton resting physically on the central sunlit floor, left of the chair and clear of the foreground file pile. Its visible silhouette should be about 295 to 310 pixels wide in the 1672-pixel room, with footprint center near (925,735). It must belong to the room's standing first-person camera, seen looking down at a floor object from the doorway. Re-render the SAME DESIGN at this camera; do not paste the nearly eye-level catalogue silhouette of image 2. Show a more naturally visible top plane and foreshortened front vertical plane. Orient the long bottom/front edge subtly upward to the right, following the nearby floorboards' receding direction. All box edges must share the room's perspective; avoid an arbitrary flat screen-space rectangle. Maintain a compact broad moving carton, not a giant chest or a different box.\n\nMatch the actual sunlight in Image 1. The window at upper left lights the top and left/front plane warmly; the right face is darker with reflected cream floor light. Draw a physically grounded cast shadow attached to the full base footprint, extending diagonally toward the lower right like the desk and chair shadows already in this room. This must be a coherent projected solid silhouette on the floor, not a symmetric oval, an offset outline, or a little parallel V-strip. The nearest underside has a very narrow darker contact shadow; the larger projected shadow uses the room's warm taupe shadow tone with gently softened distant edges. There must be no bright gap or luminous halo around the bottom. Preserve the floor's texture and existing dappled sunlight where not occluded.\n\nOutput the complete WIDE room with the single matching box and its correct cast shadow added. Preserve every other room element. No UI, no captions, no human hand, no cursor. The only new text is the existing approved \"Cozium\" on the tape."
+    },
+    {
+      "role": "scene edit target; extract same carton in place, remove floor and shadow",
+      "text": "Use case: background-extraction / precise-object-edit.\nThe referenced wide room image is the EDIT TARGET. Extract ONLY its single CLOSED Cozium carton in the sunlit floor area. This exact already integrated carton is the target, NOT a new box design.\n\nPreserve the carton pixel geometry, the more visible top plane, the camera angle, its broad front and right side, the lettering \"Cozium\" on the ivory tape, the side handle slot, its perspective, colors, folds, linework and shading. Do not make it face the camera differently. Do not substitute the earlier catalogue carton. Do not increase its size or recenter it.\nKeep the full original 1672x941 landscape canvas and EXACT original object placement. The carton silhouette lies approximately x693 to1012, y541 to720. Keep it small in that same region of the otherwise transparent full canvas. This alignment is required for layered parallax compositing.\n\nRemove every room/background pixel, all furniture, plants, floor, floor texture, and the CAST SHADOW ON THE FLOOR. Retain only the physical cardboard object and its dark natural lower outline. The underside must be cut out cleanly, with no floor halo, no blurry brown surround, no ground patch or shadow attached. Transparent holes in the side carrying slot should remain dark as part of the object's interior, not turn into bright white. Use actual RGBA alpha transparency around the entire box. No checkerboard painted into the image. No new text, no logo changes, no hands or cursor.\nOutput exactly one transparent carton layer at the same full-canvas coordinates."
+    }
+  ]
+}

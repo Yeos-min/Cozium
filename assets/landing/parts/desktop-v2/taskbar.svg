@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1634" height="56" viewBox="0 0 1634 56" fill="none">
+<defs>
+<linearGradient id="taskbar-glass" x1="817" y1="0" x2="817" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF8E5" stop-opacity=".74"/><stop offset="1" stop-color="#F7EDD6" stop-opacity=".95"/></linearGradient>
+<linearGradient id="taskbar-app" x1="0" y1="0" x2="0" y2="34" gradientUnits="userSpaceOnUse"><stop stop-color="#FBF1DD"/><stop offset="1" stop-color="#E8DCC2"/></linearGradient>
+</defs>
+<rect x=".5" y=".5" width="1633" height="55" rx="14.5" fill="url(#taskbar-glass)" stroke="#FFFFFF" stroke-opacity=".83"/>
+<path d="M17 55H1617" stroke="#BAAC8D" stroke-opacity=".3"/>
+<g transform="translate(714 11)">
+<rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><path d="M17 25V15" stroke="#779270" stroke-width="1.8" stroke-linecap="round"/><path d="M16.8 19C10.7 19.2 8.8 15.7 8.7 11.6C13.8 11.3 17.1 13.8 16.8 19Z" fill="#A7B995"/><path d="M17.4 17.2C17.1 11.6 20.3 8.8 25.1 8.8C25.3 13.6 22.9 17 17.4 17.2Z" fill="#7F9E77"/>
+</g>
+<g transform="translate(758 11)"><rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><path d="M8 12.5C8 11.4 8.9 10.5 10 10.5H15L17.5 13H24C25.1 13 26 13.9 26 15V23C26 24.1 25.1 25 24 25H10C8.9 25 8 24.1 8 23V12.5Z" fill="#8E9D7B" stroke="#536B50" stroke-width=".8"/><path d="M9.2 15H24.8" stroke="#EAF0DE" stroke-width=".8"/></g>
+<g transform="translate(802 11)"><rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><rect x="8" y="9" width="18" height="16" rx="2.5" fill="#ADCCC4" stroke="#697E68" stroke-width=".8"/><circle cx="21.5" cy="13.5" r="2" fill="#E1B56E"/><path d="M8.5 21L14 15.5L22 24.5H10.5C9.4 24.5 8.5 23.6 8.5 22.5V21Z" fill="#73936F"/><path d="M17.5 24.5L23 19.5L25.5 22V22.5C25.5 23.6 24.6 24.5 23.5 24.5H17.5Z" fill="#4D725A"/></g>
+<g transform="translate(846 11)"><rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><rect x="10" y="8" width="14" height="19" rx="2.5" fill="#FFF5DF" stroke="#897B62" stroke-width=".9"/><path d="M13.5 14H20.5M13.5 18H20.5M13.5 22H18.5" stroke="#7D8B68" stroke-width="1.3" stroke-linecap="round"/></g>
+<g transform="translate(890 11)"><rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><rect x="8.5" y="9.5" width="17" height="15" rx="3" fill="#B0BE98" stroke="#6C805A" stroke-width=".8"/><path d="M13.2 24.5V27M20.8 24.5V27M12 27H22" stroke="#6C805A" stroke-width=".9" stroke-linecap="round"/><circle cx="17" cy="17" r="3.5" stroke="#566F4F" stroke-width="1.4"/><path d="M17 13.5V20.5M13.5 17H20.5" stroke="#566F4F" stroke-width=".9"/></g>
+<g stroke="#746D58" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".85"><path d="M1533 24C1537 20 1543 20 1547 24M1536 27C1538.5 24.5 1541.5 24.5 1544 27M1539 30C1539.7 29.3 1540.3 29.3 1541 30"/><path d="M1560 24H1563L1567 20.5V35.5L1563 32H1560V24Z"/><path d="M1570 24.5C1572 26.5 1572 29.5 1570 31.5"/><rect x="1586" y="23" width="19" height="10" rx="2"/><path d="M1605 26H1607V30H1605"/></g><rect x="1589" y="26" width="11" height="4" rx=".8" fill="#85926F"/>
+</svg>

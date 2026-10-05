@@ -18,7 +18,7 @@ import {
 } from "../ui/board-layout.js";
 import { BoxObject } from "./box-object.js";
 import { CardObject, disposeSharedCardGeometry } from "./card-object.js";
-import { stackHeights } from "./stacking.js";
+import { reservePileShape, stackHeights } from "./stacking.js";
 import { CSS2DObject, SceneKit, THREE, toLogical, toWorld, toWorldSize } from "./scene-kit.js";
 import { TUNING } from "./tuning.js";
 import { BoxPlacementState, rotateBox, supportsBox, validateBoxPlacement } from "./box-placement.js";
@@ -82,6 +82,7 @@ export class Board3D {
   #boxes = new Map();
   #pile;
   #pileCards = [];
+  #queuedPeak = 0;
   #overlay;
   #breadcrumb;
   #marquee;
@@ -632,9 +633,10 @@ export class Board3D {
   #restHeights() {
     const dragging = this.#drag?.ids;
     const resting = this.#store.boardEntries
-      .filter((entry) => entry.position && entry.status !== "moving" && !dragging?.has(entry.id))
+      .filter((entry) => entry.position && entry.status !== "moving" && !dragging?.has(entry.id)
+        && !(this.walking && this.#store.isSelected(entry.id)))
       .sort((a, b) => (a.stackSeq ?? 0) - (b.stackSeq ?? 0))
-      .map((entry) => ({ id: entry.id, x: entry.position.x, y: entry.position.y, size: entry.item.size }));
+      .map((entry) => ({ id: entry.id, x: entry.position.x, y: entry.position.y, size: entry.item.size, extension: entry.item.extension }));
     return stackHeights(resting, this.#store.card);
   }
 
@@ -741,7 +743,9 @@ export class Board3D {
     this.#pile.position.set(spot.x, 0, spot.z);
 
     const queued = store.queuedCount;
-    const visible = Math.min(TUNING.pile.maxVisible, queued);
+    this.#queuedPeak = Math.max(this.#queuedPeak, queued);
+    const shape = reservePileShape(queued, this.#queuedPeak);
+    const visible = shape.layers;
     while (this.#pileCards.length < visible) {
       const card = new THREE.Mesh(this.pileGeometry, this.pileMaterial);
       card.castShadow = true;
@@ -760,6 +764,12 @@ export class Board3D {
       const card = this.#pileCards.pop();
       card.removeFromParent();
     }
+    this.#pileCards.forEach((card, index) => {
+      const thickness = Math.min(TUNING.card.thickness, shape.height / visible);
+      card.scale.y = thickness / TUNING.card.thickness;
+      card.position.y = thickness / 2 + index * (shape.height - thickness) / Math.max(1, visible - 1);
+    });
+    this.pileLabelObject.position.y = shape.height + 0.16;
 
     // 책상을 다 치우면 더미가 다음 차례임을 알린다 (바닥이 드러나는 순간)
     const ready = queued > 0 && store.unprocessedCount === 0;

@@ -51,5 +51,5 @@ createServer(async (request, response) => {
     response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" }).end("Not found");
   }
 }).listen(port, "127.0.0.1", () => {
-  console.log(`정리대 dev server → http://localhost:${port}/  (메모리 모드: /?storage=memory)`);
+  console.log(`Cozium dev server → http://localhost:${port}/  (샘플 체험: /app.html?entry=sample&storage=memory)`);
 });

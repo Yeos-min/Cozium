@@ -606,6 +606,8 @@ body.is-playing .stage-side { background: #34382eef; border-color: #8c846d; back
 .room-settings-title { font-size: 19px; margin: 0 0 14px; }
 .room-settings-controls { display: grid; gap: 12px; margin: 22px 0; }
 .room-settings-controls .control { justify-content: space-between; }
+.room-settings-controls input[type="range"] { width: 116px; min-width: 64px; accent-color: #c9b782; }
+.room-settings-controls output { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
 .arrange-hint { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); max-width: 80%; padding: 12px 20px; border: 1px solid #d8dcc09c; border-radius: 12px; background: #3e4939e8; color: #fff7e5; font-size: 14px; text-align: center; }
 body.is-playing #arrange-toggle { position: fixed; right: 86px; top: 24px; background: #514734c9; color: #fff4df; border: 1px solid #fff2cd40; pointer-events: auto; }
 body.is-playing #arrange-toggle[aria-pressed="true"] { background: #64734de8; border-color: #d4dfb5; }

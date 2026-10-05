@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><title>Bed.glb 확인</title>
+<style>body{margin:0;background:#e7dfcf;font:14px system-ui}aside{position:fixed;top:16px;left:16px;padding:14px;background:#fffe;border-radius:12px;z-index:1}canvas{display:block}pre{font-size:12px}label{display:block;margin:8px 0}</style>
+<aside><strong>Bed.glb · 모델 확인</strong><label>오브젝트 <select id="part"></select></label><label>회전 <input id="angle" type="range" min="-180" max="180" value="35"></label><pre id="info">불러오는 중…</pre></aside>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js","three/addons/":"../vendor/three/addons/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#e7dfcf');
+const renderer = new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.append(renderer.domElement);
+const camera = new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.001,100);
+scene.add(new THREE.HemisphereLight('#fff5df','#8c947e',2));const light=new THREE.DirectionalLight('#ffffff',3);light.position.set(2,4,3);scene.add(light);
+const root=(await new GLTFLoader().loadAsync('../models/Bed.glb')).scene;
+root.traverse(n=>{if(n.isMesh && n.material.name==='Bed'){n.material.transparent=false;n.material.opacity=1;n.material.depthWrite=true;}});
+const part=document.querySelector('#part'), angle=document.querySelector('#angle'),info=document.querySelector('#info');
+part.add(new Option('전체 내보내기','all'));root.children.forEach((node,i)=>part.add(new Option(node.name,String(i))));
+let object, distance=1, target=new THREE.Vector3();
+function show(){if(object)scene.remove(object);object=part.value==='all'?root.clone(true):root.children[Number(part.value)].clone(true);scene.add(object);const box=new THREE.Box3().setFromObject(object),size=box.getSize(new THREE.Vector3());if(box.isEmpty()){info.textContent='빈 오브젝트';return;}target=box.getCenter(new THREE.Vector3());distance=size.length()*1.65;let triangles=0;object.traverse(n=>{if(n.isMesh)triangles+=(n.geometry.index?.count??n.geometry.attributes.position.count)/3});info.textContent=`${object.name}\n크기 ${size.toArray().map(n=>n.toFixed(4)).join(' × ')}\n삼각형 ${triangles.toLocaleString()}`;draw();}
+function draw(){const a=Number(angle.value)*Math.PI/180;camera.position.copy(target).add(new THREE.Vector3(Math.sin(a)*distance,distance*.65,Math.cos(a)*distance));camera.lookAt(target);renderer.render(scene,camera);}
+part.onchange=show;angle.oninput=draw;window.onresize=()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();draw()};part.value='all';show();
+</script></html>

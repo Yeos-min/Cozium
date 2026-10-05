@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180" viewBox="0 0 240 180" fill="none">
+<path d="M41 151.2L180.5 153.4L205.8 121.4L210 125.6L184.1 158L44.6 156Z" fill="#61513E" opacity=".1"/>
+<g stroke="#61513E" stroke-width="1" stroke-linejoin="round" stroke-linecap="round">
+<path d="M63 58L63.3 26.3L191.8 28.1L204.1 59.2Z" fill="#D8B58B"/>
+<path d="M63 58L204.1 59.2L180.2 93.1L39.2 91.3Z" fill="#C49C70"/>
+<path d="M63 58L204.1 59.2L188.8 72.7L66.2 71.5Z" fill="#A07C54" stroke="none"/>
+<path d="M63 58L39.2 91.3L55.6 86L66.2 71.5Z" fill="#C49C70" stroke="none"/>
+<path d="M204.1 59.2L180.2 93.1L171.6 87.5L188.8 72.7Z" fill="#A07C54" stroke="none"/>
+<path d="M66.2 71.5L188.8 72.7L171.6 87.5L55.6 86Z" fill="#C49C70" stroke-width=".65"/>
+<path d="M63 58L39.2 91.3L9.4 77.9L30.2 46.1Z" fill="#D8B58B"/>
+<path d="M204.1 59.2L180.2 93.1L220.1 101.3L235.1 67.3Z" fill="#D8B58B"/>
+</g>
+<g stroke="#61513E" stroke-width="1" stroke-linejoin="round" stroke-linecap="round">
+<path d="M39.2 91.3L180.2 93.1L180.5 153.4L41 151.2Z" fill="#C49C70"/>
+<path d="M180.2 93.1L204.1 59.2L205.8 121.4L180.5 153.4Z" fill="#A07C54"/>
+<path d="M39.2 91.3L180.2 93.1L171.2 116L30.4 112.2Z" fill="#D8B58B"/>
+</g>
+<text x="106.2" y="139.5" fill="#365446" font-family="Georgia,serif" font-size="13.4" font-weight="700" font-style="italic" text-anchor="middle" transform="rotate(.6 106.2 138)">Cozium</text>
+</svg>

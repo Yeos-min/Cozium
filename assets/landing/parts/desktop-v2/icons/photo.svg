@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="68" height="68" viewBox="0 0 68 68" fill="none">
+<defs>
+<filter id="photo-shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="1.1" dy="2.2" stdDeviation="1.5" flood-color="#584B32" flood-opacity="0.11"/></filter>
+<linearGradient id="photo-paper" x1="13" y1="15" x2="55" y2="55" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFDF3"/><stop offset="1" stop-color="#EFE4CB"/></linearGradient>
+<linearGradient id="photo-sky" x1="34" y1="21" x2="34" y2="46" gradientUnits="userSpaceOnUse"><stop stop-color="#ACC9C4"/><stop offset="1" stop-color="#DBE0C9"/></linearGradient>
+</defs>
+<g filter="url(#photo-shadow)"><rect x="10.5" y="15.5" width="47" height="39" rx="5" fill="url(#photo-paper)" stroke="#766D58" stroke-opacity=".76" stroke-width=".8"/><rect x="15" y="20" width="38" height="26.5" rx="2" fill="url(#photo-sky)"/><circle cx="44" cy="26.5" r="3.5" fill="#E9B96F"/><path d="M15 41L26.5 30.5L40 46.5H17C15.9 46.5 15 45.6 15 44.5V41Z" fill="#7C9473"/><path d="M27.5 46.5L41.5 35.5L53 43V44.5C53 45.6 52.1 46.5 51 46.5H27.5Z" fill="#496E5A"/><path d="M15.5 17H52" stroke="#FFFFFF" stroke-opacity=".82" stroke-linecap="round"/></g>
+</svg>

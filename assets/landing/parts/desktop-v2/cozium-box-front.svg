@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180" viewBox="0 0 240 180" fill="none">
+
+<g stroke="#61513E" stroke-width="1" stroke-linejoin="round" stroke-linecap="round">
+<path d="M39.2 91.3L180.2 93.1L180.5 153.4L41 151.2Z" fill="#C49C70"/>
+<path d="M180.2 93.1L204.1 59.2L205.8 121.4L180.5 153.4Z" fill="#A07C54"/>
+<path d="M39.2 91.3L180.2 93.1L171.2 116L30.4 112.2Z" fill="#D8B58B"/>
+</g>
+<text x="106.2" y="139.5" fill="#365446" font-family="Georgia,serif" font-size="13.4" font-weight="700" font-style="italic" text-anchor="middle" transform="rotate(.6 106.2 138)">Cozium</text>
+</svg>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<title>파일 형태 · 브라우저 검증</title>
+<style>
+  body { margin: 32px; background: #e8dfcf; color: #34392f; font: 16px system-ui, sans-serif; }
+  h1 { font-size: 24px; } #results { white-space: pre-wrap; }
+  #samples { display: flex; flex-wrap: wrap; gap: 28px; }
+  figure { margin: 0; width: 280px; } canvas { width: 280px; box-shadow: 0 6px 15px #51473122; }
+  figcaption { margin: 12px 0; }
+</style>
+<h1>파일 형태 · 브라우저 검증</h1>
+<p>합성 테스트 이미지로 실제 카드 텍스처를 검사합니다. 사용자 파일은 읽지 않습니다.</p>
+<pre id="results">검사 중…</pre><div id="samples"></div>
+<script type="module">
+  import * as THREE from "../vendor/three/three.module.min.js";
+  import { makeCardTexture, disposeCardTextures } from "../js/three/card-face.js";
+  const results = document.querySelector("#results");
+  const checks = [];
+  const check = (condition, message) => { if (!condition) throw new Error(message); checks.push(`통과 · ${message}`); };
+  const blobOf = (canvas) => new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+  const paint = (width, height, draw) => {
+    const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
+    draw(canvas.getContext("2d")); return canvas;
+  };
+  const portrait = await blobOf(paint(40, 120, ctx => {
+    ctx.fillStyle = "#ee3344"; ctx.fillRect(0, 0, 40, 60);
+    ctx.fillStyle = "#2244ee"; ctx.fillRect(0, 60, 40, 60);
+  }));
+  const transparent = await blobOf(paint(120, 80, ctx => {
+    ctx.fillStyle = "#33bb55"; ctx.fillRect(35, 15, 50, 50);
+  }));
+  const specimens = [
+    { name: "세로_사진.PNG", extension: "PNG", size: portrait.size, blob: portrait },
+    { name: "투명_배경.png", extension: "png", size: transparent.size, blob: transparent },
+    { name: "읽을_수_없는_사진.png", extension: "png", size: 128, blob: new Blob(["invalid PNG"]) },
+    { name: "한도를_넘는_사진.png", extension: "png", size: 26 * 1024 * 1024 },
+    { name: "아주_긴_한글_파일명도_남아있는_메모입니다.txt", extension: "txt", size: 3072 },
+    { name: "빈_메모.TXT", extension: "TXT", size: 0 },
+    { name: "기존_문서.pdf", extension: "pdf", size: 120000 },
+  ];
+  let loaderCalls = 0;
+  const textures = specimens.map((item, index) => makeCardTexture(THREE, { ...item, id: `preview-${index}` }, "#ccb989", async () => {
+    loaderCalls++; return item.blob;
+  }));
+  try {
+    const deadline = performance.now() + 5000;
+    while ((textures[0].version < 2 || textures[1].version < 2) && performance.now() < deadline) {
+      await new Promise(requestAnimationFrame);
+    }
+    check(textures[0].version >= 2 && textures[1].version >= 2, "실제 PNG 바이트 디코딩 후 썸네일 갱신");
+    const pixels = (index, x, y) => textures[index].image.getContext("2d").getImageData(x, y, 1, 1).data;
+    const top = pixels(0, 200, 25), bottom = pixels(0, 200, 240);
+    check(top[0] > 200 && bottom[2] > 200, "세로 사진의 위·아래가 잘리지 않음");
+    const alpha = pixels(1, 35, 80);
+    check(alpha[3] === 255 && alpha[0] > 150, "투명 PNG의 빈 영역에 사진 바탕 유지");
+    check(textures[2].version === 1 && textures[2].image.height === 320, "디코딩 실패 시 사진 프레임과 파일명 유지");
+    check(loaderCalls === 3, "용량 제한 사진·TXT·PDF는 썸네일 요청 안 함");
+    check(textures[4].image.width === textures[4].image.height && textures[5].image.height === 400, "긴 이름·0바이트·대문자 TXT도 정사각 메모지");
+    check(textures[6].image.width === 400 && textures[6].image.height === 244, "PDF의 기존 카드 비례 유지");
+    specimens.forEach((item, index) => {
+      const texture = textures[index], figure = document.createElement("figure"), caption = document.createElement("figcaption");
+      const preview = paint(texture.image.width, texture.image.height, ctx => {
+        ctx.drawImage(texture.image, 0, 0); ctx.drawImage(texture.userData.textTexture.image, 0, 0);
+      });
+      caption.textContent = item.name; figure.append(preview, caption); document.querySelector("#samples").append(figure);
+    });
+    results.textContent = `${checks.length}개 통과\n${checks.join("\n")}`;
+    results.dataset.status = "passed";
+  } catch (error) {
+    results.textContent = `${checks.join("\n")}\n실패 · ${error.message}`; results.dataset.status = "failed";
+    console.error(error);
+  }
+  window.addEventListener("pagehide", disposeCardTextures, { once: true });
+</script>
+</html>

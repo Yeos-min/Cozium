@@ -1,0 +1,114 @@
+[
+  {
+    "file": "foreground-door-right.png",
+    "size": [
+      1672,
+      941
+    ],
+    "source_mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      254
+    ],
+    "opaque_fraction": 0.0,
+    "transparent_fraction": 0.95089,
+    "partial_alpha_fraction": 0.04911,
+    "mostly_opaque_fraction": 0.04458,
+    "visible_bounds": [
+      998,
+      0,
+      1672,
+      941
+    ],
+    "substantial_bounds_alpha_128": [
+      1568,
+      0,
+      1672,
+      941
+    ]
+  },
+  {
+    "file": "foreground-files-right.png",
+    "size": [
+      1672,
+      941
+    ],
+    "source_mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "opaque_fraction": 0.00012,
+    "transparent_fraction": 0.91838,
+    "partial_alpha_fraction": 0.0815,
+    "mostly_opaque_fraction": 0.07669,
+    "visible_bounds": [
+      1077,
+      619,
+      1658,
+      941
+    ],
+    "substantial_bounds_alpha_128": [
+      1081,
+      627,
+      1653,
+      941
+    ]
+  },
+  {
+    "file": "foreground-left.png",
+    "size": [
+      1672,
+      941
+    ],
+    "source_mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "opaque_fraction": 0.00062,
+    "transparent_fraction": 0.74232,
+    "partial_alpha_fraction": 0.25706,
+    "mostly_opaque_fraction": 0.23347,
+    "visible_bounds": [
+      0,
+      0,
+      1473,
+      941
+    ],
+    "substantial_bounds_alpha_128": [
+      0,
+      0,
+      601,
+      941
+    ]
+  },
+  {
+    "file": "room-background.png",
+    "size": [
+      1672,
+      941
+    ],
+    "source_mode": "RGB",
+    "alpha_extrema": [
+      255,
+      255
+    ],
+    "opaque_fraction": 1.0,
+    "transparent_fraction": 0.0,
+    "partial_alpha_fraction": 0.0,
+    "mostly_opaque_fraction": 1.0,
+    "visible_bounds": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "substantial_bounds_alpha_128": [
+      0,
+      0,
+      1672,
+      941
+    ]
+  }
+]

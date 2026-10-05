@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1672" height="941" viewBox="0 0 1672 941" fill="none">
+<defs>
+<symbol id="asset-background" viewBox="0 0 1672 941" fill="none"><defs><linearGradient id="background-tone" x1="80" y1="0" x2="1560" y2="1050" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF8E6"/><stop offset=".52" stop-color="#F5EBD5"/><stop offset="1" stop-color="#ECDDCA"/></linearGradient><pattern id="background-grain" width="31" height="29" patternUnits="userSpaceOnUse"><g fill="#705734" opacity=".2"><circle cx="3.2" cy="5.6" r=".25"/><circle cx="15.7" cy="11.2" r=".32"/><circle cx="28.1" cy="3.7" r=".23"/><circle cx="7.8" cy="23.6" r=".28"/><circle cx="24.5" cy="26.3" r=".3"/></g><g stroke="#735D3D" stroke-width=".23" stroke-opacity=".15" stroke-linecap="round"><path d="M8.4 3.1l1.6 .5M20 18.2l2.1 -.3M1.2 17.5l1.5 .1M15.4 27.5l1.1 -.8"/></g></pattern></defs><rect width="1672" height="941" fill="url(#background-tone)"/><rect width="1672" height="941" fill="url(#background-grain)" opacity=".22"/></symbol>
+<symbol id="asset-folder-sage" viewBox="0 0 68 68" fill="none"><defs>
+<filter id="folder-sage-shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="1.1" dy="2.2" stdDeviation="1.5" flood-color="#584B32" flood-opacity="0.12"/></filter>
+<pattern id="folder-sage-grain" width="31" height="29" patternUnits="userSpaceOnUse"><g fill="#705734" opacity=".2"><circle cx="3.2" cy="5.6" r=".25"/><circle cx="15.7" cy="11.2" r=".32"/><circle cx="28.1" cy="3.7" r=".23"/><circle cx="7.8" cy="23.6" r=".28"/><circle cx="24.5" cy="26.3" r=".3"/></g><g stroke="#735D3D" stroke-width=".23" stroke-opacity=".15" stroke-linecap="round"><path d="M8.4 3.1l1.6 .5M20 18.2l2.1 -.3M1.2 17.5l1.5 .1M15.4 27.5l1.1 -.8"/></g></pattern>
+<linearGradient id="folder-sage-back" x1="11" y1="17" x2="56" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="#657D68"/><stop offset="1" stop-color="#6D856E"/></linearGradient>
+<linearGradient id="folder-sage-front" x1="34" y1="26" x2="34" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#91A083"/><stop offset="1" stop-color="#6D856E"/></linearGradient>
+</defs>
+<g filter="url(#folder-sage-shadow)">
+<path d="M10.5 20.5C10.6 17.7 12.5 15.4 15.5 15.5L26.4 15.3C28.18 15.3 29.73 16.1 30.9 17.49L34.5 21.75L52.5 21.6C55.26 21.7 57.7 23.99 57.5 26.75L57.3 51.5C57.3 54.26 55.26 56.7 52.5 56.5L15.5 56.3C12.74 56.3 10.3 54.26 10.5 51.5V20.5Z" fill="url(#folder-sage-back)" stroke="#3F5141" stroke-opacity=".76" stroke-width=".9"/>
+<path d="M15 23.5H52.5" stroke="#91A083" stroke-opacity=".6" stroke-width=".8"/>
+<rect x="14.5" y="25" width="38.5" height="25.5" rx="2" fill="#F5EDD8" fill-opacity=".87"/>
+<path d="M10.5 31C10.5 28.8 12.3 27.1 14.5 27L53.5 27.2C55.71 27.2 57.5 28.79 57.5 31L57.3 51.5C57.4 54.3 55.26 56.6 52.5 56.5L15.5 56.3C12.74 56.3 10.3 54.26 10.5 51.5V31Z" fill="url(#folder-sage-front)" stroke="#3F5141" stroke-opacity=".8" stroke-width=".9"/>
+<path d="M10.5 31C10.5 28.8 12.3 27.1 14.5 27L53.5 27.2C55.71 27.2 57.5 28.79 57.5 31L57.3 51.5C57.4 54.3 55.26 56.6 52.5 56.5L15.5 56.3C12.74 56.3 10.3 54.26 10.5 51.5V31Z" fill="url(#folder-sage-grain)" opacity=".35"/>
+<path d="M14.5 28H53.5" stroke="#FFFDF5" stroke-opacity=".58" stroke-linecap="round"/>
+<path d="M16.5 54.5H51.5" stroke="#3F5141" stroke-opacity=".11" stroke-linecap="round"/>
+</g></symbol>
+<symbol id="asset-folder-sand" viewBox="0 0 68 68" fill="none"><defs>
+<filter id="folder-sand-shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="1.1" dy="2.2" stdDeviation="1.5" flood-color="#584B32" flood-opacity="0.12"/></filter>
+<pattern id="folder-sand-grain" width="31" height="29" patternUnits="userSpaceOnUse"><g fill="#705734" opacity=".2"><circle cx="3.2" cy="5.6" r=".25"/><circle cx="15.7" cy="11.2" r=".32"/><circle cx="28.1" cy="3.7" r=".23"/><circle cx="7.8" cy="23.6" r=".28"/><circle cx="24.5" cy="26.3" r=".3"/></g><g stroke="#735D3D" stroke-width=".23" stroke-opacity=".15" stroke-linecap="round"><path d="M8.4 3.1l1.6 .5M20 18.2l2.1 -.3M1.2 17.5l1.5 .1M15.4 27.5l1.1 -.8"/></g></pattern>
+<linearGradient id="folder-sand-back" x1="11" y1="17" x2="56" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="#B29263"/><stop offset="1" stop-color="#C49D65"/></linearGradient>
+<linearGradient id="folder-sand-front" x1="34" y1="26" x2="34" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#DFBA81"/><stop offset="1" stop-color="#C49D65"/></linearGradient>
+</defs>
+<g filter="url(#folder-sand-shadow)">
+<path d="M10.5 20.5C10.6 17.7 12.5 15.4 15.5 15.5L26.4 15.3C28.18 15.3 29.73 16.1 30.9 17.49L34.5 21.75L52.5 21.6C55.26 21.7 57.7 23.99 57.5 26.75L57.3 51.5C57.3 54.26 55.26 56.7 52.5 56.5L15.5 56.3C12.74 56.3 10.3 54.26 10.5 51.5V20.5Z" fill="url(#folder-sand-back)" stroke="#776047" stroke-opacity=".76" stroke-width=".9"/>
+<path d="M15 23.5H52.5" stroke="#DFBA81" stroke-opacity=".6" stroke-width=".8"/>
+<rect x="14.5" y="25" width="38.5" height="25.5" rx="2" fill="#F5EDD8" fill-opacity=".87"/>
+<path d="M10.5 31C10.5 28.8 12.3 27.1 14.5 27L53.5 27.2C55.71 27.2 57.5 28.79 57.5 31L57.3 51.5C57.4 54.3 55.26 56.6 52.5 56.5L15.5 56.3C12.74 56.3 10.3 54.26 10.5 51.5V31Z" fill="url(#folder-sand-front)" stroke="#776047" stroke-opacity=".8" stroke-width=".9"/>
+<path d="M10.5 31C10.5 28.8 12.3 27.1 14.5 27L53.5 27.2C55.71 27.2 57.5 28.79 57.5 31L57.3 51.5C57.4 54.3 55.26 56.6 52.5 56.5L15.5 56.3C12.74 56.3 10.3 54.26 10.5 51.5V31Z" fill="url(#folder-sand-grain)" opacity=".35"/>
+<path d="M14.5 28H53.5" stroke="#FFFDF5" stroke-opacity=".58" stroke-linecap="round"/>
+<path d="M16.5 54.5H51.5" stroke="#776047" stroke-opacity=".11" stroke-linecap="round"/>
+</g></symbol>
+<symbol id="asset-document" viewBox="0 0 68 68" fill="none"><defs>
+<filter id="document-shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="1.1" dy="2.1" stdDeviation="1.5" flood-color="#584B32" flood-opacity="0.1"/></filter>
+<pattern id="document-grain" width="31" height="29" patternUnits="userSpaceOnUse"><g fill="#705734" opacity=".2"><circle cx="3.2" cy="5.6" r=".25"/><circle cx="15.7" cy="11.2" r=".32"/><circle cx="28.1" cy="3.7" r=".23"/><circle cx="7.8" cy="23.6" r=".28"/><circle cx="24.5" cy="26.3" r=".3"/></g><g stroke="#735D3D" stroke-width=".23" stroke-opacity=".15" stroke-linecap="round"><path d="M8.4 3.1l1.6 .5M20 18.2l2.1 -.3M1.2 17.5l1.5 .1M15.4 27.5l1.1 -.8"/></g></pattern>
+<linearGradient id="document-paper" x1="20" y1="11" x2="51" y2="58" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFDF3"/><stop offset="1" stop-color="#F1E7CE"/></linearGradient>
+<linearGradient id="document-fold" x1="40" y1="12" x2="51" y2="25" gradientUnits="userSpaceOnUse"><stop stop-color="#EEE5CE"/><stop offset="1" stop-color="#DCCBAA"/></linearGradient>
+</defs>
+<g filter="url(#document-shadow)">
+<path d="M20 11.5L39.5 11.3L52 24L51.8 53C51.8 55.76 49.76 58.2 47 58L20 57.8C17.24 57.8 15.2 55.76 15 53V16.5C15 13.74 17.24 11.5 20 11.5Z" fill="url(#document-paper)" stroke="#766D59" stroke-opacity=".8" stroke-width=".85"/>
+<path d="M39.5 11.5V20C39.5 22.21 41.29 24 43.5 24H52" fill="url(#document-fold)" stroke="#877A60" stroke-opacity=".64" stroke-width=".75"/>
+<path d="M20 11.5L39.5 11.3L52 24L51.8 53C51.8 55.76 49.76 58.2 47 58L20 57.8C17.24 57.8 15.2 55.76 15 53V16.5C15 13.74 17.24 11.5 20 11.5Z" fill="url(#document-grain)" opacity=".35"/>
+<path d="M19.5 13H38" stroke="#FFFFFF" stroke-opacity=".95" stroke-linecap="round"/>
+<path d="M24 32l19.8 -.2M24 38l16.8 .1M24 44l20 -.1M24 50l11 .1" stroke="#727F65" stroke-width="1.8" stroke-linecap="round"/>
+</g></symbol>
+<symbol id="asset-photo" viewBox="0 0 68 68" fill="none"><defs>
+<filter id="photo-shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="1.1" dy="2.2" stdDeviation="1.5" flood-color="#584B32" flood-opacity="0.11"/></filter>
+<linearGradient id="photo-paper" x1="13" y1="15" x2="55" y2="55" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFDF3"/><stop offset="1" stop-color="#EFE4CB"/></linearGradient>
+<linearGradient id="photo-sky" x1="34" y1="21" x2="34" y2="46" gradientUnits="userSpaceOnUse"><stop stop-color="#ACC9C4"/><stop offset="1" stop-color="#DBE0C9"/></linearGradient>
+</defs>
+<g filter="url(#photo-shadow)"><rect x="10.5" y="15.5" width="47" height="39" rx="5" fill="url(#photo-paper)" stroke="#766D58" stroke-opacity=".76" stroke-width=".8"/><rect x="15" y="20" width="38" height="26.5" rx="2" fill="url(#photo-sky)"/><circle cx="44" cy="26.5" r="3.5" fill="#E9B96F"/><path d="M15 41L26.5 30.5L40 46.5H17C15.9 46.5 15 45.6 15 44.5V41Z" fill="#7C9473"/><path d="M27.5 46.5L41.5 35.5L53 43V44.5C53 45.6 52.1 46.5 51 46.5H27.5Z" fill="#496E5A"/><path d="M15.5 17H52" stroke="#FFFFFF" stroke-opacity=".82" stroke-linecap="round"/></g></symbol>
+<symbol id="asset-video" viewBox="0 0 68 68" fill="none"><defs>
+<filter id="video-shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="1.1" dy="2.1" stdDeviation="1.5" flood-color="#584B32" flood-opacity="0.1"/></filter>
+<pattern id="video-grain" width="31" height="29" patternUnits="userSpaceOnUse"><g fill="#705734" opacity=".2"><circle cx="3.2" cy="5.6" r=".25"/><circle cx="15.7" cy="11.2" r=".32"/><circle cx="28.1" cy="3.7" r=".23"/><circle cx="7.8" cy="23.6" r=".28"/><circle cx="24.5" cy="26.3" r=".3"/></g><g stroke="#735D3D" stroke-width=".23" stroke-opacity=".15" stroke-linecap="round"><path d="M8.4 3.1l1.6 .5M20 18.2l2.1 -.3M1.2 17.5l1.5 .1M15.4 27.5l1.1 -.8"/></g></pattern>
+<linearGradient id="video-paper" x1="20" y1="11" x2="51" y2="58" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFDF3"/><stop offset="1" stop-color="#F1E7CE"/></linearGradient>
+<linearGradient id="video-fold" x1="40" y1="12" x2="51" y2="25" gradientUnits="userSpaceOnUse"><stop stop-color="#EEE5CE"/><stop offset="1" stop-color="#DCCBAA"/></linearGradient>
+</defs>
+<g filter="url(#video-shadow)">
+<path d="M20 11.5L39.5 11.3L52 24L51.8 53C51.8 55.76 49.76 58.2 47 58L20 57.8C17.24 57.8 15.2 55.76 15 53V16.5C15 13.74 17.24 11.5 20 11.5Z" fill="url(#video-paper)" stroke="#766D59" stroke-opacity=".8" stroke-width=".85"/>
+<path d="M39.5 11.5V20C39.5 22.21 41.29 24 43.5 24H52" fill="url(#video-fold)" stroke="#877A60" stroke-opacity=".64" stroke-width=".75"/>
+<path d="M20 11.5L39.5 11.3L52 24L51.8 53C51.8 55.76 49.76 58.2 47 58L20 57.8C17.24 57.8 15.2 55.76 15 53V16.5C15 13.74 17.24 11.5 20 11.5Z" fill="url(#video-grain)" opacity=".35"/>
+<path d="M19.5 13H38" stroke="#FFFFFF" stroke-opacity=".95" stroke-linecap="round"/>
+<rect x="22" y="30" width="24" height="19" rx="4" fill="#78937A"/><path d="M31 35.5C31 34.72 31.85 34.23 32.53 34.62L39.5 38.62C40.17 39.01 40.17 39.99 39.5 40.38L32.53 44.38C31.85 44.77 31 44.28 31 43.5V35.5Z" fill="#F7EDD6"/>
+</g></symbol>
+<symbol id="asset-audio" viewBox="0 0 68 68" fill="none"><defs>
+<filter id="audio-shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="1.1" dy="2.1" stdDeviation="1.5" flood-color="#584B32" flood-opacity="0.1"/></filter>
+<pattern id="audio-grain" width="31" height="29" patternUnits="userSpaceOnUse"><g fill="#705734" opacity=".2"><circle cx="3.2" cy="5.6" r=".25"/><circle cx="15.7" cy="11.2" r=".32"/><circle cx="28.1" cy="3.7" r=".23"/><circle cx="7.8" cy="23.6" r=".28"/><circle cx="24.5" cy="26.3" r=".3"/></g><g stroke="#735D3D" stroke-width=".23" stroke-opacity=".15" stroke-linecap="round"><path d="M8.4 3.1l1.6 .5M20 18.2l2.1 -.3M1.2 17.5l1.5 .1M15.4 27.5l1.1 -.8"/></g></pattern>
+<linearGradient id="audio-paper" x1="20" y1="11" x2="51" y2="58" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFDF3"/><stop offset="1" stop-color="#F1E7CE"/></linearGradient>
+<linearGradient id="audio-fold" x1="40" y1="12" x2="51" y2="25" gradientUnits="userSpaceOnUse"><stop stop-color="#EEE5CE"/><stop offset="1" stop-color="#DCCBAA"/></linearGradient>
+</defs>
+<g filter="url(#audio-shadow)">
+<path d="M20 11.5L39.5 11.3L52 24L51.8 53C51.8 55.76 49.76 58.2 47 58L20 57.8C17.24 57.8 15.2 55.76 15 53V16.5C15 13.74 17.24 11.5 20 11.5Z" fill="url(#audio-paper)" stroke="#766D59" stroke-opacity=".8" stroke-width=".85"/>
+<path d="M39.5 11.5V20C39.5 22.21 41.29 24 43.5 24H52" fill="url(#audio-fold)" stroke="#877A60" stroke-opacity=".64" stroke-width=".75"/>
+<path d="M20 11.5L39.5 11.3L52 24L51.8 53C51.8 55.76 49.76 58.2 47 58L20 57.8C17.24 57.8 15.2 55.76 15 53V16.5C15 13.74 17.24 11.5 20 11.5Z" fill="url(#audio-grain)" opacity=".35"/>
+<path d="M19.5 13H38" stroke="#FFFFFF" stroke-opacity=".95" stroke-linecap="round"/>
+<path d="M33 44V32L43 29V41" stroke="#51735A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="29.7" cy="45" rx="4.4" ry="3.3" fill="#51735A"/><ellipse cx="39.7" cy="42" rx="4.4" ry="3.3" fill="#51735A"/>
+</g></symbol>
+<symbol id="asset-archive" viewBox="0 0 68 68" fill="none"><defs>
+<filter id="archive-shadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB"><feDropShadow dx="1.1" dy="2.1" stdDeviation="1.5" flood-color="#584B32" flood-opacity="0.1"/></filter>
+<pattern id="archive-grain" width="31" height="29" patternUnits="userSpaceOnUse"><g fill="#705734" opacity=".2"><circle cx="3.2" cy="5.6" r=".25"/><circle cx="15.7" cy="11.2" r=".32"/><circle cx="28.1" cy="3.7" r=".23"/><circle cx="7.8" cy="23.6" r=".28"/><circle cx="24.5" cy="26.3" r=".3"/></g><g stroke="#735D3D" stroke-width=".23" stroke-opacity=".15" stroke-linecap="round"><path d="M8.4 3.1l1.6 .5M20 18.2l2.1 -.3M1.2 17.5l1.5 .1M15.4 27.5l1.1 -.8"/></g></pattern>
+<linearGradient id="archive-paper" x1="20" y1="11" x2="51" y2="58" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFDF3"/><stop offset="1" stop-color="#F1E7CE"/></linearGradient>
+<linearGradient id="archive-fold" x1="40" y1="12" x2="51" y2="25" gradientUnits="userSpaceOnUse"><stop stop-color="#EEE5CE"/><stop offset="1" stop-color="#DCCBAA"/></linearGradient>
+</defs>
+<g filter="url(#archive-shadow)">
+<path d="M20 11.5L39.5 11.3L52 24L51.8 53C51.8 55.76 49.76 58.2 47 58L20 57.8C17.24 57.8 15.2 55.76 15 53V16.5C15 13.74 17.24 11.5 20 11.5Z" fill="url(#archive-paper)" stroke="#766D59" stroke-opacity=".8" stroke-width=".85"/>
+<path d="M39.5 11.5V20C39.5 22.21 41.29 24 43.5 24H52" fill="url(#archive-fold)" stroke="#877A60" stroke-opacity=".64" stroke-width=".75"/>
+<path d="M20 11.5L39.5 11.3L52 24L51.8 53C51.8 55.76 49.76 58.2 47 58L20 57.8C17.24 57.8 15.2 55.76 15 53V16.5C15 13.74 17.24 11.5 20 11.5Z" fill="url(#archive-grain)" opacity=".35"/>
+<path d="M19.5 13H38" stroke="#FFFFFF" stroke-opacity=".95" stroke-linecap="round"/>
+<rect x="29" y="12" width="5.5" height="27" rx="1" fill="#CFB17F"/><path d="M30 15H32.2M31.8 19H34M30 23H32.2M31.8 27H34M30 31H32.2" stroke="#735C41" stroke-width="1.4"/><rect x="27.5" y="38" width="8.5" height="10" rx="2.2" fill="#AE8751" stroke="#725B42" stroke-opacity=".55" stroke-width=".75"/><rect x="30" y="41" width="3.5" height="4" rx="1" fill="#FBF0D7"/>
+</g></symbol>
+<symbol id="asset-taskbar" viewBox="0 0 1634 56" fill="none"><defs>
+<linearGradient id="taskbar-glass" x1="817" y1="0" x2="817" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF8E5" stop-opacity=".74"/><stop offset="1" stop-color="#F7EDD6" stop-opacity=".95"/></linearGradient>
+<linearGradient id="taskbar-app" x1="0" y1="0" x2="0" y2="34" gradientUnits="userSpaceOnUse"><stop stop-color="#FBF1DD"/><stop offset="1" stop-color="#E8DCC2"/></linearGradient>
+</defs>
+<rect x=".5" y=".5" width="1633" height="55" rx="14.5" fill="url(#taskbar-glass)" stroke="#FFFFFF" stroke-opacity=".83"/>
+<path d="M17 55H1617" stroke="#BAAC8D" stroke-opacity=".3"/>
+<g transform="translate(714 11)">
+<rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><path d="M17 25V15" stroke="#779270" stroke-width="1.8" stroke-linecap="round"/><path d="M16.8 19C10.7 19.2 8.8 15.7 8.7 11.6C13.8 11.3 17.1 13.8 16.8 19Z" fill="#A7B995"/><path d="M17.4 17.2C17.1 11.6 20.3 8.8 25.1 8.8C25.3 13.6 22.9 17 17.4 17.2Z" fill="#7F9E77"/>
+</g>
+<g transform="translate(758 11)"><rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><path d="M8 12.5C8 11.4 8.9 10.5 10 10.5H15L17.5 13H24C25.1 13 26 13.9 26 15V23C26 24.1 25.1 25 24 25H10C8.9 25 8 24.1 8 23V12.5Z" fill="#8E9D7B" stroke="#536B50" stroke-width=".8"/><path d="M9.2 15H24.8" stroke="#EAF0DE" stroke-width=".8"/></g>
+<g transform="translate(802 11)"><rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><rect x="8" y="9" width="18" height="16" rx="2.5" fill="#ADCCC4" stroke="#697E68" stroke-width=".8"/><circle cx="21.5" cy="13.5" r="2" fill="#E1B56E"/><path d="M8.5 21L14 15.5L22 24.5H10.5C9.4 24.5 8.5 23.6 8.5 22.5V21Z" fill="#73936F"/><path d="M17.5 24.5L23 19.5L25.5 22V22.5C25.5 23.6 24.6 24.5 23.5 24.5H17.5Z" fill="#4D725A"/></g>
+<g transform="translate(846 11)"><rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><rect x="10" y="8" width="14" height="19" rx="2.5" fill="#FFF5DF" stroke="#897B62" stroke-width=".9"/><path d="M13.5 14H20.5M13.5 18H20.5M13.5 22H18.5" stroke="#7D8B68" stroke-width="1.3" stroke-linecap="round"/></g>
+<g transform="translate(890 11)"><rect width="34" height="34" rx="9" fill="url(#taskbar-app)" stroke="#BDB093" stroke-opacity=".7"/><rect x="8.5" y="9.5" width="17" height="15" rx="3" fill="#B0BE98" stroke="#6C805A" stroke-width=".8"/><path d="M13.2 24.5V27M20.8 24.5V27M12 27H22" stroke="#6C805A" stroke-width=".9" stroke-linecap="round"/><circle cx="17" cy="17" r="3.5" stroke="#566F4F" stroke-width="1.4"/><path d="M17 13.5V20.5M13.5 17H20.5" stroke="#566F4F" stroke-width=".9"/></g>
+<g stroke="#746D58" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".85"><path d="M1533 24C1537 20 1543 20 1547 24M1536 27C1538.5 24.5 1541.5 24.5 1544 27M1539 30C1539.7 29.3 1540.3 29.3 1541 30"/><path d="M1560 24H1563L1567 20.5V35.5L1563 32H1560V24Z"/><path d="M1570 24.5C1572 26.5 1572 29.5 1570 31.5"/><rect x="1586" y="23" width="19" height="10" rx="2"/><path d="M1605 26H1607V30H1605"/></g><rect x="1589" y="26" width="11" height="4" rx=".8" fill="#85926F"/></symbol>
+<symbol id="asset-frame" viewBox="0 0 1672 941" fill="none"><defs><linearGradient id="frame-metal" x1="836" y1="0" x2="836" y2="941" gradientUnits="userSpaceOnUse"><stop stop-color="#44574B"/><stop offset=".3" stop-color="#31443B"/><stop offset="1" stop-color="#263B31"/></linearGradient></defs><rect x="7" y="7" width="1658" height="927" rx="18" stroke="url(#frame-metal)" stroke-width="14"/><rect x="14.5" y="14.5" width="1643" height="912" rx="10.5" stroke="#708371" stroke-opacity=".48"/><path d="M23 3.5H1649" stroke="#778577" stroke-opacity=".3" stroke-linecap="round"/><circle cx="836" cy="934" r="1.5" fill="#A2B098" fill-opacity=".8"/></symbol>
+</defs>
+<use href="#asset-background" x="0" y="0" width="1672" height="941"/>
+<use href="#asset-folder-sage" x="54" y="45" width="68" height="68"/>
+<use href="#asset-photo" x="148" y="45" width="68" height="68"/>
+<use href="#asset-document" x="242" y="45" width="68" height="68"/>
+<use href="#asset-folder-sand" x="336" y="45" width="68" height="68"/>
+<use href="#asset-video" x="430" y="45" width="68" height="68"/>
+<use href="#asset-document" x="524" y="45" width="68" height="68"/>
+<use href="#asset-archive" x="618" y="45" width="68" height="68"/>
+<use href="#asset-photo" x="712" y="45" width="68" height="68"/>
+<use href="#asset-folder-sage" x="806" y="45" width="68" height="68"/>
+<use href="#asset-audio" x="900" y="45" width="68" height="68"/>
+<use href="#asset-document" x="54" y="145" width="68" height="68"/>
+<use href="#asset-folder-sage" x="148" y="145" width="68" height="68"/>
+<use href="#asset-photo" x="242" y="145" width="68" height="68"/>
+<use href="#asset-archive" x="336" y="145" width="68" height="68"/>
+<use href="#asset-document" x="430" y="145" width="68" height="68"/>
+<use href="#asset-folder-sand" x="524" y="145" width="68" height="68"/>
+<use href="#asset-audio" x="618" y="145" width="68" height="68"/>
+<use href="#asset-document" x="712" y="145" width="68" height="68"/>
+<use href="#asset-video" x="806" y="145" width="68" height="68"/>
+<use href="#asset-photo" x="900" y="145" width="68" height="68"/>
+<use href="#asset-photo" x="54" y="245" width="68" height="68"/>
+<use href="#asset-document" x="148" y="245" width="68" height="68"/>
+<use href="#asset-folder-sand" x="242" y="245" width="68" height="68"/>
+<use href="#asset-video" x="336" y="245" width="68" height="68"/>
+<use href="#asset-archive" x="430" y="245" width="68" height="68"/>
+<use href="#asset-photo" x="524" y="245" width="68" height="68"/>
+<use href="#asset-folder-sage" x="618" y="245" width="68" height="68"/>
+<use href="#asset-document" x="712" y="245" width="68" height="68"/>
+<use href="#asset-audio" x="806" y="245" width="68" height="68"/>
+<use href="#asset-document" x="900" y="245" width="68" height="68"/>
+<use href="#asset-folder-sand" x="54" y="345" width="68" height="68"/>
+<use href="#asset-audio" x="148" y="345" width="68" height="68"/>
+<use href="#asset-document" x="242" y="345" width="68" height="68"/>
+<use href="#asset-photo" x="336" y="345" width="68" height="68"/>
+<use href="#asset-folder-sage" x="430" y="345" width="68" height="68"/>
+<use href="#asset-archive" x="524" y="345" width="68" height="68"/>
+<use href="#asset-document" x="618" y="345" width="68" height="68"/>
+<use href="#asset-video" x="712" y="345" width="68" height="68"/>
+<use href="#asset-photo" x="806" y="345" width="68" height="68"/>
+<use href="#asset-folder-sage" x="900" y="345" width="68" height="68"/>
+<use href="#asset-document" x="54" y="445" width="68" height="68"/>
+<use href="#asset-photo" x="148" y="445" width="68" height="68"/>
+<use href="#asset-video" x="242" y="445" width="68" height="68"/>
+<use href="#asset-folder-sage" x="336" y="445" width="68" height="68"/>
+<use href="#asset-document" x="430" y="445" width="68" height="68"/>
+<use href="#asset-audio" x="524" y="445" width="68" height="68"/>
+<use href="#asset-folder-sand" x="618" y="445" width="68" height="68"/>
+<use href="#asset-photo" x="712" y="445" width="68" height="68"/>
+<use href="#asset-archive" x="806" y="445" width="68" height="68"/>
+<use href="#asset-document" x="900" y="445" width="68" height="68"/>
+<use href="#asset-archive" x="54" y="545" width="68" height="68"/>
+<use href="#asset-folder-sand" x="148" y="545" width="68" height="68"/>
+<use href="#asset-photo" x="242" y="545" width="68" height="68"/>
+<use href="#asset-document" x="336" y="545" width="68" height="68"/>
+<use href="#asset-audio" x="430" y="545" width="68" height="68"/>
+<use href="#asset-folder-sage" x="524" y="545" width="68" height="68"/>
+<use href="#asset-video" x="618" y="545" width="68" height="68"/>
+<use href="#asset-document" x="712" y="545" width="68" height="68"/>
+<use href="#asset-photo" x="806" y="545" width="68" height="68"/>
+<use href="#asset-folder-sand" x="900" y="545" width="68" height="68"/>
+<use href="#asset-audio" x="54" y="645" width="68" height="68"/>
+<use href="#asset-document" x="148" y="645" width="68" height="68"/>
+<use href="#asset-folder-sage" x="242" y="645" width="68" height="68"/>
+<use href="#asset-photo" x="336" y="645" width="68" height="68"/>
+<use href="#asset-archive" x="430" y="645" width="68" height="68"/>
+<use href="#asset-document" x="524" y="645" width="68" height="68"/>
+<use href="#asset-photo" x="618" y="645" width="68" height="68"/>
+<use href="#asset-folder-sand" x="712" y="645" width="68" height="68"/>
+<use href="#asset-document" x="806" y="645" width="68" height="68"/>
+<use href="#asset-video" x="900" y="645" width="68" height="68"/>
+<use href="#asset-folder-sage" x="54" y="745" width="68" height="68"/>
+<use href="#asset-video" x="148" y="745" width="68" height="68"/>
+<use href="#asset-document" x="242" y="745" width="68" height="68"/>
+<use href="#asset-audio" x="336" y="745" width="68" height="68"/>
+<use href="#asset-photo" x="430" y="745" width="68" height="68"/>
+<use href="#asset-folder-sand" x="524" y="745" width="68" height="68"/>
+<use href="#asset-archive" x="618" y="745" width="68" height="68"/>
+<use href="#asset-document" x="712" y="745" width="68" height="68"/>
+<use href="#asset-folder-sage" x="806" y="745" width="68" height="68"/>
+<use href="#asset-photo" x="900" y="745" width="68" height="68"/>
+<use href="#asset-taskbar" x="19" y="850" width="1634" height="56"/>
+<use href="#asset-frame" x="0" y="0" width="1672" height="941"/>
+</svg>

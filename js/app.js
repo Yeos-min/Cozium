@@ -7,9 +7,11 @@
  * URL 파라미터:
  *   ?helper=PORT&token=…    Desktop Helper가 브라우저를 열 때 붙여 준다 → 자동 연결
  *   ?storage=memory         디스크를 건드리지 않는 샘플 (개발용)
+ *   ?entry=sample|files     랜딩에서 샘플 바로 시작 / 내 파일 드롭 화면
  *   &capacity=16&refill=6   보드 정원 / 파동 임계 [임시]
  *   &seed=123               배치 시드
  *   &delay=0                (memory) 이동 지연 시뮬레이션 끄기
+ *   &layout=grid            이전 격자 배치로 비교 (기본 3D는 겹침 없는 회전 배치)
  */
 import { MemoryProvider } from "./providers/memory-provider.js";
 import { SAMPLE_FOLDERS } from "./providers/sample-desktop.js";
@@ -22,9 +24,12 @@ import { playBoundsFor } from "./ui/board-layout.js";
 import { Onboarding } from "./ui/onboarding.js";
 import { StatusPanel } from "./ui/status.js";
 import { FolderInterior } from "./ui/folder-interior.js";
+import { TUNING } from "./three/tuning.js";
 
 const params = new URLSearchParams(location.search);
 const memoryMode = params.get("storage") === "memory";
+const kuwaharaPreset = params.get("kuwahara");
+if (Object.hasOwn(TUNING.kuwahara.strengths, kuwaharaPreset)) TUNING.kuwahara.preset = kuwaharaPreset;
 
 function intParam(name, fallback, min, max) {
   const value = Number.parseInt(params.get(name) ?? "", 10);
@@ -43,6 +48,9 @@ const elements = {
   newFolderName: $("#new-folder-name"),
   placement: $("#placement"),
   camera: $("#camera"),
+  kuwahara: $("#kuwahara"),
+  brushRadius: $("#brush-radius"),
+  outlineThickness: $("#outline-thickness"),
   undoButton: $("#undo-button"),
   planTitle: $("#plan-title"),
   plan: $("#plan"),
@@ -56,11 +64,12 @@ const elements = {
 };
 
 const store = new SessionStore({
-  // 책상을 꽉 채운다. 어질러진 양이 보여야 치우고 싶어진다. [임시]
+  // 24장의 앞면이 모두 보이도록 펼치고 작은 무작위 회전만 준다. [임시]
   capacity: intParam("capacity", 24, 1, 64),
   // -1 = 자동 보충 없음. 책상을 다 치우면 바닥이 드러나고, 다음 무더기는 더미를 눌러 꺼낸다. [임시]
   refillBelow: intParam("refill", -1, -1, 64),
   bounds: playBoundsFor("bottom"),
+  layout: params.get("view") === "2d" || params.get("layout") === "grid" ? {} : { mode: "floor" },
   seed: params.has("seed") ? intParam("seed", 0, 0, 2 ** 31) : undefined,
 });
 
@@ -231,14 +240,14 @@ function updateBar() {
   elements.progressHud.dataset.complete = String(total > 0 && done === total);
 
   elements.summary.textContent =
-    `책상 ${store.unprocessedCount} · 더미 ${store.queuedCount} · 선택 ${store.selection.length}` +
+    `바닥 ${store.unprocessedCount} · 더미 ${store.queuedCount} · 선택 ${store.selection.length}` +
     (pending > 0 ? " · 작업 중" : "");
 
   // 바닥이 드러난 순간을 놓치지 않게 알린다
   const cleared = store.unprocessedCount === 0 && store.queuedCount > 0 && pending === 0;
   if (cleared && !clearedNoticeShown) {
     clearedNoticeShown = true;
-    status.notice(`책상을 치웠습니다. 남은 ${store.queuedCount}개를 꺼내려면 더미를 누르세요.`, "success");
+    status.notice(`바닥을 치웠습니다. 남은 ${store.queuedCount}개는 더미를 누를 때 꺼냅니다.`, "success");
   } else if (!cleared) {
     clearedNoticeShown = false;
   }
@@ -307,6 +316,14 @@ async function startWith(nextProvider) {
 
   // 기본은 3D. `?view=2d`로 0-C의 2D 보드와 나란히 비교할 수 있다.
   const BoardClass = params.get("view") === "2d" ? Board : Board3D;
+  $("#kuwahara-control").hidden = BoardClass === Board;
+  $("#brush-radius-control").hidden = BoardClass === Board;
+  $("#outline-control").hidden = BoardClass === Board;
+  elements.kuwahara.value = TUNING.kuwahara.preset;
+  elements.brushRadius.value = TUNING.kuwahara.radius;
+  elements.outlineThickness.value = TUNING.outline.thickness;
+  $("#brush-radius-value").value = String(TUNING.kuwahara.radius);
+  $("#outline-thickness-value").value = `${TUNING.outline.thickness} px`;
   board = new BoardClass({
     root: elements.boardRoot,
     store,
@@ -354,6 +371,18 @@ elements.newFolderForm.addEventListener("submit", (event) => {
   elements.newFolderName.value = "";
 });
 elements.placement.addEventListener("change", (event) => board?.setPlacement(event.target.value));
+elements.kuwahara.addEventListener("change", (event) => {
+  TUNING.kuwahara.preset = event.target.value;
+});
+elements.brushRadius.addEventListener("input", (event) => {
+  TUNING.kuwahara.radius = Number(event.target.value);
+  $("#brush-radius-value").value = event.target.value;
+});
+elements.outlineThickness.addEventListener("input", (event) => {
+  TUNING.outline.thickness = Number(event.target.value);
+  $("#outline-thickness-value").value = `${event.target.value} px`;
+});
+
 elements.camera.addEventListener("change", (event) => {
   board?.setCamera(event.target.value);
   // 1인칭은 폴더를 먼 쪽으로 옮긴다. 선택칸을 실제 상태에 맞춘다.
@@ -450,7 +479,12 @@ async function initialize() {
     clean.searchParams.delete("token");
     history.replaceState(null, "", clean);
     await onboarding.connectHelper(helperPort, helperToken);
+    return;
   }
+  // 불완전한 Helper 주소도 파일/샘플 진입으로 바꾸지 않는다.
+  if (params.has("helper") || params.has("token")) return;
+  if (params.get("entry") === "sample") await onboarding.startSample();
+  else if (params.get("entry") === "files") onboarding.focusWebImport();
 }
 
 initialize();

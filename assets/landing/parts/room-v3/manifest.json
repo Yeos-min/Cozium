@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "canvas": {
+    "width": 1672,
+    "height": 941
+  },
+  "layers": [
+    {
+      "id": "background",
+      "file": "room-background.png",
+      "z": 0,
+      "transparent": false,
+      "depth": 0.15,
+      "scale": 1,
+      "anchor": [
+        1,
+        1
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "left",
+      "file": "foreground-left.png",
+      "z": 1,
+      "transparent": true,
+      "depth": 1,
+      "scale": 1,
+      "anchor": [
+        1,
+        1
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "files",
+      "file": "foreground-files-right.png",
+      "z": 2,
+      "transparent": true,
+      "depth": 0.82,
+      "scale": 1,
+      "anchor": [
+        1,
+        1
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "door",
+      "file": "foreground-door-right.png",
+      "z": 3,
+      "transparent": true,
+      "depth": 1.1,
+      "scale": 1,
+      "anchor": [
+        1,
+        1
+      ],
+      "offset": [
+        0,
+        0
+      ]
+    }
+  ],
+  "sprites": {
+    "closedBox": {
+      "file": "closed-box-room-v3.png",
+      "canvas": [
+        1672,
+        941
+      ],
+      "sourceRect": [
+        691,
+        540,
+        322,
+        183
+      ],
+      "sourceContact": [
+        249,
+        181
+      ],
+      "roomFoot": [
+        940,
+        721
+      ],
+      "roomWidth": 322,
+      "renderer": "../../../../js/landing/room-box.js"
+    }
+  },
+  "landing": "../../../../index.html",
+  "notes": "방 파츠 4장은 동일한 전체 가로 캔버스이며 scale=1, offset=[0,0]. 상자는 별도 투명 스프라이트이며 sourceRect와 최저 꼭짓점 접지 좌표를 사용한다.",
+  "sourceName": "hero-web-wide.png (original retained in local archive)"
+}

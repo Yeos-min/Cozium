@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Kuwahara rendering checks</title>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js"}}</script>
+<style>body{background:#eee;font:16px monospace}canvas{width:640px;max-width:100%}pre{white-space:pre-wrap}</style>
+<h1>Kuwahara rendering checks</h1>
+<pre id="results">Running…</pre>
+<script type="module">
+import * as THREE from "three";
+import { KuwaharaEffect } from "../js/three/kuwahara-effect.js";
+import { makeTextOverlay } from "../js/three/text-overlay.js";
+import { makeCardTexture, makeBoxTexture, disposeCardTextures } from "../js/three/card-face.js";
+const output = document.querySelector('#results');
+const lines = [];
+function check(ok, text) { if (!ok) throw new Error(text); lines.push('PASS ' + text); output.textContent = lines.join('\n'); }
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(640, 360);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.append(renderer.domElement);
+const settings = { preset: 'off', strengths: { off: 0, weak: 0.65, medium: 0.9 }, radius: 4, anisotropy: 1, resolutionScale: 0.5, maxFilterSize: 1280 };
+const outline = { thickness: 0, opacity: 0.6, color: '#584632' };
+for (const name of ['render', 'copyFramebufferToTexture', 'setRenderTarget']) {
+  const original = renderer[name].bind(renderer);
+  renderer[name] = (...args) => {
+    const result = original(...args);
+    const error = renderer.getContext().getError();
+    if (error) throw new Error(name + ' GL error ' + error + ' preset ' + settings.preset);
+    return result;
+  };
+}
+const effect = new KuwaharaEffect(renderer, settings, outline);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#e8dfc6');
+const camera = new THREE.OrthographicCamera(-2, 2, 1.125, -1.125, 0.1, 10);
+camera.position.z = 3;
+const geometry = new THREE.PlaneGeometry(0.035, 1);
+for (let i = 0; i < 55; i++) {
+  const material = new THREE.MeshBasicMaterial({ color: i % 2 ? '#779043' : '#ceb08a', toneMapped: i < 27 });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.x = (i - 27) * 0.06;
+  scene.add(mesh);
+}
+const gl = renderer.getContext();
+const size = new THREE.Vector2();
+function capture(preset) {
+  settings.preset = preset;
+  effect.render(scene, camera);
+  renderer.getDrawingBufferSize(size);
+  const pixels = new Uint8Array(size.x * size.y * 4);
+  gl.readPixels(0, 0, size.x, size.y, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+  check(gl.getError() === gl.NO_ERROR, preset + ' renders without WebGL errors');
+  return pixels;
+}
+function difference(a, b) { let sum = 0; for (let i = 0; i < a.length; i += 4) for (let c = 0; c < 3; c++) sum += Math.abs(a[i+c] - b[i+c]); return sum / (a.length * 0.75); }
+try {
+  const original = capture('off');
+  check(effect.source === null, 'off allocates no postprocessing targets');
+  const weak = capture('weak');
+  const medium = capture('medium');
+  check(original.slice(0, 3).every((c, i) => Math.abs(c - weak[i]) <= 1 && Math.abs(c - medium[i]) <= 1), 'flat background color stays within 1/255 of original');
+  const weakDelta = difference(original, weak), mediumDelta = difference(original, medium);
+  check(weakDelta > 0.05 && mediumDelta > weakDelta * 1.25, 'medium changes detail more than weak (' + weakDelta.toFixed(3) + ' / ' + mediumDelta.toFixed(3) + ')');
+  check(difference(original, capture('off')) === 0, 'off returns to the exact original image');
+  outline.thickness = 1;
+  const thin = capture('off');
+  outline.thickness = 3;
+  const thick = capture('off');
+  check(difference(original, thin) > 0.1 && difference(original, thick) > difference(original, thin), 'geometry outlines work independently and get thicker');
+  outline.opacity = 1;
+  outline.color = '#51351f';
+  outline.normalThicknessRatio = 0.4;
+  const solidInk = capture('off');
+  let solidInkPixels = 0;
+  for (let i = 0; i < solidInk.length; i += 4) {
+    if (Math.abs(solidInk[i] - 81) <= 1 && Math.abs(solidInk[i + 1] - 53) <= 1 && Math.abs(solidInk[i + 2] - 31) <= 1) solidInkPixels++;
+  }
+  check(solidInkPixels > 100, 'opaque brown outline contains solid ink rather than a translucent tint (' + solidInkPixels + ' pixels)');
+  outline.opacity = 0.6;
+  outline.color = '#584632';
+  outline.normalThicknessRatio = 1;
+  outline.thickness = 0;
+
+  // Actual card/box drawing code: changing only text must leave base art identical.
+  const pixels = texture => texture.image.getContext('2d').getImageData(0, 0, texture.image.width, texture.image.height).data;
+  const item = { id: 'check-a', name: 'AAAA.txt', extension: 'txt', size: 4096 };
+  const cardA = makeCardTexture(THREE, item, '#e0dac0');
+  const cardB = makeCardTexture(THREE, { ...item, id: 'check-b', name: 'BBBB.txt' }, '#e0dac0');
+  check(difference(pixels(cardA), pixels(cardB)) === 0 && difference(pixels(cardA.userData.textTexture), pixels(cardB.userData.textTexture)) > 0, 'card filename is exclusively in the separate ink texture');
+  const boxA = makeBoxTexture(THREE, { index: 1, name: 'AAAA', subtitle: '12 files', accent: '#fff' });
+  const boxB = makeBoxTexture(THREE, { index: 1, name: 'BBBB', subtitle: '12 files', accent: '#fff' });
+  check(difference(pixels(boxA), pixels(boxB)) === 0 && difference(pixels(boxA.userData.textTexture), pixels(boxB.userData.textTexture)) > 0, 'box name is exclusively in the separate ink texture');
+
+  const inkCanvas = document.createElement('canvas');
+  inkCanvas.width = 256; inkCanvas.height = 128;
+  const ink = inkCanvas.getContext('2d');
+  ink.fillStyle = '#ff00ff'; ink.font = 'bold 36px sans-serif'; ink.fillText('TEXT', 65, 78);
+  const inkTexture = new THREE.CanvasTexture(inkCanvas);
+  inkTexture.colorSpace = THREE.SRGBColorSpace;
+  const plaque = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1), [new THREE.MeshBasicMaterial({ color: '#ded0ab' })]);
+  plaque.geometry.addGroup(0, plaque.geometry.index.count, 0);
+  plaque.position.z = 0.1; scene.add(plaque);
+  const textOverlay = makeTextOverlay(THREE, plaque, inkTexture, 0);
+  const noPostText = capture('off');
+  outline.thickness = 2;
+  const paintedText = capture('medium');
+  let inkCount = 0, changedInk = 0;
+  for (let i = 0; i < noPostText.length; i += 4) {
+    if (noPostText[i] === 255 && noPostText[i+1] === 0 && noPostText[i+2] === 255) {
+      inkCount++;
+      if (paintedText[i] !== 255 || paintedText[i+1] !== 0 || paintedText[i+2] !== 255) changedInk++;
+    }
+  }
+  check(inkCount > 100 && changedInk === 0, `model text pixels stay exact with painting and outlines enabled (${inkCount} ink pixels, ${changedInk} changed)`);
+  const occluder = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.3, 0.1), new THREE.MeshBasicMaterial({ color: '#778855' }));
+  occluder.position.z = 0.4; scene.add(occluder);
+  const occluded = capture('medium');
+  let leakedInk = 0;
+  for (let i = 0; i < occluded.length; i += 4) if (occluded[i] === 255 && occluded[i+1] === 0 && occluded[i+2] === 255) leakedInk++;
+  check(leakedInk === 0, 'foreground geometry occludes text after postprocessing');
+  check(camera.layers.mask === 1 && renderer.autoClear && scene.overrideMaterial === null, 'render state is restored');
+  occluder.removeFromParent(); occluder.geometry.dispose(); occluder.material.dispose();
+  textOverlay.dispose(); inkTexture.dispose(); plaque.removeFromParent(); plaque.geometry.dispose(); plaque.material[0].dispose();
+  outline.thickness = 0;
+  renderer.setPixelRatio(2);
+  renderer.setSize(800, 450);
+  effect.resize();
+  capture('weak');
+  check(effect.source.image.width === 1600 && effect.filtered.width === 800 && effect.filtered.height === 450, 'resize and DPR preserve full-size source and half-size filter');
+  outline.thickness = 1.25;
+  capture('medium');
+  check(effect.geometryTarget.width === 1600 && effect.composite.uniforms.outlineStep.value.x === 1.25 * 2 / 1600, 'outline buffers and CSS thickness follow DPR');
+  renderer.setPixelRatio(1);
+  renderer.setSize(1280, 720);
+  effect.resize();
+  for (const [preset, thickness, label] of [['off', 0, 'all off'], ['off', 1.25, 'outline only'], ['weak', 1.25, 'weak + outline'], ['medium', 1.25, 'medium + outline']]) {
+    settings.preset = preset;
+    outline.thickness = thickness;
+    for (let i = 0; i < 4; i++) effect.render(scene, camera);
+    gl.finish();
+    const start = performance.now();
+    for (let i = 0; i < 12; i++) { effect.render(scene, camera); gl.finish(); }
+    lines.push(label + ' 1280×720 synthetic scene, CPU+GPU synchronized: ' + ((performance.now() - start) / 12).toFixed(2) + ' ms/render');
+  }
+  effect.dispose();
+  geometry.dispose();
+  scene.traverse(object => object.material?.dispose());
+  renderer.dispose();
+  disposeCardTextures();
+  output.textContent = lines.join('\n') + '\nALL CHECKS PASSED (synthetic scene; not game FPS)';
+} catch (error) { output.textContent = lines.join('\n') + '\nFAIL ' + error.stack; }
+</script>
+</html>
