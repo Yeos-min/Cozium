@@ -8,37 +8,31 @@
 export const UNIT = 0.01; // 논리 1px → 월드 0.01. 보드 1280×720 → 12.8×7.2
 
 export const TUNING = {
-  kuwahara: {
-    preset: "weak", // [임시] 끄기 / 약 / 중. 원본 디테일을 남겨 둔다.
-    strengths: { off: 0, weak: 0.85, medium: 1 },
-    radius: 4.5, // 필터 해상도 픽셀. UI에서 2~6 조절.
-    sectorMode: "select", // select: 최소 분산 색면 / blend: 이전의 부드러운 평균
-    anisotropy: 2, // 작은 값일수록 결을 따라 길게 늘어난다.
-    resolutionScale: 0.75,
-    maxFilterSize: 1600, // 높은 DPR/4K에서도 필터의 긴 변을 제한한다.
+  /**
+   * 그림 방식 (10-11, 사용자가 랜딩에서 고른 것을 게임에도). material "toon" = 툰 3단, "pbr" = 예전 재질.
+   * rays = 천창 햇살 줄기.
+   */
+  render: { material: "toon", rays: true },
+  dithering: {
+    preset: "fine",
+    levels: { off: 0, fine: 16, medium: 8, coarse: 4 }, // 색 채널당 단계 수.
+    cellSize: 2, // Bayer 패턴 한 칸의 화면 CSS px. 캔버스 해상도는 유지.
+  },
+  vertexWobble: {
+    preset: "wobble",
+    cellSizes: { off: 0, subtle: 1, wobble: 3, ps1: 6 }, // 투영된 정점의 화면 CSS px 격자.
   },
   outline: {
-    thickness: 1, // CSS px. 0이면 끄기. DPR에 관계없이 같은 화면 굵기.
+    thickness: 1, // 외곽선 굵기. 설정 UI에서 0~4px 조절.
     opacity: 1,
-    color: "#51351f",
+    // 10-11: 갈색 고정(#51351f) 대신 주변색을 어둡게 한 선. ink "fixed"면 color 한 색.
+    color: "#26262a",
+    ink: "around",
+    inkDark: 0.34,
     depthThreshold: 0.015,
     normalThreshold: 0.65,
     normalThicknessRatio: 0.4, // 주요 내부 꺾임은 실루엣보다 가늘게.
   },
-  camera: {
-    /** 프리셋: elevation은 수평선 기준 각도(90 = 완전 탑다운), azimuth는 좌우 회전 */
-    presets: {
-      diagonal: { label: "사선", elevation: 52, azimuth: 0, fov: 34, fit: 0.97, targetBias: -0.3 },
-      low: { label: "낮은 사선", elevation: 38, azimuth: 0, fov: 32, fit: 1.08, targetBias: -0.8 },
-      top: { label: "탑다운", elevation: 84, azimuth: 0, fov: 34, fit: 0.99, targetBias: 0 },
-    },
-    default: "walk",
-    /** 포인터를 따라 아주 살짝 흔들리는 시차. 0이면 완전 고정. 1인칭에서는 안 쓴다 */
-    parallax: 0.16,
-    parallaxSmoothing: 5,
-    moveSpring: 3.2, // 프리셋 전환 속도
-  },
-
   /**
    * 1인칭. 방 안에 서서 둘러본다. `[임시]`
    * 참고 게임 둘 다 1인칭이고, 몰입의 대부분이 "방 안에 있다"에서 나온다 (§2-1).
@@ -71,6 +65,13 @@ export const TUNING = {
      */
     spawnBack: 2.6,
     bodyRadius: 0.7, // 벽과 상자에 파고들지 않게
+    /**
+     * 점프(10-11 사용자 친구들 요청: 상자가 많아져 길을 막으면 넘어가게). Space.
+     * height: 발이 올라가는 높이(게임 단위, 1 = 0.5 m). 상자 하나(0.98)를 넘고 그 위에 설 수 있게 1.25.
+     * rise: 꼭대기까지 걸리는 초. step: 이만큼 낮은 턱은 걸어서 올라선다. headroom: 머리 위 여유(경사 천장).
+     * 가구(침대·책상)는 높이가 없어 여전히 막힌다. 두 단 상자는 한 단 위에서 한 번 더 뛰어야 오른다. `[임시]`
+     */
+    jump: { height: 1.25, rise: 0.3, step: 0.08, headroom: 0.2 },
 
     /**
      * ── 멀미 관련 `[임시]` ──
@@ -81,8 +82,8 @@ export const TUNING = {
     /** 포인터 락 감도. 픽셀당 도 — 락에서는 movementX가 오므로 커서 드래그와 값이 다르다 */
     lockedSensitivity: 0.075,
     /**
-     * 시점 부드럽게. 1이면 즉시(마우스 이벤트가 듬성듬성하면 확확 튄다), 낮을수록 미끄럽다.
-     * 너무 낮추면 입력 지연이 생겨 그것대로 멀미를 부른다. 0.3~0.5 사이가 무난하다.
+     * 커서 드래그 시점만 평활화한다. 60fps 기준 비율이며 다른 fps에서는 시간으로 보정한다.
+     * 포인터 락 입력은 이 값을 쓰지 않고 다음 프레임에 전부 반영한다.
      */
     lookSmoothing: 0.38,
 
@@ -95,7 +96,7 @@ export const TUNING = {
       height: -0.64, // 카메라 기준 아래쪽
       side: 0.92,
       pitch: 1.12,
-      scale: 0.65,
+      scale: 0.95, // 다락방 카드(55 × 33 cm) 기준. 예전 큰 카드는 0.65
       rise: 0.025, // 한 장 쌓일 때마다
       back: 0.018, // 뒤 카드가 물러나는 정도
       fan: 0.04, // 옆으로 펴지는 정도. 몇 장 들었는지 보이게
@@ -112,10 +113,11 @@ export const TUNING = {
 
   /** 1인칭에서만 세우는 방 */
   room: {
+    primitiveBed: false,
     wallHeight: 5.8,
     wallThickness: 0.4,
-    color: "#e3d8c5",
-    trimColor: "#bc9f7c",
+    color: "#526580",
+    trimColor: "#29394f",
     margin: 220,
     shelfY: 0.34,
     shelfBack: 1.55,
@@ -126,27 +128,34 @@ export const TUNING = {
    * 어두운 무채색은 "작업 도구"로 읽히고, 따뜻한 나무는 "물건이 놓인 곳"으로 읽힌다.
    */
   desk: {
+    floorColors: ["#799da9", "#adc7ce"],
+    floorRepeat: 1.8,
     // 따뜻한 나무와 밝은 종이의 대비.
-    color: "#ba966e",
-    playColor: "#ba966e",
-    boxZoneColor: "#ba966e",
-    background: "#e5ddce",
-    edgeColor: "#7a5c3a",
+    color: "#799da9",
+    playColor: "#799da9",
+    boxZoneColor: "#799da9",
+    background: "#182237",
+    edgeColor: "#29394f",
     margin: 260, // 책상이 보드 밖으로 뻗는 논리 여백
   },
 
+  /**
+   * 다락방 낮(10-11): 랜딩 마지막 방과 같은 '오후 햇살'. 천창으로 드는 해 + 지붕 그림자, 노란 하늘빛.
+   * 방향은 +x 경사의 천창 쪽에서. 방은 게임 단위(0.5 m)라 거리·그림자 범위는 랜딩의 두 배.
+   */
   light: {
-    // Late afternoon: low warm light from the back-left window side.
-    key: { color: "#ffdfb5", intensity: 3.0, elevation: 28, azimuth: -115, distance: 18 },
-    fill: { color: "#dce6ed", intensity: 1.0, elevation: 35, azimuth: 30, distance: 14 },
-    hemi: { sky: "#fff0da", ground: "#aaa0ad", intensity: 1.15 },
-    // Local warm pools distinguish the living corners without darkening file labels.
-    practical: { color: "#ffdda1", intensity: 4.2, distance: 4.8, glow: 0.55 },
-    exposure: 1.12,
-    shadow: { mapSize: 2048, radius: 7, bias: -0.0012, normalBias: 0.02, intensity: 0.55 },
+    ambient: { color: "#f6e2c6", intensity: 0.5 },
+    key: { color: "#ffd9a0", intensity: 3.8, elevation: 47.3, azimuth: 110.8, distance: 30, target: [0, 0, 0.8] },
+    fill: { color: "#8cbde2", intensity: 0, elevation: 35, azimuth: 30, distance: 14 },
+    hemi: { sky: "#fff3dc", ground: "#8a6844", intensity: 1.7 },
+    // 예전 절차 방의 스탠드. 다락방에서는 쓰지 않는다(모델 불러오기 실패 때의 빈 방에도 없음).
+    practical: { color: "#ffd77c", intensity: 1.4, distance: 4.8, glow: 0.25 },
+    exposure: 1,
+    background: "#cfe5ef",
+    shadow: { mapSize: 2048, radius: 0, bias: -0.0004, normalBias: 0.04, intensity: 1, extent: 13, type: "pcf" },
   },
 
-  wallWash: { amount: 0.8, scale: 1.25 },
+  wallWash: { amount: 0, scale: 1.25 },
 
   card: {
     thickness: 0.055, // 기준 두께. 실제 두께는 파일 크기로 곱해진다
@@ -156,16 +165,18 @@ export const TUNING = {
      */
     thicknessRange: { min: 0.45, max: 4.2 },
     thicknessReferenceKb: 700 * 1024, // 이 크기에서 max에 닿는다
-    corner: 0.09,
-    bevel: 0.012,
+    corner: 0.018,
+    bevel: 0.004,
     // [임시] 형태로 읽히는 파일. 크기=두께 관계는 각 재질 안에서 유지한다.
     forms: {
       card: { thickness: 1 },
       photo: { aspect: 1.25, thickness: 0.22, corner: 0.012, bevel: 0.002, edge: "#eee7d7" },
       note: { aspect: 1, thickness: 0.35, corner: 0.012, bevel: 0.002, fold: 0.16, edge: "#e4cc73" },
+      // 다락방 책 더미(10-11). 크기=두께는 그대로, 책답게 두툼하게. 옆면 = 종이 묶음.
+      book: { aspect: 1.33, thickness: 2.4, corner: 0.016, bevel: 0.006, edge: "#efe3c4" },
     },
-    faceColor: "#f5efdf",
-    edgeTint: 0.16,
+    faceColor: "#fff0cc",
+    edgeTint: 0.5,
     /**
      * 쌓기. 겹친 면적이 카드 넓이의 이 비율을 넘으면 아래 카드 위에 얹힌다.
      * 살짝 스친 것만으로 떠오르면 책상이 들썩여 보인다.
@@ -189,7 +200,7 @@ export const TUNING = {
     /** 집을 때 살짝 커짐 */
     liftScale: 1.06,
     /** 상자에 들어간 뒤 */
-    placedScale: 0.62,
+    placedScale: 0.8, // 다락방 상자(폭 1.03) 안에 들어가는 크기
     placedStack: 0.05, // 한 장 쌓일 때마다 올라가는 높이
     /** 충돌로 튕겨 돌아올 때 */
     rejectHop: 0.5,
@@ -209,12 +220,13 @@ export const TUNING = {
 
   box: {
     wall: 0.075,
-    height: 1.08,
+    // models/box.glb ×2 (0.493 m). 예전 코드 상자는 1.08.
+    height: 0.98,
     innerPad: 0.06,
     // 나무 상자. 책상보다 밝아야 "담는 그릇"으로 읽힌다
-    color: "#a99775",
-    rimColor: "#c2b28f",
-    targetRimColor: "#f5e7a3",
+    color: "#bd7549",
+    rimColor: "#f2ba72",
+    targetRimColor: "#ffdb68",
     virtualRimColor: "#8ee6a5",
     lift: 0.025,
     innerGlow: 0.12,

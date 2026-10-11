@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Retro shader checks</title>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js"}}</script>
+<pre id="results">Running…</pre>
+<script type="module">
+import * as THREE from "three";
+import { OutlineEffect } from "../js/three/outline-effect.js";
+import { VertexSnapEffect } from "../js/three/vertex-snap.js";
+import { makeTextOverlay } from "../js/three/text-overlay.js";
+const lines = [], output = document.querySelector('#results');
+function check(ok, text) { if (!ok) throw new Error(text); lines.push('PASS ' + text); output.textContent = lines.join('\n'); }
+const renderer = new THREE.WebGLRenderer({ antialias: false });
+renderer.setSize(320, 240);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.append(renderer.domElement);
+const dither = { preset: 'off', levels: { off: 0, fine: 16, medium: 8, coarse: 4 }, cellSize: 1 };
+const outline = { thickness: 0, opacity: 1, color: '#51351f' };
+const wobble = { preset: 'off', cellSizes: { off: 0, subtle: 1, wobble: 3, ps1: 6 } };
+const effect = new OutlineEffect(renderer, outline, dither);
+const snap = new VertexSnapEffect(renderer, wobble);
+snap.patchMaterial(effect.normalMaterial);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#808080');
+const camera = new THREE.PerspectiveCamera(50, 320 / 240, 0.1, 20);
+camera.position.z = 3;
+const gl = renderer.getContext(), size = new THREE.Vector2();
+function capture() {
+  snap.prepare(scene); effect.render(scene, camera);
+  renderer.getDrawingBufferSize(size);
+  const pixels = new Uint8Array(size.x * size.y * 4);
+  gl.readPixels(0, 0, size.x, size.y, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+  check(gl.getError() === gl.NO_ERROR, 'render has no WebGL error');
+  return pixels;
+}
+function difference(a, b) { let sum = 0; for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]); return sum; }
+try {
+  const original = capture();
+  check(effect.source === null && original[0] === 128, 'all off preserves the 128 gray source without post targets');
+  dither.preset = 'coarse';
+  const coarse = capture();
+  const values = new Set(); let sum = 0;
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+    const i = (y * 320 + x) * 4;
+    values.add(coarse[i]); sum += coarse[i];
+    check(coarse[i] === coarse[i + 1] && coarse[i] === coarse[i + 2], 'gray channels remain equal');
+    check(coarse[i] === coarse[(y * 320 + x + 4) * 4], 'Bayer pattern repeats every four cells');
+  }
+  check([...values].sort((a, b) => a - b).join() === '85,170' && Math.abs(sum / 16 - 128) < 1, 'coarse uses exact 4-level channel values and preserves average gray (' + [...values] + ', mean ' + sum / 16 + ')');
+  for (const preset of ['fine', 'medium']) {
+    dither.preset = preset; const pixels = capture();
+    const levels = dither.levels[preset];
+    check(Math.abs(pixels[0] * (levels - 1) / 255 - Math.round(pixels[0] * (levels - 1) / 255)) < 0.03, preset + ' uses its selected channel levels');
+  }
+  dither.preset = 'off';
+  check(difference(original, capture()) === 0, 'dithering off restores exact source pixels');
+  scene.background = new THREE.Color('black');
+  const geometry = new THREE.PlaneGeometry(0.73, 0.91);
+  const material = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+  // Preserve an existing shader callback and program key when extending a material.
+  let callbackCount = 0;
+  material.onBeforeCompile = () => { callbackCount++; };
+  material.customProgramCacheKey = () => 'existing-hook';
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(0.173, 0.071, 0.11); scene.add(mesh);
+  const positions = Array.from(geometry.attributes.position.array);
+  const before = capture();
+  wobble.preset = 'ps1';
+  const snapped = capture();
+  check(difference(before, snapped) > 0, 'projected vertex snapping changes rendered coverage');
+  check(callbackCount > 0 && material.customProgramCacheKey().startsWith('existing-hook|'), 'previous shader hook and program key are retained');
+  camera.position.x += 0.001;
+  check(difference(snapped, capture()) === 0, 'small camera motion holds projected vertices on the same grid cell');
+  camera.position.x += 0.15;
+  check(difference(snapped, capture()) > 0, 'larger camera motion crosses grid cells and produces wobble');
+  check(JSON.stringify(positions) === JSON.stringify(Array.from(geometry.attributes.position.array)), 'world geometry and picking data are unchanged');
+  const inkCanvas = document.createElement('canvas'); inkCanvas.width = inkCanvas.height = 16;
+  const ink = inkCanvas.getContext('2d'); ink.fillStyle = '#7f447f'; ink.fillRect(0, 0, 16, 16);
+  const inkTexture = new THREE.CanvasTexture(inkCanvas); inkTexture.colorSpace = THREE.SRGBColorSpace;
+  mesh.material = [material]; geometry.addGroup(0, geometry.index.count, 0);
+  const text = makeTextOverlay(THREE, mesh, inkTexture, 0);
+  const textBefore = capture(); dither.preset = 'coarse';
+  check(textBefore.some((v, i) => i % 4 === 0 && v > 0 && v < 255) && difference(textBefore, capture()) === 0, 'model ink remains exact with dithering and vertex snapping together');
+  text.dispose(); inkTexture.dispose();
+  outline.thickness = 1; dither.preset = 'coarse';
+  capture();
+  check(camera.layers.mask === 1 && renderer.autoClear && scene.overrideMaterial === null, 'combined effects restore render state');
+  renderer.setPixelRatio(2); renderer.setSize(400, 300); effect.resize(); capture();
+  check(effect.source.image.width === 800 && effect.geometryTarget.width === 800, 'combined buffers resize with DPR');
+  check(Math.abs(snap.uniforms.retroSnapGrid.value.x - 400 / 6) < 1e-9 && effect.composite.uniforms.ditherCellSize.value === 2, 'snap and Bayer cells retain their CSS size at DPR2');
+  effect.dispose(); geometry.dispose(); material.dispose(); renderer.dispose();
+  output.textContent = lines.join('\n') + '\nALL CHECKS PASSED';
+} catch (error) { output.textContent = lines.join('\n') + '\nFAIL ' + error.stack; }
+</script>
+</html>

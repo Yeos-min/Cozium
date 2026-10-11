@@ -2,23 +2,25 @@
  * scene-kit.js — 렌더러, 카메라, 조명, 방, 좌표 변환.
  *
  * board-3d.js가 "무엇을 놓을지"를 정하고, 이 파일이 "어떻게 보일지"를 맡는다.
- * 논리 좌표(1280×720)와 월드 좌표를 오가는 변환도 여기 있다. layout.js가 만든 배치가
- * 2D 보드와 3D 장면에서 똑같이 읽히는 이유다.
- *
- * 카메라는 두 모드다.
- *   walk  — 1인칭. 방 안에 서서 둘러본다. 기본값. (§2-1)
- *   orbit — 바깥에서 내려다보는 고정 사선. 0-C 때 검증한 것이고 비교용으로 남겼다.
+ * 논리 좌표(1280×720)와 월드 좌표를 오가는 변환도 여기 있다.
  */
 import * as THREE from "three";
 import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 
-import { BOARD_SIZE, boxZoneFor, playBoundsFor } from "../ui/board-layout.js";
-import { loadModel } from "./assets.js";
-import { KuwaharaEffect } from "./kuwahara-effect.js";
+import { BOARD_SIZE } from "../ui/board-layout.js";
+import { OutlineEffect } from "./outline-effect.js";
+import { VertexSnapEffect } from "./vertex-snap.js";
+import { makeFloorTexture } from "./room-style.js";
 import { addWallWash } from "./wall-wash.js";
-import { furnishRoom, buildShelfCells, disposeRoomGroup } from "./cozy-room.js";
-import { moveWalker, safeWalkPosition } from "./walk-collision.js";
-import { TUNING, UNIT, directionFromAngles, springStep } from "./tuning.js";
+import { ATTIC_BOX, ATTIC_FLOOR, ATTIC_HALF, ATTIC_OBSTACLES, ATTIC_SCALE, ATTIC_SHELF_RUNS, ATTIC_SPAWN, ATTIC_STACK, ATTIC_URL, ATTIC_WALK, atticCeilingAt } from "./attic-room.js";
+import { wallShelfSlots } from "./folder-shelves.js";
+import { surfaceMaterial, toonFrom } from "./materials.js";
+import { GodRays, findSkylight } from "./godrays.js";
+import { groundAt, moveWalker, safeWalkPosition, stepVertical } from "./walk-collision.js";
+import { LookInput } from "./look-input.js";
+import { updatePickMatrices } from "./pick-matrices.js";
+import { RenderQuality, detectDeviceTier, renderPixelRatio } from "./render-quality.js";
+import { TUNING, UNIT, directionFromAngles } from "./tuning.js";
 
 export { THREE, CSS2DObject };
 
@@ -28,92 +30,55 @@ const DEG = Math.PI / 180;
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-/** 논리 좌표의 한 점(중심 기준) → 월드 XZ */
+/**
+ * 논리 좌표의 한 점 → 월드 XZ. 다락방(10-11)에서는 파일 바닥(ATTIC_FLOOR)의 왼쪽 위 모서리가 논리 (0, 0)이다.
+ * 예전에는 1280×720 보드의 가운데가 월드 원점이었다.
+ */
 export function toWorld(cx, cy) {
-  return { x: (cx - HALF_W) * UNIT, z: (cy - HALF_H) * UNIT };
+  return { x: ATTIC_FLOOR.minX + cx * UNIT, z: ATTIC_FLOOR.minZ + cy * UNIT };
 }
 
-/** 월드 XZ → 논리 좌표(중심 기준) */
+/** 월드 XZ → 논리 좌표 */
 export function toLogical(x, z) {
-  return { cx: x / UNIT + HALF_W, cy: z / UNIT + HALF_H };
+  return { cx: (x - ATTIC_FLOOR.minX) / UNIT, cy: (z - ATTIC_FLOOR.minZ) / UNIT };
 }
 
 export function toWorldSize(logical) {
   return logical * UNIT;
 }
 
-/**
- * 나무 널 결. 카드를 다 치우면 드러나는 바닥이 밋밋한 색판이면 치운 보람이 없다.
- * 텍스처를 코드로 굽는다 — 이미지 파일을 늘리지 않는다.
- */
-function makePlankTexture(baseColor, { plank = 86, seam = 0.09, grain = 0.025 } = {}) {
-  const size = 512;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  const base = new THREE.Color(baseColor);
-
-  for (let y = 0; y < size; y += plank) {
-    const shade = 1 + (Math.sin(y * 12.9898) * 0.5 + 0.5 - 0.5) * 0.16;
-    const row = base.clone().multiplyScalar(shade);
-    ctx.fillStyle = `#${row.getHexString()}`;
-    ctx.fillRect(0, y, size, plank);
-
-    ctx.strokeStyle = `rgba(0,0,0,${grain})`;
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 7; i += 1) {
-      const gy = y + ((i + 1) * plank) / 8;
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      for (let x = 0; x <= size; x += 32) ctx.lineTo(x, gy + Math.sin((x + y) * 0.03) * 1.6);
-      ctx.stroke();
-    }
-
-    ctx.fillStyle = `rgba(0,0,0,${seam})`;
-    ctx.fillRect(0, y, size, 2);
-    // Offset the short joints so this reads as floorboards, not continuous stripes.
-    ctx.fillRect((Math.floor(y / plank) % 3) * 170, y, 2, plank);
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = 8;
-  return texture;
-}
-
 export class SceneKit {
   /** @param {HTMLElement} root */
   constructor(root) {
     this.root = root;
+    this.disposed = false;
     this.clock = new THREE.Clock();
     this.pointerNdc = new THREE.Vector2(0, 0);
-    this.parallax = new THREE.Vector2(0, 0);
     this.placement = "bottom";
     this.raycaster = new THREE.Raycaster();
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-    // 궤도 카메라 (0-C의 고정 사선)
-    this.presetId = "diagonal";
-    this.orbit = { elevation: 0, azimuth: 0, distance: 12, targetZ: 0, fov: 34 };
-    this.orbitVel = { elevation: 0, azimuth: 0, distance: 0, targetZ: 0, fov: 0 };
-
     // 1인칭
-    this.mode = "orbit";
-    this.walk = { x: 0, z: 0, yaw: 0, pitch: TUNING.firstPerson.pitch, vx: 0, vz: 0, bob: 0 };
-    this.pendingLook = { yaw: 0, pitch: 0 };
+    this.mode = "walk";
+    // y = 발 높이(점프·상자 위), vy = 위아래 속도
+    this.walk = { x: 0, z: 0, y: 0, vy: 0, grounded: true, yaw: 0, pitch: TUNING.firstPerson.pitch, vx: 0, vz: 0, bob: 0 };
+    this.jumpRequested = false;
+    this.lookInput = new LookInput();
+    this.renderQuality = new RenderQuality(new URLSearchParams(location.search).get("quality"));
     this.moveInput = { forward: 0, strafe: 0, sprint: false };
 
     this.#buildRenderer();
+    // 자동 화질의 처음 단계는 GPU로 짐작한다(외장 high, 내장 balanced, 소프트웨어 low). ?quality=high|low면 고정.
+    this.renderQuality.setStartTier(detectDeviceTier(this.renderer.getContext()));
     this.#buildScene();
+    this.vertexSnap = new VertexSnapEffect(this.renderer, TUNING.vertexWobble);
+    this.vertexSnap.patchMaterial(this.outlineEffect.normalMaterial);
     this.#buildLights();
     this.#buildDesk();
     this.#buildRoom();
+    this.#applyRenderQuality();
 
-    Object.assign(this.orbit, this.#orbitTarget(TUNING.camera.presets[this.presetId]));
-    this.setCameraPreset(TUNING.camera.default);
+    this.resetWalk();
     this.#applyCamera();
   }
 
@@ -121,14 +86,16 @@ export class SceneKit {
 
   #buildRenderer() {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // 그림자는 프로필의 shadowEvery 프레임마다만 다시 그린다(가벼움: 3프레임에 한 번). 방은 움직이지 않는다.
+    this.renderer.shadowMap.autoUpdate = false;
+    this.frameIndex = 0;
+    this.renderer.shadowMap.type = TUNING.light.shadow.type === "pcf" ? THREE.PCFShadowMap : THREE.BasicShadowMap;
+    this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.toneMappingExposure = TUNING.light.exposure;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.domElement.classList.add("board-canvas");
-    this.kuwahara = new KuwaharaEffect(this.renderer, TUNING.kuwahara, TUNING.outline);
+    this.outlineEffect = new OutlineEffect(this.renderer, { ...TUNING.outline }, TUNING.dithering);
 
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.domElement.classList.add("board-labels");
@@ -138,8 +105,8 @@ export class SceneKit {
 
   #buildScene() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(TUNING.desk.background);
-    this.scene.fog = new THREE.Fog(this.scene.background, 20, 46);
+    this.scene.background = new THREE.Color(TUNING.light.background ?? TUNING.desk.background);
+    this.scene.fog = null;
 
     this.camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 100);
     this.camera.rotation.order = "YXZ";
@@ -153,6 +120,7 @@ export class SceneKit {
     const { key, fill, hemi, shadow } = TUNING.light;
 
     this.scene.add(new THREE.HemisphereLight(hemi.sky, hemi.ground, hemi.intensity));
+    this.scene.add(new THREE.AmbientLight(TUNING.light.ambient.color, TUNING.light.ambient.intensity));
 
     this.keyLight = new THREE.DirectionalLight(key.color, key.intensity);
     const keyDir = directionFromAngles(key.elevation, key.azimuth);
@@ -163,7 +131,7 @@ export class SceneKit {
     this.keyLight.shadow.bias = shadow.bias;
     this.keyLight.shadow.normalBias = shadow.normalBias;
     this.keyLight.shadow.intensity = shadow.intensity ?? 1;
-    const extent = Math.max(BOARD_SIZE.width, BOARD_SIZE.height) * UNIT * 0.62;
+    const extent = shadow.extent ?? Math.max(BOARD_SIZE.width, BOARD_SIZE.height) * UNIT * 0.62;
     const shadowCamera = this.keyLight.shadow.camera;
     shadowCamera.left = -extent;
     shadowCamera.right = extent;
@@ -172,156 +140,150 @@ export class SceneKit {
     shadowCamera.near = 1;
     shadowCamera.far = key.distance * 2.4;
     shadowCamera.updateProjectionMatrix();
+    this.keyLight.target.position.set(...(key.target ?? [0, 0, -1]));
     this.scene.add(this.keyLight, this.keyLight.target);
+    this.keyLight.target.updateMatrixWorld();
 
     const fillLight = new THREE.DirectionalLight(fill.color, fill.intensity);
     const fillDir = directionFromAngles(fill.elevation, fill.azimuth);
     fillLight.position.set(fillDir.x * fill.distance, fillDir.y * fill.distance, fillDir.z * fill.distance);
-    this.scene.add(fillLight);
+    if (fill.intensity > 0) this.scene.add(fillLight);
   }
 
   #buildDesk() {
     this.deskGroup = new THREE.Group();
     this.world.add(this.deskGroup);
 
-    const margin = toWorldSize(TUNING.desk.margin);
-    const deskWidth = BOARD_SIZE.width * UNIT + margin * 2;
-    const deskDepth = BOARD_SIZE.height * UNIT + margin * 2;
+    // 다락방 모델이 오기 전(또는 실패했을 때)의 바닥. 모델이 오면 숨긴다.
+    const deskWidth = ATTIC_HALF.x * 2;
+    const deskDepth = ATTIC_HALF.z * 2;
 
-    this.deskTexture = makePlankTexture(TUNING.desk.color);
-    this.deskTexture.repeat.set(deskWidth / 2.6, deskDepth / 2.6);
+    this.deskTexture = makeFloorTexture();
+    const repeat = TUNING.desk.floorRepeat;
+    this.deskTexture.repeat.set(deskWidth / repeat, deskDepth / repeat);
     this.desk = new THREE.Mesh(
       new THREE.BoxGeometry(deskWidth, 0.4, deskDepth),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, map: this.deskTexture, roughness: 0.94, metalness: 0 }),
+      surfaceMaterial({ color: 0xffffff, map: this.deskTexture, roughness: 0.94, metalness: 0 }),
     );
     this.desk.position.y = -0.2;
     this.desk.receiveShadow = true;
     this.deskGroup.add(this.desk);
-
-    this.playTexture = makePlankTexture(TUNING.desk.playColor);
-    this.playTexture.repeat.set((BOARD_SIZE.width * UNIT) / 2.6, (BOARD_SIZE.height * UNIT) / 2.6);
-    this.playMat = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, map: this.playTexture, roughness: 0.98, metalness: 0 }),
-    );
-    this.playMat.rotation.x = -Math.PI / 2;
-    this.playMat.position.y = 0.002;
-    this.playMat.receiveShadow = true;
-
-    this.boxMat = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshStandardMaterial({ color: TUNING.desk.boxZoneColor, roughness: 0.98, metalness: 0 }),
-    );
-    this.boxMat.rotation.x = -Math.PI / 2;
-    this.boxMat.position.y = 0.0015;
-    this.boxMat.receiveShadow = true;
-
-    this.deskGroup.add(this.playMat, this.boxMat);
-    // One continuous wood floor in the room; no darker rectangular play mat.
-    this.playMat.visible = false;
-    this.boxMat.visible = false;
     this.setPlacement("bottom");
-
-    loadModel(THREE, "desk").then((model) => {
-      if (!model) return;
-      this.desk.visible = false;
-      this.deskGroup.add(model);
-    });
   }
 
-  /** 1인칭에서만 세우는 벽. 궤도 카메라에서는 시야를 막으므로 숨긴다. */
+  /**
+   * 1인칭 방. 사용자의 다락방(`models/room.glb`, 10-11)을 ×2로 불러온다. 오기 전에는 같은 크기의 빈 방(벽 넷)이
+   * 서 있고, 오면 숨긴다. 불러오기에 실패해도 그 빈 방으로 놀 수 있다(가구 발자국·선반 자리는 같다).
+   */
   #buildRoom() {
-    const { wallHeight, wallThickness, color, trimColor, margin } = TUNING.room;
+    const { wallThickness, color, trimColor } = TUNING.room;
+    const wallHeight = 5.2;
     this.roomGroup = new THREE.Group();
-    this.roomGroup.visible = false;
+    this.roomGroup.visible = true;
     this.world.add(this.roomGroup);
+    this.roomHalf = { ...ATTIC_HALF };
 
-    this.roomHalf = {
-      x: (BOARD_SIZE.width * UNIT) / 2 + toWorldSize(margin),
-      z: (BOARD_SIZE.height * UNIT) / 2 + toWorldSize(margin),
-    };
-
-    const wallMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0 });
-    addWallWash(wallMaterial, TUNING.wallWash);
-    const trimMaterial = new THREE.MeshStandardMaterial({ color: trimColor, roughness: 0.8, metalness: 0 });
+    this.fallbackRoom = new THREE.Group();
+    this.fallbackRoom.name = "attic-fallback-walls";
+    this.roomGroup.add(this.fallbackRoom);
+    const wallMaterial = surfaceMaterial({ color, roughness: 0.95, metalness: 0 });
+    if (TUNING.wallWash.amount > 0) addWallWash(wallMaterial, TUNING.wallWash);
+    const trimMaterial = surfaceMaterial({ color: trimColor, roughness: 0.8, metalness: 0 });
     const spans = [
-      { w: this.roomHalf.x * 2 + wallThickness * 2, d: wallThickness, x: 0, z: -this.roomHalf.z },
-      { w: this.roomHalf.x * 2 + wallThickness * 2, d: wallThickness, x: 0, z: this.roomHalf.z },
-      { w: wallThickness, d: this.roomHalf.z * 2, x: -this.roomHalf.x, z: 0 },
-      { w: wallThickness, d: this.roomHalf.z * 2, x: this.roomHalf.x, z: 0 },
+      { w: this.roomHalf.x * 2 + wallThickness * 2, d: wallThickness, x: 0, z: -this.roomHalf.z - wallThickness / 2 },
+      { w: this.roomHalf.x * 2 + wallThickness * 2, d: wallThickness, x: 0, z: this.roomHalf.z + wallThickness / 2 },
+      { w: wallThickness, d: this.roomHalf.z * 2, x: -this.roomHalf.x - wallThickness / 2, z: 0 },
+      { w: wallThickness, d: this.roomHalf.z * 2, x: this.roomHalf.x + wallThickness / 2, z: 0 },
     ];
     for (const span of spans) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(span.w, wallHeight, span.d), wallMaterial);
       wall.position.set(span.x, wallHeight / 2, span.z);
       wall.receiveShadow = true;
-      this.roomGroup.add(wall);
-
-      // 걸레받이 — 벽과 바닥이 만나는 선이 있어야 방으로 읽힌다
+      this.fallbackRoom.add(wall);
       const trim = new THREE.Mesh(new THREE.BoxGeometry(span.w * 1.001, 0.34, span.d * 1.6), trimMaterial);
       trim.position.set(span.x, 0.17, span.z);
       trim.receiveShadow = true;
-      this.roomGroup.add(trim);
+      this.fallbackRoom.add(trim);
     }
-    this.roomObstacles = furnishRoom(this.roomGroup, this.roomHalf);
-    this.shelfGroup = new THREE.Group();
-    this.world.add(this.shelfGroup);
+    this.roomObstacles = ATTIC_OBSTACLES.map((obstacle) => ({ ...obstacle }));
+    // 상자 칸: −x 처마 벽을 따라 바닥에 한 줄, 위에 한 단(선반 틀 없음, 10-11 사용자)
+    this.shelfSlots = wallShelfSlots(ATTIC_SHELF_RUNS, ATTIC_BOX, { ...ATTIC_STACK, height: TUNING.box.height });
+    this.roomReady = this.#loadAttic();
   }
 
+  async #loadAttic() {
+    try {
+      const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+      const gltf = await new GLTFLoader().loadAsync(ATTIC_URL);
+      if (this.disposed) return false;
+      const room = gltf.scene;
+      room.name = "attic-room";
+      room.scale.setScalar(ATTIC_SCALE);
+      room.updateMatrixWorld(true);
+      let shell = null, shellVolume = 0;
+      room.traverse((object) => {
+        if (!object.isMesh) return;
+        object.castShadow = object.receiveShadow = true;
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        const converted = materials.map(toonFrom);
+        object.material = Array.isArray(object.material) ? converted : converted[0];
+        if (materials.some((m) => m.name === "Laptop_screen")) this.laptopScreen = object;
+        if (materials.some((m) => m.name === "Room")) {
+          const size = new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
+          const volume = size.x * size.y * size.z;
+          if (volume > shellVolume) { shellVolume = volume; shell = object; }
+        }
+      });
+      this.roomGroup.add(room);
+      this.attic = room;
+      if (this.laptopScreen) this.#lightLaptop(this.laptopScreen);
+      this.fallbackRoom.visible = false;
+      this.desk.visible = false;
+      if (shell && TUNING.render.rays) this.#buildRays(shell);
+      this.root.dataset.room = "attic";
+      this.root.dispatchEvent(new Event("roomready"));
+      return true;
+    } catch (error) {
+      console.warn("[정리대] 다락방 모델을 불러오지 못해 빈 방으로 둡니다:", ATTIC_URL, error);
+      this.root.dataset.room = "fallback";
+      return false;
+    }
+  }
+
+  /** 책상 노트북 화면에 랜딩의 바탕화면을 띄운다. 랜딩에서 들어온 그 노트북이다. */
+  #lightLaptop(mesh) {
+    new THREE.TextureLoader().load("./assets/landing/parts/desktop-v2/wallpaper.svg", (texture) => {
+      if (this.disposed) { texture.dispose(); return; }
+      texture.flipY = false; // glTF UV: 왼쪽 위가 (0, 0)
+      texture.colorSpace = THREE.SRGBColorSpace;
+      mesh.material = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false });
+    }, undefined, () => { /* 화면은 검은 채로 둔다 */ });
+  }
+
+  /** 천창으로 드는 햇살 줄기(랜딩과 같은 효과). 천창은 방 껍질에 위로 쏜 광선이 빠져나가는 곳으로 찾는다. */
+  #buildRays(shell) {
+    const bounds = new THREE.Box3().setFromObject(shell).expandByScalar(-0.3);
+    bounds.min.y = 0.6;
+    const corners = findSkylight(shell, bounds, { step: 0.12, y0: 2.4, near: 1.2 });
+    if (!corners) return;
+    const direction = this.keyLight.target.position.clone().sub(this.keyLight.position);
+    this.rays = new GodRays(corners, direction, { dustSize: 32, drift: 0.1 });
+  }
+
+  /** 다락방은 선반 틀 없이 상자를 바닥에 바로 둔다(10-11). 칸 목록만 기억한다. */
   setFolderShelf(slots) {
-    const active = this.isWalking && this.placement === "far";
-    this.shelfGroup.visible = active;
-    if (!active) return;
-    const signature = JSON.stringify(slots);
-    if (signature === this.shelfSignature) return;
-    this.shelfSignature = signature;
-    disposeRoomGroup(this.shelfGroup);
-    buildShelfCells(this.shelfGroup, slots);
+    this.lastShelfSlots = slots;
   }
 
-  /** 카드 영역과 상자 띠의 크기를 배치에 맞춘다 */
+  /** 상자 배치 방식(board-3d가 "far" = 벽 상자 줄인지 본다). 다락방에서는 바닥 판이 따로 없다. */
   setPlacement(placement) {
     this.placement = placement;
-    const play = playBoundsFor(placement);
-    const zone = boxZoneFor(placement);
-    for (const [mesh, rect] of [
-      [this.playMat, play],
-      [this.boxMat, zone],
-    ]) {
-      mesh.scale.set(rect.width * UNIT, rect.height * UNIT, 1);
-      const center = toWorld(rect.x + rect.width / 2, rect.y + rect.height / 2);
-      mesh.position.x = center.x;
-      mesh.position.z = center.z;
-    }
-    if (this.mode === "walk") this.#clampWalk();
+    if (this.roomHalf) this.#clampWalk();
   }
 
   // ───────────────────────── 카메라 ─────────────────────────
 
-  get cameraPresets() {
-    return [
-      { id: "walk", label: TUNING.firstPerson.label },
-      ...Object.entries(TUNING.camera.presets).map(([id, preset]) => ({ id, label: preset.label })),
-    ];
-  }
-
-  get isWalking() {
-    return this.mode === "walk";
-  }
-
-  setCameraPreset(id) {
-    if (id === "walk") {
-      if (this.mode !== "walk") this.resetWalk();
-      this.mode = "walk";
-      this.roomGroup.visible = true;
-      this.camera.fov = this.#walkFov();
-      this.camera.updateProjectionMatrix();
-      return;
-    }
-    if (!TUNING.camera.presets[id]) return;
-    this.mode = "orbit";
-    this.roomGroup.visible = false;
-    this.presetId = id;
-  }
+  get isWalking() { return true; }
 
   #walkFov() {
     // Narrow app panels retain enough horizontal context to see the room, not only the shelf.
@@ -329,29 +291,24 @@ export class SceneKit {
     return Math.min(92, 2 * Math.atan(Math.tan(TUNING.firstPerson.fov * DEG / 2) * Math.max(1, 1.5 / aspect)) / DEG);
   }
 
-  /** 보드 가까운 쪽에 서서 먼 쪽을 본다 */
+  /** 핀보드·책 더미 앞에 서서 문 쪽 선반과 파일 바닥을 본다 */
   resetWalk() {
+    this.clearLook();
     const bounds = this.#walkBounds();
-    this.walk.x = clamp(0, bounds.minX, bounds.maxX);
-    this.walk.z = bounds.maxZ;
-    this.walk.yaw = 0; // yaw 0 = -Z 방향
+    this.walk.x = clamp(ATTIC_SPAWN.x, bounds.minX, bounds.maxX);
+    this.walk.z = clamp(ATTIC_SPAWN.z, bounds.minZ, bounds.maxZ);
+    this.walk.yaw = ATTIC_SPAWN.yaw; // yaw 0 = -Z 방향
     this.walk.pitch = TUNING.firstPerson.pitch;
     this.walk.vx = 0;
     this.walk.vz = 0;
     this.walk.bob = 0;
+    Object.assign(this.walk, { y: 0, vy: 0, grounded: true });
     this.#recoverWalk();
   }
 
-  /** 옆·맞은편 수납장에도 다가갈 수 있도록 방 전체를 사용한다. */
+  /** 다락방: 경사 천장이 눈높이보다 충분히 높은 곳까지만 걷는다(ATTIC_WALK). */
   #walkBounds() {
-    const fp = TUNING.firstPerson;
-    const wall = TUNING.room.wallThickness + fp.bodyRadius;
-    return {
-      minX: -this.roomHalf.x + wall,
-      maxX: this.roomHalf.x - wall,
-      minZ: -this.roomHalf.z + wall,
-      maxZ: this.roomHalf.z - wall,
-    };
+    return { ...ATTIC_WALK };
   }
 
   #clampWalk() {
@@ -361,8 +318,16 @@ export class SceneKit {
   }
 
   #walkContext() {
-    return { bounds: this.#walkBounds(), radius: TUNING.firstPerson.bodyRadius,
-      obstacles: this.walkObstacles ?? this.roomObstacles };
+    const fp = TUNING.firstPerson;
+    return { bounds: this.#walkBounds(), radius: fp.bodyRadius,
+      obstacles: this.walkObstacles ?? this.roomObstacles,
+      // 높이가 있는 장애물(상자)은 발이 그보다 높으면 넘어간다. 그 위에 서면 머리가 지붕에 닿는 자리는 못 오른다.
+      feet: this.walk.y ?? 0, step: fp.jump.step, ceilingAt: atticCeilingAt, headroom: fp.eyeHeight + fp.jump.headroom };
+  }
+
+  /** Space. 서 있을 때만 뛴다(공중 연속 점프 없음). */
+  jump() {
+    if (this.mode === "walk") this.jumpRequested = true;
   }
 
   #recoverWalk() {
@@ -379,31 +344,22 @@ export class SceneKit {
   }
 
   /**
-   * 둘러보기. 입력을 바로 반영하지 않고 쌓아 두었다가 프레임마다 일부만 소화한다.
-   * 마우스 이벤트가 듬성듬성 들어오면 그대로 반영할 때 시점이 확확 튀고, 그게 멀미를 부른다.
+   * 락 입력은 다음 프레임에 전부 반영한다. 커서 드래그만 시간 기준으로 평활화한다.
    */
   look(dx, dy, locked = false) {
     if (this.mode !== "walk") return;
     const fp = TUNING.firstPerson;
     const sensitivity = locked ? fp.lockedSensitivity : fp.lookSensitivity;
-    this.pendingLook.yaw -= dx * sensitivity;
-    this.pendingLook.pitch -= dy * sensitivity;
+    this.lookInput.add(dx, dy, { sensitivity, immediate: locked });
   }
 
-  #stepLook() {
+  clearLook() { this.lookInput.clear(); }
+
+  #stepLook(dt) {
     const fp = TUNING.firstPerson;
-    const take = Math.min(1, Math.max(0.05, fp.lookSmoothing));
-    const yawStep = this.pendingLook.yaw * take;
-    const pitchStep = this.pendingLook.pitch * take;
-    if (Math.abs(yawStep) < 1e-4 && Math.abs(pitchStep) < 1e-4) {
-      this.pendingLook.yaw = 0;
-      this.pendingLook.pitch = 0;
-      return;
-    }
-    this.pendingLook.yaw -= yawStep;
-    this.pendingLook.pitch -= pitchStep;
-    this.walk.yaw += yawStep;
-    this.walk.pitch = clamp(this.walk.pitch + pitchStep, fp.pitchRange[0], fp.pitchRange[1]);
+    const { yaw, pitch } = this.lookInput.consume(dt, { smoothing: fp.lookSmoothing });
+    this.walk.yaw += yaw;
+    this.walk.pitch = clamp(this.walk.pitch + pitch, fp.pitchRange[0], fp.pitchRange[1]);
   }
 
   /** 몸 앞 수평 방향 (시선 각도는 빼고) */
@@ -426,54 +382,16 @@ export class SceneKit {
     Object.assign(this.moveInput, input);
   }
 
-  #orbitTarget(preset) {
-    const vFov = (preset.fov * Math.PI) / 180;
-    const aspect = this.camera.aspect || 16 / 9;
-    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
-    const elevation = preset.elevation * DEG;
-
-    const width = BOARD_SIZE.width * UNIT;
-    const depth = BOARD_SIZE.height * UNIT;
-    const forWidth = width / 2 / Math.tan(hFov / 2);
-    const forDepth = (depth * Math.sin(elevation)) / 2 / Math.tan(vFov / 2);
-
-    return {
-      elevation: preset.elevation,
-      azimuth: preset.azimuth,
-      distance: Math.max(forWidth, forDepth) * preset.fit,
-      fov: preset.fov,
-      targetZ: toWorldSize(preset.targetBias * 100),
-    };
-  }
-
   #applyCamera() {
-    if (this.mode === "walk") {
-      const fp = TUNING.firstPerson;
-      const bob = fp.headBob > 0 ? Math.sin(this.walk.bob) * fp.headBob : 0;
-      this.camera.position.set(this.walk.x, fp.eyeHeight + bob, this.walk.z);
-      this.camera.rotation.set(this.walk.pitch * DEG, this.walk.yaw * DEG, 0);
-      this.keyLight.target.position.set(0, 0, -1);
-      this.keyLight.target.updateMatrixWorld();
-      return;
-    }
-
-    const { elevation, azimuth, distance, targetZ, fov } = this.orbit;
-    const dir = directionFromAngles(elevation, azimuth + this.parallax.x * TUNING.camera.parallax * 12);
-    const target = new THREE.Vector3(0, 0, targetZ);
-    this.camera.rotation.set(0, 0, 0);
-    this.camera.position.set(target.x + dir.x * distance, target.y + dir.y * distance, target.z + dir.z * distance);
-    this.camera.lookAt(target);
-    if (Math.abs(this.camera.fov - fov) > 0.01) {
-      this.camera.fov = fov;
-      this.camera.updateProjectionMatrix();
-    }
-    this.keyLight.target.position.copy(target);
-    this.keyLight.target.updateMatrixWorld();
+    const fp = TUNING.firstPerson;
+    const bob = fp.headBob > 0 ? Math.sin(this.walk.bob) * fp.headBob : 0;
+    this.camera.position.set(this.walk.x, fp.eyeHeight + (this.walk.y ?? 0) + bob, this.walk.z);
+    this.camera.rotation.set(this.walk.pitch * DEG, this.walk.yaw * DEG, 0);
   }
 
-  #stepWalk(dt) {
+  #stepWalk(dt, lookDt = dt) {
     const fp = TUNING.firstPerson;
-    this.#stepLook();
+    this.#stepLook(lookDt);
     const yaw = this.walk.yaw * DEG;
     const sin = Math.sin(yaw);
     const cos = Math.cos(yaw);
@@ -492,34 +410,29 @@ export class SceneKit {
     this.walk.vx += (dirX * speed - this.walk.vx) * smoothing;
     this.walk.vz += (dirZ * speed - this.walk.vz) * smoothing;
 
+    const context = this.#walkContext();
     Object.assign(this.walk, moveWalker({ x: this.walk.x, z: this.walk.z },
-      { x: this.walk.vx * dt, z: this.walk.vz * dt }, this.#walkContext()));
+      { x: this.walk.vx * dt, z: this.walk.vz * dt }, context));
     this.#clampWalk();
+
+    // 점프·낙하. 높이 h를 시간 t에 오르는 포물선: 중력 2h/t², 처음 속도 2h/t.
+    const { jump } = fp;
+    const gravity = (2 * jump.height) / (jump.rise * jump.rise);
+    if (this.jumpRequested && this.walk.grounded) {
+      this.walk.vy = gravity * jump.rise;
+      this.walk.grounded = false;
+    }
+    this.jumpRequested = false;
+    const ground = groundAt({ x: this.walk.x, z: this.walk.z }, context);
+    const maxFeet = atticCeilingAt(this.walk.x) - fp.eyeHeight - jump.headroom;
+    // 느린 프레임에서도 같은 포물선이 되게 1/120초씩 나눠 적분한다(최대 0.25초).
+    const steps = Math.max(1, Math.ceil(Math.min(dt, 0.25) * 120));
+    for (let i = 0; i < steps; i++) Object.assign(this.walk, stepVertical(this.walk, { dt: Math.min(dt, 0.25) / steps, ground, gravity, maxFeet }));
 
     const pace = Math.hypot(this.walk.vx, this.walk.vz);
     this.walk.bob = pace > 0.15 ? this.walk.bob + dt * fp.headBobSpeed * (pace / fp.moveSpeed) : this.walk.bob * 0.86;
     this.#applyCamera();
   }
-
-  #stepOrbit(dt) {
-    const preset = TUNING.camera.presets[this.presetId];
-    const target = this.#orbitTarget(preset);
-    const spring = { freq: TUNING.camera.moveSpring, damping: 1 };
-    let moved = false;
-    for (const key of ["elevation", "azimuth", "distance", "targetZ", "fov"]) {
-      const [value, velocity] = springStep(this.orbit[key], this.orbitVel[key], target[key], dt, spring);
-      if (Math.abs(value - this.orbit[key]) > 1e-5) moved = true;
-      this.orbit[key] = value;
-      this.orbitVel[key] = velocity;
-    }
-    const smoothing = Math.min(1, dt * TUNING.camera.parallaxSmoothing);
-    const before = this.parallax.x;
-    this.parallax.x += (this.pointerNdc.x - this.parallax.x) * smoothing;
-    if (Math.abs(this.parallax.x - before) > 1e-5) moved = true;
-    if (moved) this.#applyCamera();
-  }
-
-  // ───────────────────────── 크기 / 포인터 ─────────────────────────
 
   /**
    * 크기는 컨테이너가 정한다. 예전에는 여기서 16:9로 높이를 박았는데,
@@ -531,11 +444,41 @@ export class SceneKit {
     this.camera.aspect = width / height;
     if (this.isWalking) this.camera.fov = this.#walkFov();
     this.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(renderPixelRatio(width, height, window.devicePixelRatio, this.renderQuality.profile, this.renderQuality.scale));
     this.renderer.setSize(width, height, false);
-    this.kuwahara.resize();
+    this.outlineEffect.resize();
     this.labelRenderer.setSize(width, height);
-    if (this.mode === "orbit") Object.assign(this.orbit, this.#orbitTarget(TUNING.camera.presets[this.presetId]));
     this.#applyCamera();
+    this.root.dataset.renderPixels = String(this.renderer.domElement.width * this.renderer.domElement.height);
+  }
+
+  setRenderQuality(mode) {
+    this.renderQuality.set(mode);
+    this.#applyRenderQuality();
+  }
+
+  refreshRenderStyle() {
+    const profile = this.renderQuality.profile;
+    Object.assign(this.outlineEffect.outline, TUNING.outline, { thickness: profile.effects ? TUNING.outline.thickness : 0 });
+  }
+
+  #applyRenderQuality() {
+    const profile = this.renderQuality.profile;
+    this.refreshRenderStyle();
+    if (this.keyLight.shadow.mapSize.x !== profile.shadowSize) {
+      this.keyLight.shadow.map?.dispose();
+      this.keyLight.shadow.mapPass?.dispose();
+      this.keyLight.shadow.map = null;
+      this.keyLight.shadow.mapPass = null;
+      this.keyLight.shadow.mapSize.set(profile.shadowSize, profile.shadowSize);
+    }
+    this.resize();
+    this.renderer.shadowMap.needsUpdate = true;
+    this.root.dataset.renderQuality = this.renderQuality.active;
+    this.root.dataset.renderScale = String(this.renderQuality.scale);
+    this.root.dispatchEvent(new CustomEvent("renderqualitychange", { detail: {
+      mode: this.renderQuality.mode, active: this.renderQuality.active, effects: profile.effects, scale: this.renderQuality.scale,
+    } }));
   }
 
   /** 화면 좌표 → NDC */
@@ -565,12 +508,13 @@ export class SceneKit {
   /**
    * 화면 좌표에서 오브젝트 집기.
    *
-   * 월드 행렬을 먼저 갱신한다. 렌더 사이에 스토어가 바뀌어 오브젝트가 옮겨졌을 수 있고,
+   * 카메라와 집기 대상의 월드 행렬을 먼저 갱신한다. 방 장식까지 순회하지 않는다.
+   * 렌더 사이에 스토어가 바뀌어 오브젝트가 옮겨졌을 수 있고,
    * 그때 낡은 행렬로 레이캐스트하면 엉뚱한 것을 집는다. (배경 탭에서는 렌더가 아예 멈춘다.)
    */
   pick(clientX, clientY, objects) {
     if (objects.length === 0) return null;
-    this.scene.updateMatrixWorld();
+    updatePickMatrices(this.camera, objects);
     this.raycaster.setFromCamera(this.ndcFrom(clientX, clientY), this.camera);
     return this.raycaster.intersectObjects(objects, true)[0] ?? null;
   }
@@ -599,26 +543,62 @@ export class SceneKit {
   // ───────────────────────── 루프 ─────────────────────────
 
   start(onFrame) {
+    // 학교 PC에서도 같은 경로를 측정한다. 평소에는 계측 모듈을 불러오지 않는다.
+    if (new URLSearchParams(location.search).get("profile") === "1") {
+      Promise.all([import("./frame-profiler.js"), import("../../tools/game-pick-benchmark.js")]).then(([{ createFrameProfiler }, { mountPickBenchmark }]) => {
+        if (this.disposed) return;
+        this.profiler = createFrameProfiler(this);
+        this.pickBenchmark = mountPickBenchmark(this);
+      });
+    }
     this.renderer.setAnimationLoop(() => {
-      const dt = Math.min(this.clock.getDelta(), 0.05);
-      if (this.mode === "walk") this.#stepWalk(dt);
-      else this.#stepOrbit(dt);
-      onFrame(dt);
-      this.kuwahara.render(this.scene, this.camera);
-      this.labelRenderer.render(this.scene, this.camera);
+      const elapsed = this.clock.getDelta();
+      if (document.hidden) {
+        if (this.profiler?.active) this.profiler.startFrame(elapsed);
+        this.clearLook(); this.renderQuality.resetSamples(); return;
+      }
+      if (this.renderQuality.observe(elapsed)) this.#applyRenderQuality();
+      if (this.profiler?.active) this.profiler.startFrame(elapsed);
+      const dt = Math.min(elapsed, 0.05);
+      if (this.profiler?.active) {
+        this.profiler.measure("camera", () => {
+          this.#stepWalk(dt, Math.min(elapsed, 0.25));
+        });
+        this.profiler.measure("board", () => onFrame(dt));
+        this.profiler.measure("webgl", () => this.#renderWebGL(dt));
+        this.profiler.measure("labels", () => this.labelRenderer.render(this.scene, this.camera));
+        this.profiler.endFrame();
+      } else {
+        this.#stepWalk(dt, Math.min(elapsed, 0.25));
+        onFrame(dt);
+        this.#renderWebGL(dt);
+        this.labelRenderer.render(this.scene, this.camera);
+      }
     });
   }
 
   /** 배경 탭에서는 렌더 루프가 멈춘다. 테스트가 손으로 한 프레임 돌릴 때 쓴다. */
   step(dt) {
-    if (this.mode === "walk") this.#stepWalk(dt);
-    else this.#stepOrbit(dt);
+    this.#stepWalk(dt);
+  }
+
+  #renderWebGL() {
+    const profile = this.renderQuality.profile;
+    if (this.frameIndex++ % profile.shadowEvery === 0) this.renderer.shadowMap.needsUpdate = true;
+    this.vertexSnap.prepare(this.scene);
+    this.outlineEffect.render(this.scene, this.camera);
+    if (this.rays && TUNING.render.rays && profile.rays) {
+      this.rays.render(this.renderer, this.camera, this.clock.elapsedTime, this.renderer.getPixelRatio());
+    }
   }
 
   dispose() {
+    this.disposed = true;
     if (this.roomGroup) this.roomGroup.userData.disposed = true;
     this.renderer.setAnimationLoop(null);
-    this.kuwahara.dispose();
+    this.pickBenchmark?.dispose();
+    this.profiler?.dispose();
+    this.outlineEffect.dispose();
     this.scene.traverse((object) => {
       if (object.isMesh) {
         object.geometry?.dispose();

@@ -1,12 +1,16 @@
 /** 파일의 생김새. 저장·분류 규칙과 무관하며 3D 물체와 쌓기 계산이 함께 쓴다. */
 import { TUNING } from "./tuning.js";
+import { isBookExtension } from "./file-homes.js";
 
 const PHOTO_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
+const NOTE_EXTENSIONS = new Set(["txt", "md"]);
 
 export function fileForm(extension) {
   const ext = (extension ?? "").toLowerCase();
   if (PHOTO_EXTENSIONS.has(ext)) return "photo";
-  if (ext === "txt") return "note";
+  if (NOTE_EXTENSIONS.has(ext)) return "note";
+  // 다락방(10-11): 문서는 책으로 나온다. 표지에 파일명, 옆면은 종이 묶음.
+  if (isBookExtension(ext)) return "book";
   return "card";
 }
 

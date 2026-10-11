@@ -12,6 +12,7 @@ import { makeTextOverlay } from "./text-overlay.js";
 import { fileFootprint, formStyle } from "./file-form.js";
 import { thicknessMultiplier } from "./stacking.js";
 import { TUNING, springStep } from "./tuning.js";
+import { surfaceMaterial } from "./materials.js";
 
 const sharedGeometries = new Map();
 
@@ -104,14 +105,14 @@ export class CardObject {
       conflict: new THREE.Color(TUNING.card.conflictColor),
       error: new THREE.Color(TUNING.card.errorColor),
     };
-    this.faceMaterial = new THREE.MeshStandardMaterial({
+    this.faceMaterial = surfaceMaterial({
       map: makeCardTexture(THREE, item, this.color, loadThumbnail),
       roughness: this.form === "photo" ? 0.58 : this.form === "note" ? 0.9 : 0.82,
       metalness: 0.02,
       emissive: new THREE.Color("#000000"),
       emissiveIntensity: 1,
     });
-    this.sideMaterial = new THREE.MeshStandardMaterial({
+    this.sideMaterial = surfaceMaterial({
       color: tint,
       roughness: 0.7,
       metalness: 0.04,
@@ -174,9 +175,9 @@ export class CardObject {
   }
 
   /** 애니메이션 없이 그 자리에 놓는다 (첫 등장) */
-  place({ x, y = 0, z, spin = 0, scale = 1 }) {
-    Object.assign(this.state, { x, y, z, spin, scale, vx: 0, vy: 0, vz: 0, spinV: 0, scaleV: 0 });
-    Object.assign(this.target, { x, y, z, spin, scale });
+  place({ x, y = 0, z, spin = 0, scale = 1, facePitch = 0 }) {
+    Object.assign(this.state, { x, y, z, spin, scale, facePitch, vx: 0, vy: 0, vz: 0, spinV: 0, scaleV: 0, facePitchV: 0 });
+    Object.assign(this.target, { x, y, z, spin, scale, facePitch });
     this.#apply();
   }
 

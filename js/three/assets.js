@@ -8,6 +8,7 @@
  * 파일이 없거나 깨졌으면 콘솔에 한 줄 남기고 프리미티브로 되돌아간다. 장면은 죽지 않는다.
  */
 
+
 /**
  * @typedef {object} ModelSlot
  * @property {string|null} url               .glb 경로. null이면 프리미티브
@@ -30,14 +31,12 @@ export const MODEL_MANIFEST = {
       // model3d: "./models/card-blend.glb",
     },
   },
-  // 배송지 상자
-  box: { url: null },
+  // 배송지 상자. 사용자 모델(10-11): 미터 단위, 원점 = 바닥 가운데, 앞(+Z) = 손잡이 구멍 있는 짧은 면.
+  // 게임 단위(0.5 m)로 ×2만 한다. 맞춤(fit)을 쓰면 비율이 칸에 맞춰 찌그러진다.
+  box: { url: "./models/box.glb", fit: false, scale: 2 },
   // 아직 안 꺼낸 파일 더미
   pile: { url: null },
-  // 책상. fit=false로 두고 scale로 맞추는 편이 낫다
-  desk: { url: null, fit: false },
-  // 침대만 내보낸 GLB 전체를 사용하므로 내부 오브젝트 이름 변경에 영향받지 않는다.
-  bed: { url: "./models/Bed.glb", opaque: true, offset: [0, 0.04, 0] },
+  // (10-11) 침대·책상은 다락방 모델(room.glb) 안에 있다. 예전 `bed`(Bed.glb)·`desk` 슬롯은 뺐다.
 };
 
 /** 모델을 정규화해 넣을 기준 크기 (월드 단위) */
@@ -45,7 +44,6 @@ export const SLOT_SIZE = {
   card: { x: 1.72, y: 0.055, z: 1.04 },
   box: { x: 2.0, y: 0.66, z: 1.12 },
   pile: { x: 1.5, y: 0.5, z: 0.92 },
-  bed: { x: 2.55, y: 1.8, z: 4.05 },
 };
 
 const cache = new Map();

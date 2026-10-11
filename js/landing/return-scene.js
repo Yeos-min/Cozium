@@ -1,4 +1,6 @@
 import { getOverheadMatrix } from "./tape-renderer.js";
+import { createScenePreparation } from "./scene-preparation.js";
+import { getCanvasResolution } from "./canvas-resolution.js";
 
 export const RETURN_FOCUS_MS = 875;
 export const FILLED_HOLD_MS = 375;
@@ -75,7 +77,7 @@ export function getReturnPose(width, height, elapsed, reducedMotion = false, box
   };
 }
 
-export function mountReturnScene(root, { getDesktopPlate, getCollectionBoxRect, onPhase, onComplete } = {}) {
+export function mountReturnScene(root, { getDesktopPlate, getCollectionBoxRect, onPhase, onComplete, autoPrepare = true } = {}) {
   const canvas = root.querySelector("canvas"), status = root.querySelector(".status"), liveStatus = root.querySelector(".sr-only");
   const ctx = canvas?.getContext("2d");
   let images = null, source = null, sourceView = null, sourceBox = null;
@@ -87,11 +89,11 @@ export function mountReturnScene(root, { getDesktopPlate, getCollectionBoxRect, 
   }
   record({ ready: "false", expected: "2", loaded: "0", playback: "idle", phase: "idle", elapsed: "0" });
   message("제자리를 찾은 방을 준비하고 있어요.");
-  const ready = (async () => {
+  const { ready, prepare } = createScenePreparation(async () => {
     try {
       if (!ctx) throw new Error("Canvas 2D is unavailable for the return scene.");
       let loaded = 0;
-      const results = await Promise.allSettled(["box-overhead-filled-v1.png", "room-tidy-v1.png"].map(async (file) => {
+      const results = await Promise.allSettled(["box-overhead-filled-v1.webp", "room-tidy-v1.webp"].map(async (file) => {
         const image = new Image();
         image.src = new URL(`../../assets/landing/box/${file}`, import.meta.url).href;
         await image.decode();
@@ -111,8 +113,7 @@ export function mountReturnScene(root, { getDesktopPlate, getCollectionBoxRect, 
       message("마무리 장면을 불러오지 못했어요. 페이지를 새로고침해 주세요.", true);
       throw error;
     }
-  })();
-  ready.catch(() => {});
+  }, autoPrepare);
 
   function bounds() {
     const rect = root.getBoundingClientRect();
@@ -129,8 +130,8 @@ export function mountReturnScene(root, { getDesktopPlate, getCollectionBoxRect, 
     const view = bounds(), sx = view.width / sourceView.width, sy = view.height / sourceView.height;
     const box = { x: sourceBox.x * sx, y: sourceBox.y * sy, width: sourceBox.width * sx, height: sourceBox.height * sy };
     const pose = getReturnPose(view.width, view.height, elapsed, reducedMotion, box);
-    const dpr = clamp(finite(globalThis.devicePixelRatio, 1), 1, 2);
-    const pw = Math.max(1, Math.round(view.width * dpr)), ph = Math.max(1, Math.round(view.height * dpr));
+    const resolution = getCanvasResolution(view.width, view.height);
+    const dpr = resolution.ratio, pw = resolution.width, ph = resolution.height;
     if (canvas.width !== pw || canvas.height !== ph) { canvas.width = pw; canvas.height = ph; }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.globalAlpha = 1; ctx.fillStyle = "#eae3ce"; ctx.fillRect(0, 0, view.width, view.height);
@@ -177,7 +178,7 @@ export function mountReturnScene(root, { getDesktopPlate, getCollectionBoxRect, 
       frozenCtx.drawImage(plate, 0, 0);
       source = frozen; sourceView = view; sourceBox = collectionRect(view.width, view.height, getCollectionBoxRect?.());
       record({ playback: "preparing", elapsed: "0" });
-      await ready;
+      await prepare();
       if (token !== generation) return false;
       started = true; record({ playback: "automatic" });
       if (status) status.hidden = true;
@@ -220,5 +221,5 @@ export function mountReturnScene(root, { getDesktopPlate, getCollectionBoxRect, 
   document.addEventListener("visibilitychange", visibility);
   globalThis.addEventListener?.("resize", resize);
   function destroy() { reset(); document.removeEventListener("visibilitychange", visibility); globalThis.removeEventListener?.("resize", resize); }
-  return { ready, start, render, reset, setActive, setReducedMotion, destroy };
+  return { ready, prepare, start, render, reset, setActive, setReducedMotion, destroy };
 }

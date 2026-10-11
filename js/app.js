@@ -19,18 +19,16 @@ import { NativeHelperProvider } from "./providers/native-helper-provider.js";
 import { WebDropProvider } from "./providers/web-drop-provider.js";
 import { SessionStore } from "./state/session-store.js";
 import { Board3D } from "./three/board-3d.js";
-import { Board } from "./ui/board.js";
+import { ATTIC_CARD, ATTIC_FLOOR_LAYOUT, ATTIC_HOME_CAPACITY, atticSlotArea } from "./three/attic-room.js";
+import { fileHome } from "./three/file-homes.js";
 import { playBoundsFor } from "./ui/board-layout.js";
 import { Onboarding } from "./ui/onboarding.js";
 import { StatusPanel } from "./ui/status.js";
 import { FolderInterior } from "./ui/folder-interior.js";
-import { TUNING } from "./three/tuning.js";
+import { TUNING, UNIT } from "./three/tuning.js";
 
 const params = new URLSearchParams(location.search);
 const memoryMode = params.get("storage") === "memory";
-const kuwaharaPreset = params.get("kuwahara");
-if (Object.hasOwn(TUNING.kuwahara.strengths, kuwaharaPreset)) TUNING.kuwahara.preset = kuwaharaPreset;
-
 function intParam(name, fallback, min, max) {
   const value = Number.parseInt(params.get(name) ?? "", 10);
   if (Number.isNaN(value)) return fallback;
@@ -47,10 +45,10 @@ const elements = {
   newFolderForm: $("#new-folder-form"),
   newFolderName: $("#new-folder-name"),
   placement: $("#placement"),
-  camera: $("#camera"),
-  kuwahara: $("#kuwahara"),
-  brushRadius: $("#brush-radius"),
+  renderQuality: $("#render-quality"),
   outlineThickness: $("#outline-thickness"),
+  dithering: $("#dithering"),
+  vertexWobble: $("#vertex-wobble"),
   undoButton: $("#undo-button"),
   planTitle: $("#plan-title"),
   plan: $("#plan"),
@@ -69,7 +67,10 @@ const store = new SessionStore({
   // -1 = 자동 보충 없음. 책상을 다 치우면 바닥이 드러나고, 다음 무더기는 더미를 눌러 꺼낸다. [임시]
   refillBelow: intParam("refill", -1, -1, 64),
   bounds: playBoundsFor("bottom"),
-  layout: params.get("view") === "2d" || params.get("layout") === "grid" ? {} : { mode: "floor" },
+  // 다락방(10-11): 사진·메모는 핀보드, 문서는 책 더미에서 시작한다. 정원이 차면 바닥.
+  layout: params.get("layout") === "grid" ? {} : {
+    mode: "floor", card: ATTIC_CARD, floor: ATTIC_FLOOR_LAYOUT, slotArea: atticSlotArea(UNIT), home: fileHome, homeCapacity: ATTIC_HOME_CAPACITY,
+  },
   seed: params.has("seed") ? intParam("seed", 0, 0, 2 ** 31) : undefined,
 });
 
@@ -262,7 +263,7 @@ function updateBar() {
   elements.arrangeToggle.hidden = !board?.setArranging;
   elements.arrangeToggle.textContent = arranging ? "상자 배치 모드 · Tab" : "파일 정리 모드 · Tab";
   elements.arrangeToggle.setAttribute("aria-pressed", String(!!arranging));
-  elements.placement.disabled = elements.camera.disabled = !!arranging;
+  elements.placement.disabled = !!arranging;
   elements.undoButton.disabled = pending > 0 || (arranging ? !board.canUndoArrangement : !last);
   elements.undoButton.querySelector(".undo-label").textContent = arranging ? "상자 배치 되돌리기" : last
     ? `마지막 더미 되돌리기 (${last.fileIds.length}개)`
@@ -314,17 +315,11 @@ async function startWith(nextProvider) {
   // 게임 화면은 뷰포트를 채운다. 온보딩(나중에는 랜딩 페이지)은 평소 레이아웃 그대로다.
   document.body.classList.add("is-playing");
 
-  // 기본은 3D. `?view=2d`로 0-C의 2D 보드와 나란히 비교할 수 있다.
-  const BoardClass = params.get("view") === "2d" ? Board : Board3D;
-  $("#kuwahara-control").hidden = BoardClass === Board;
-  $("#brush-radius-control").hidden = BoardClass === Board;
-  $("#outline-control").hidden = BoardClass === Board;
-  elements.kuwahara.value = TUNING.kuwahara.preset;
-  elements.brushRadius.value = TUNING.kuwahara.radius;
   elements.outlineThickness.value = TUNING.outline.thickness;
-  $("#brush-radius-value").value = String(TUNING.kuwahara.radius);
+  elements.dithering.value = TUNING.dithering.preset;
+  elements.vertexWobble.value = TUNING.vertexWobble.preset;
   $("#outline-thickness-value").value = `${TUNING.outline.thickness} px`;
-  board = new BoardClass({
+  board = new Board3D({
     root: elements.boardRoot,
     store,
     labels,
@@ -334,9 +329,7 @@ async function startWith(nextProvider) {
     onLeaveFolder: () => store.leaveFolder(),
     loadThumbnail: (item) => provider.readThumbnail(item.id),
   });
-  elements.camera.replaceChildren(
-    ...board.cameraPresets.map((preset) => new Option(preset.label, preset.id)),
-  );
+  if (board.renderQuality) updateRenderQuality(board.renderQuality);
   if (board.placement) elements.placement.value = board.placement;
   store.addFiles(provider.files); // 보드가 붙은 뒤에 넣어야 쏟아지는 연출이 보인다
   updateBar();
@@ -371,23 +364,27 @@ elements.newFolderForm.addEventListener("submit", (event) => {
   elements.newFolderName.value = "";
 });
 elements.placement.addEventListener("change", (event) => board?.setPlacement(event.target.value));
-elements.kuwahara.addEventListener("change", (event) => {
-  TUNING.kuwahara.preset = event.target.value;
-});
-elements.brushRadius.addEventListener("input", (event) => {
-  TUNING.kuwahara.radius = Number(event.target.value);
-  $("#brush-radius-value").value = event.target.value;
-});
+function updateRenderQuality({ mode, active, profile, effects: on, scale = 1 }) {
+  const effects = profile ? profile.effects : on ?? active !== "low";
+  elements.renderQuality.value = mode;
+  const label = active === "low" ? "가볍게 · 외곽선 생략" : active === "high" ? "선명하게" : "기본";
+  $("#render-quality-state").value = scale < 1 ? `${label} · 해상도 ${Math.round(scale * 100)}%` : label;
+  elements.outlineThickness.disabled = !effects;
+}
+elements.renderQuality.addEventListener("change", (event) => board?.setRenderQuality?.(event.target.value));
+elements.boardRoot.addEventListener("renderqualitychange", (event) => updateRenderQuality(event.detail));
 elements.outlineThickness.addEventListener("input", (event) => {
   TUNING.outline.thickness = Number(event.target.value);
+  board?.refreshRenderStyle?.();
   $("#outline-thickness-value").value = `${event.target.value} px`;
 });
-
-elements.camera.addEventListener("change", (event) => {
-  board?.setCamera(event.target.value);
-  // 1인칭은 폴더를 먼 쪽으로 옮긴다. 선택칸을 실제 상태에 맞춘다.
-  if (board?.placement) elements.placement.value = board.placement;
+elements.dithering.addEventListener("change", (event) => {
+  TUNING.dithering.preset = event.target.value;
 });
+elements.vertexWobble.addEventListener("change", (event) => {
+  TUNING.vertexWobble.preset = event.target.value;
+});
+
 elements.undoButton.addEventListener("click", undoLastBatch);
 
 function toggleSidePanel(force) {

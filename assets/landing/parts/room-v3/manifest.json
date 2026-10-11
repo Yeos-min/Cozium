@@ -7,7 +7,7 @@
   "layers": [
     {
       "id": "background",
-      "file": "room-background.png",
+      "file": "room-background.webp",
       "z": 0,
       "transparent": false,
       "depth": 0.15,
@@ -23,7 +23,7 @@
     },
     {
       "id": "left",
-      "file": "foreground-left.png",
+      "file": "foreground-left.webp",
       "z": 1,
       "transparent": true,
       "depth": 1,
@@ -39,7 +39,7 @@
     },
     {
       "id": "files",
-      "file": "foreground-files-right.png",
+      "file": "foreground-files-right.webp",
       "z": 2,
       "transparent": true,
       "depth": 0.82,
@@ -55,7 +55,7 @@
     },
     {
       "id": "door",
-      "file": "foreground-door-right.png",
+      "file": "foreground-door-right.webp",
       "z": 3,
       "transparent": true,
       "depth": 1.1,
@@ -72,7 +72,7 @@
   ],
   "sprites": {
     "closedBox": {
-      "file": "closed-box-room-v3.png",
+      "file": "closed-box-room-v3.webp",
       "canvas": [
         1672,
         941

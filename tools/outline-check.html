@@ -1,14 +1,14 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<title>Kuwahara rendering checks</title>
+<title>Outline rendering checks</title>
 <script type="importmap">{"imports":{"three":"../vendor/three/three.module.min.js"}}</script>
 <style>body{background:#eee;font:16px monospace}canvas{width:640px;max-width:100%}pre{white-space:pre-wrap}</style>
-<h1>Kuwahara rendering checks</h1>
+<h1>Outline rendering checks</h1>
 <pre id="results">Running…</pre>
 <script type="module">
 import * as THREE from "three";
-import { KuwaharaEffect } from "../js/three/kuwahara-effect.js";
+import { OutlineEffect } from "../js/three/outline-effect.js";
 import { makeTextOverlay } from "../js/three/text-overlay.js";
 import { makeCardTexture, makeBoxTexture, disposeCardTextures } from "../js/three/card-face.js";
 const output = document.querySelector('#results');
@@ -19,18 +19,17 @@ renderer.setSize(640, 360);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.append(renderer.domElement);
-const settings = { preset: 'off', strengths: { off: 0, weak: 0.65, medium: 0.9 }, radius: 4, anisotropy: 1, resolutionScale: 0.5, maxFilterSize: 1280 };
 const outline = { thickness: 0, opacity: 0.6, color: '#584632' };
 for (const name of ['render', 'copyFramebufferToTexture', 'setRenderTarget']) {
   const original = renderer[name].bind(renderer);
   renderer[name] = (...args) => {
     const result = original(...args);
     const error = renderer.getContext().getError();
-    if (error) throw new Error(name + ' GL error ' + error + ' preset ' + settings.preset);
+    if (error) throw new Error(name + ' GL error ' + error);
     return result;
   };
 }
-const effect = new KuwaharaEffect(renderer, settings, outline);
+const effect = new OutlineEffect(renderer, outline);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#e8dfc6');
 const camera = new THREE.OrthographicCamera(-2, 2, 1.125, -1.125, 0.1, 10);
@@ -45,7 +44,6 @@ for (let i = 0; i < 55; i++) {
 const gl = renderer.getContext();
 const size = new THREE.Vector2();
 function capture(preset) {
-  settings.preset = preset;
   effect.render(scene, camera);
   renderer.getDrawingBufferSize(size);
   const pixels = new Uint8Array(size.x * size.y * 4);
@@ -57,12 +55,7 @@ function difference(a, b) { let sum = 0; for (let i = 0; i < a.length; i += 4) f
 try {
   const original = capture('off');
   check(effect.source === null, 'off allocates no postprocessing targets');
-  const weak = capture('weak');
-  const medium = capture('medium');
-  check(original.slice(0, 3).every((c, i) => Math.abs(c - weak[i]) <= 1 && Math.abs(c - medium[i]) <= 1), 'flat background color stays within 1/255 of original');
-  const weakDelta = difference(original, weak), mediumDelta = difference(original, medium);
-  check(weakDelta > 0.05 && mediumDelta > weakDelta * 1.25, 'medium changes detail more than weak (' + weakDelta.toFixed(3) + ' / ' + mediumDelta.toFixed(3) + ')');
-  check(difference(original, capture('off')) === 0, 'off returns to the exact original image');
+  check(difference(original, capture('off')) === 0, 'zero outline preserves the exact original image');
   outline.thickness = 1;
   const thin = capture('off');
   outline.thickness = 3;
@@ -104,7 +97,7 @@ try {
   const textOverlay = makeTextOverlay(THREE, plaque, inkTexture, 0);
   const noPostText = capture('off');
   outline.thickness = 2;
-  const paintedText = capture('medium');
+  const paintedText = capture('outline');
   let inkCount = 0, changedInk = 0;
   for (let i = 0; i < noPostText.length; i += 4) {
     if (noPostText[i] === 255 && noPostText[i+1] === 0 && noPostText[i+2] === 255) {
@@ -112,10 +105,10 @@ try {
       if (paintedText[i] !== 255 || paintedText[i+1] !== 0 || paintedText[i+2] !== 255) changedInk++;
     }
   }
-  check(inkCount > 100 && changedInk === 0, `model text pixels stay exact with painting and outlines enabled (${inkCount} ink pixels, ${changedInk} changed)`);
+  check(inkCount > 100 && changedInk === 0, `model text pixels stay exact with outlines enabled (${inkCount} ink pixels, ${changedInk} changed)`);
   const occluder = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.3, 0.1), new THREE.MeshBasicMaterial({ color: '#778855' }));
   occluder.position.z = 0.4; scene.add(occluder);
-  const occluded = capture('medium');
+  const occluded = capture('outline');
   let leakedInk = 0;
   for (let i = 0; i < occluded.length; i += 4) if (occluded[i] === 255 && occluded[i+1] === 0 && occluded[i+2] === 255) leakedInk++;
   check(leakedInk === 0, 'foreground geometry occludes text after postprocessing');
@@ -126,16 +119,15 @@ try {
   renderer.setPixelRatio(2);
   renderer.setSize(800, 450);
   effect.resize();
-  capture('weak');
-  check(effect.source.image.width === 1600 && effect.filtered.width === 800 && effect.filtered.height === 450, 'resize and DPR preserve full-size source and half-size filter');
+  capture('resize');
+  check(effect.source.image.width === 1600 && effect.geometryTarget.width === 1600 && effect.geometryTarget.height === 900, 'resize and DPR preserve full-size source and geometry buffers');
   outline.thickness = 1.25;
-  capture('medium');
+  capture('outline');
   check(effect.geometryTarget.width === 1600 && effect.composite.uniforms.outlineStep.value.x === 1.25 * 2 / 1600, 'outline buffers and CSS thickness follow DPR');
   renderer.setPixelRatio(1);
   renderer.setSize(1280, 720);
   effect.resize();
-  for (const [preset, thickness, label] of [['off', 0, 'all off'], ['off', 1.25, 'outline only'], ['weak', 1.25, 'weak + outline'], ['medium', 1.25, 'medium + outline']]) {
-    settings.preset = preset;
+  for (const [preset, thickness, label] of [['off', 0, 'all off'], ['off', 1.25, 'outline only']]) {
     outline.thickness = thickness;
     for (let i = 0; i < 4; i++) effect.render(scene, camera);
     gl.finish();

@@ -4,6 +4,7 @@ import { mountDesktopScene, getDesktopAutoProgress } from "./desktop-scene.js";
 import { mountReturnScene } from "./return-scene.js";
 import { mapQuad } from "./flap-renderer.js";
 import { CLOSED_RECT, ROOM_FRONT, ROOM_RIGHT, FOCUS_DURATION, getFocusTransition } from "./scene-transition.js";
+import { getCanvasResolution } from "./canvas-resolution.js";
 
 const ROOM_WIDTH = 1672;
 const ROOM_HEIGHT = 941;
@@ -79,16 +80,18 @@ if (typeof document !== "undefined") {
   const header = stage.querySelector("header");
   const caption = stage.querySelector(".caption");
   const resetButton = stage.querySelector(".reset");
-  const boxScene = mountBoxScene(overheadRoot, { active: false });
+  const boxScene = mountBoxScene(overheadRoot, { active: false, autoPrepare: false });
   const desktopScene = mountDesktopScene(desktopRoot, {
     getOpenPlate: boxScene.getOpenPlate,
     onCollectionBoxSelected: selectCollectionBox,
+    autoPrepare: false,
   });
   let returnDesktopPlate = null, returnBoxRect = null, endingRun = 0;
   const returnScene = mountReturnScene(returnRoot, {
     getDesktopPlate: () => returnDesktopPlate,
     getCollectionBoxRect: () => returnBoxRect,
     onPhase: showReturnPhase,
+    autoPrepare: false,
   });
   const ctx = canvas.getContext("2d");
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
@@ -96,15 +99,14 @@ if (typeof document !== "undefined") {
   let width = 1, height = 1, ratio = 1, progress = 0, elapsed = 0;
   let state = "room", wheelDistance = 0, scrollPosition = 0;
   let x = 0, y = 0, tx = 0, ty = 0, frame = 0, last = 0, ready = false;
-  let layers = [], boxImage, floorImage, boxHeight = BOX_HEIGHT;
+  let layers = [], boxImage, boxHeight = BOX_HEIGHT;
   let focusElapsed = 0, keyboardSelect = false;
   let desktopReady = false, desktopProgress = 0, desktopElapsed = 0, desktopFrame = 0, desktopLast = 0;
   const inspection = new URLSearchParams(location.search).get("inspectFocus");
   const inspectFocus = inspection !== null && Number.isFinite(Number(inspection)) ? clamp(Number(inspection)) : null;
   const desktopInspection = new URLSearchParams(location.search).get("inspectDesktop");
   const inspectDesktop = desktopInspection !== null && Number.isFinite(Number(desktopInspection)) ? clamp(Number(desktopInspection)) : null;
-  // Attach the rejection handler immediately, even if the room manifest is slow.
-  const boxPrepared = boxScene.ready.then(() => ({ ok: true }), (error) => ({ ok: false, error }));
+  boxScene.ready.catch((error) => console.error("Cozium box:", error));
   desktopScene.ready.then(() => {
     desktopReady = true;
     if (isDesktopState()) {
@@ -172,6 +174,7 @@ if (typeof document !== "undefined") {
   }
   function renderDesktop() {
     if (!desktopReady) return;
+    returnScene.prepare();
     desktopRoot.hidden = false;
     desktopRoot.setAttribute("aria-hidden", String(desktopProgress === 0));
     overheadRoot.style.opacity = desktopProgress === 0 ? "1" : "0";
@@ -212,6 +215,8 @@ if (typeof document !== "undefined") {
     state = getNextBoxState(state, "drop");
     elapsed = 0;
     last = 0;
+    boxScene.prepare();
+    wake();
   }
   function scroll() {
     const next = Math.max(0, -journey.getBoundingClientRect().top);
@@ -223,13 +228,21 @@ if (typeof document !== "undefined") {
   }
   function resize() {
     width = stage.clientWidth; height = stage.clientHeight;
-    ratio = Math.min(devicePixelRatio || 1, 1.75);
-    canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
+    const resolution = getCanvasResolution(width, height);
+    ratio = resolution.ratio;
+    canvas.width = resolution.width; canvas.height = resolution.height;
     scrollPosition = Math.max(0, -journey.getBoundingClientRect().top);
     if (isDesktopState() && desktopReady) renderDesktop();
     if (isReturnState()) {
       const pose = returnScene.render();
       if (pose) showReturnPhase(pose.phase, pose);
+    }
+    wake();
+  }
+  function wake() {
+    if (ready && !document.hidden && state !== "overhead" && !isDesktopState() && !isReturnState() && !frame) {
+      last = 0;
+      frame = requestAnimationFrame(draw);
     }
   }
   function layerMatrix(layer, room) {
@@ -249,6 +262,7 @@ if (typeof document !== "undefined") {
     ctx.restore();
   }
   function draw(time) {
+    frame = 0;
     if (!ready || document.hidden || state === "overhead" || isDesktopState() || isReturnState()) { frame = 0; return; }
     const dt = Math.min(60, time - (last || time)); last = time;
     if (state === "falling") {
@@ -256,7 +270,11 @@ if (typeof document !== "undefined") {
       progress = reduced.matches ? 1 : clamp(elapsed / DROP_DURATION);
       if (progress === 1) state = getNextBoxState(state, "land");
     }
-    if (state !== "selected") { x += (tx - x) * .06; y += (ty - y) * .06; }
+    if (state !== "selected") {
+      x += (tx - x) * .06; y += (ty - y) * .06;
+      if (Math.abs(tx - x) < .0005) x = tx;
+      if (Math.abs(ty - y) < .0005) y = ty;
+    }
     const baseRoom = getRoomMatrix(width, height, progress, x, y, reduced.matches);
     if (state === "selected") focusElapsed += dt;
     const focus = state === "selected" ? getFocusTransition(baseRoom, width, height, inspectFocus ?? (reduced.matches ? 1 : focusElapsed / FOCUS_DURATION)) : null;
@@ -321,12 +339,13 @@ if (typeof document !== "undefined") {
       frame = 0;
       return;
     }
-    frame = requestAnimationFrame(draw);
+    if (state === "falling" || (state === "selected" && inspectFocus === null) || (!reduced.matches && state !== "selected" && (x !== tx || y !== ty))) frame = requestAnimationFrame(draw);
+    else last = 0;
   }
   function drawFocus(focus) {
     const overhead = focus.overhead;
     ctx.save(); ctx.globalAlpha = focus.floor;
-    ctx.drawImage(floorImage, overhead.x, overhead.y, 1672 * overhead.scale, 941 * overhead.scale); ctx.restore();
+    ctx.drawImage(boxScene.getFloorImage(), overhead.x, overhead.y, 1672 * overhead.scale, 941 * overhead.scale); ctx.restore();
     if (focus.face > 0) {
       const offset = [90 * overhead.scale * focus.shadow, 94 * overhead.scale * focus.shadow];
       const footprint = [focus.quad[0], focus.quad[1], focus.front[2], focus.front[3]];
@@ -380,14 +399,27 @@ if (typeof document !== "undefined") {
     if (!(isDesktopState() || isReturnState()) || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || isControl(event.target)) return;
     if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "Home", "End"].includes(event.key)) event.preventDefault();
   });
-  boxAction.addEventListener("click", (event) => {
+  boxAction.addEventListener("click", async (event) => {
     const next = getNextBoxState(state, "select");
     if (next === state) return;
+    const run = endingRun;
+    boxAction.disabled = true;
+    try { await boxScene.prepare(); }
+    catch (error) {
+      if (run !== endingRun || state !== "landed") return;
+      status.hidden = false;
+      status.textContent = "방의 파츠와 상자를 불러오지 못했어요.";
+      canvas.dataset.error = error.message;
+      return;
+    }
+    if (run !== endingRun || state !== "landed") return;
     state = next;
     focusElapsed = 0; last = 0; keyboardSelect = event.detail === 0;
     boxAction.hidden = true; boxAction.disabled = true;
     resetButton.hidden = false;
     stage.dispatchEvent(new CustomEvent("cozium:box-selected", { bubbles: true, detail: { next: "box-focus" } }));
+    desktopScene.prepare();
+    wake();
   });
   overheadRoot.addEventListener("cozium:box-opened", () => {
     if (state !== "overhead") return;
@@ -431,7 +463,7 @@ if (typeof document !== "undefined") {
     x = y = tx = ty = last = 0;
     scrollPosition = Math.max(0, -journey.getBoundingClientRect().top);
     resetButton.hidden = true;
-    if (ready && !document.hidden && !frame) frame = requestAnimationFrame(draw);
+    wake();
   });
   addEventListener("resize", resize);
   addEventListener("pointermove", (event) => {
@@ -439,6 +471,7 @@ if (typeof document !== "undefined") {
     const bounds = stage.getBoundingClientRect();
     tx = clamp((event.clientX - bounds.left) / Math.max(1, bounds.width) * 2 - 1, -1, 1);
     ty = clamp((event.clientY - bounds.top) / Math.max(1, bounds.height) * 2 - 1, -1, 1);
+    if (!reduced.matches) wake();
   }, { passive: true });
   reduced.addEventListener("change", () => {
     tx = ty = x = y = 0;
@@ -450,6 +483,7 @@ if (typeof document !== "undefined") {
       renderDesktop();
     }
     if (isReturnState()) returnScene.setReducedMotion(reduced.matches);
+    wake();
   });
   document.addEventListener("visibilitychange", () => {
     cancelAnimationFrame(frame); frame = 0;
@@ -463,7 +497,7 @@ if (typeof document !== "undefined") {
       }
       return;
     }
-    if (ready && !document.hidden) { last = 0; frame = requestAnimationFrame(draw); }
+    wake();
   });
   new ResizeObserver(resize).observe(stage);
 
@@ -479,22 +513,13 @@ if (typeof document !== "undefined") {
     const results = await Promise.all([
       Promise.all(configs.map(async (layer) => ({ ...layer, image: await loadImage(layer.file) }))),
       loadImage(BOX_CONFIG.file), document.fonts.load("600 100px Room"),
-      new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error("클로즈업의 바닥을 불러오지 못했습니다."));
-        image.src = new URL("../../assets/landing/box/box-opening-v1/floor.png", import.meta.url).href;
-      }),
-      boxPrepared,
     ]);
     layers = results[0]; boxImage = results[1];
-    floorImage = results[3];
-    if (!results[4].ok) throw results[4].error;
     if (layers.some((layer) => layer.image.naturalWidth !== ROOM_WIDTH || layer.image.naturalHeight !== ROOM_HEIGHT)) throw new Error("방 파츠의 출력 크기가 다릅니다.");
     if (BOX_SOURCE_RECT.x + BOX_SOURCE_RECT.w > boxImage.naturalWidth || BOX_SOURCE_RECT.y + BOX_SOURCE_RECT.h > boxImage.naturalHeight) throw new Error("상자의 내용 경계가 잘못됐습니다.");
     boxHeight = BOX_CONFIG.height;
     ready = true; status.hidden = true; resize();
-    if (!document.hidden) frame = requestAnimationFrame(draw);
+    wake();
   } catch (error) {
     status.hidden = false; status.textContent = "방의 파츠와 상자를 불러오지 못했어요.";
     canvas.dataset.ready = "error"; canvas.dataset.error = error.message;

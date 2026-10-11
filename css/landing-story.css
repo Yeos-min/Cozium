@@ -1,0 +1,84 @@
+/* Cozium landing (2026-10-07): built from the reviewed animatic v9 (docs/prototypes/landing-animatic.html). Script: js/landing-story/story.js */
+@font-face{font-family:Room;src:url("../assets/landing/fonts/Fraunces.ttf") format("truetype");font-weight:600;font-display:swap}
+:root{
+  /* One fixed full-bleed stage. A wheel / swipe / key plays the next finished scene; one hands-on stop in the middle. */
+  --ink:#254c43; --paper:#eae3ce; --cream:#f3edd3; --cta-ink:#faf4e3; --mark:#d9b768;
+  --display:Room,Georgia,"Times New Roman",serif;
+  --ui:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);overflow:hidden;overscroll-behavior:none}
+.stage{position:fixed;inset:0;overflow:hidden;background:var(--paper);touch-action:none;user-select:none;-webkit-user-select:none}
+.world{position:absolute;left:0;top:0;width:1672px;height:941px;transform-origin:0 0;pointer-events:none}
+.plate{position:absolute;left:0;top:0;width:1672px;height:941px;transform-origin:0 0;will-change:transform,opacity;pointer-events:none}
+.plate>img{position:absolute;left:0;top:0;width:1672px;height:941px;display:block}
+.desk>.icons{position:absolute;inset:0}
+/* The vector desktop sits on a painted screen: feather its edge a few screen pixels so it melts into the soft bezel. --fe is set per frame in the plate's own units. */
+.desk{--fe:6px;mask-image:linear-gradient(to right,transparent,#000 var(--fe),#000 calc(100% - var(--fe)),transparent),linear-gradient(to bottom,transparent,#000 var(--fe),#000 calc(100% - var(--fe)),transparent);mask-composite:intersect}
+.desk .item{position:absolute;width:68px;height:68px;transform-origin:34px 34px}
+.desk .item img{width:68px;height:68px;display:block}
+.desk .name{position:absolute;left:-13px;top:66px;width:94px;font:500 10.5px/1.25 var(--ui);color:#3f3c30;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 0 #fff8e6}
+.desk .badge{position:absolute;left:46px;top:-4px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--ink);color:var(--cta-ink);font:700 12px/22px var(--ui);text-align:center;box-shadow:0 2px 6px #254c4330}
+.desk:not(.named) .name{display:none}
+.desk.tidy .name,.desk.tidy .badge{animation:arrive .6s ease .15s both}
+@keyframes arrive{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+canvas.gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+.stage[data-try="open"] canvas.gl{cursor:grab}
+.stage[data-try="open"][data-holding="true"] canvas.gl{cursor:grabbing}
+.title{position:absolute;left:876px;top:132px;width:620px;margin-left:-310px;text-align:center;pointer-events:none}
+.title h1{margin:0;font:600 112px/.9 var(--display);letter-spacing:-.078em;color:var(--ink)}
+.title p{margin:22px 0 0;font-size:15px;line-height:1.9;letter-spacing:.05em}
+.cta{display:flex;justify-content:center;gap:12px;margin-top:26px;pointer-events:auto}
+.cta a{display:inline-flex;align-items:center;text-decoration:none;min-height:46px;padding:0 20px;border:1px solid #254c4333;border-radius:5px;font:13px/1.4 var(--ui);letter-spacing:.025em;cursor:pointer}
+.cta .primary{gap:10px;background:var(--ink);color:var(--cta-ink);box-shadow:0 4px 12px #254c4321}
+.cta .secondary{background:#faf4e3e8;color:var(--ink)}
+.cta a:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+.cue{position:absolute;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));width:22px;height:36px;margin-left:-11px;border:1.5px solid #254c4366;border-radius:12px;pointer-events:none;transition:opacity .5s}
+.cue i{position:absolute;left:9px;top:7px;width:2px;height:7px;border-radius:1px;background:#254c43aa;animation:breath 2.4s ease-in-out infinite}
+@keyframes breath{0%,100%{transform:translateY(0);opacity:.35}60%{transform:translateY(9px);opacity:.95}}
+.veil{position:absolute;inset:0;background:var(--paper);opacity:0;pointer-events:none;transition:opacity .22s ease;z-index:4}
+@media (prefers-reduced-motion:reduce){.cue i{animation:none;opacity:.8}.desk.tidy .name,.desk.tidy .badge{animation:none}}
+/* The site nav lives in css/site-nav.css (shared with help.html); its show/hide timing is in story.js. */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* ── 3D room (2026-10-11, from docs/prototypes/landing-3d/landing-3d.css) ── */
+canvas.room{position:absolute;inset:0;width:100%;height:100%;display:block;will-change:filter,opacity}
+.poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .5s ease;pointer-events:none}
+.stage[data-room="failed"] .poster{opacity:1!important}
+.loading{position:absolute;left:50%;bottom:calc(36px + env(safe-area-inset-bottom,0px));width:120px;height:2px;margin-left:-60px;background:#254c4322;border-radius:1px;overflow:hidden;transition:opacity .4s}
+.loading i{position:absolute;inset:0;width:40%;background:#254c43aa;animation:load 1.3s ease-in-out infinite}
+@keyframes load{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+.stage[data-room="ready"] .loading{opacity:0}
+.stage:not([data-room="ready"]) .cue{opacity:0!important}
+
+/* review panel */
+.lab{position:fixed;left:14px;bottom:14px;z-index:20;font:12px/1.4 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;color:#254c43}
+.lab-toggle{height:32px;padding:0 14px;border:1px solid #254c4340;border-radius:16px;background:#faf4e3f2;color:#254c43;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 2px 0 #254c4326}
+.lab[data-open="true"] .lab-toggle{background:#254c43;color:#faf4e3}
+.lab-body{display:none;margin-bottom:8px;width:min(372px,calc(100vw - 28px));max-height:calc(100vh - 80px);overflow:auto;padding:12px 12px 10px;border:1px solid #254c4333;border-radius:10px;background:#faf4e3f7;box-shadow:0 4px 0 #254c431f}
+.lab[data-open="true"]{display:flex;flex-direction:column-reverse;align-items:flex-start}
+.lab[data-open="true"] .lab-body{display:block}
+.lab-row{display:grid;grid-template-columns:66px 1fr;gap:6px;align-items:center;margin-bottom:7px}
+.lab-label{font-weight:700;color:#254c43cc}
+.lab-seg{display:flex;flex-wrap:wrap;gap:3px}
+.lab-seg button{min-height:26px;padding:0 8px;border:1px solid #254c4333;border-radius:5px;background:#fffaf0;color:#254c43;font:inherit;cursor:pointer}
+.lab-seg button[aria-pressed="true"]{background:#254c43;border-color:#254c43;color:#faf4e3}
+.lab-seg button:focus-visible,.lab-toggle:focus-visible,.lab-foot button:focus-visible{outline:2px solid #254c43;outline-offset:2px}
+.lab-checks{display:grid;gap:3px;margin:4px 0 9px 72px}
+.lab-checks label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.lab-foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px;border-top:1px dashed #254c4333}
+.lab-code{flex:1 1 100%;font:11px/1.35 ui-monospace,Consolas,monospace;color:#254c43b0;word-break:break-all;user-select:all}
+.lab-foot button{min-height:26px;padding:0 10px;border:1px solid #254c43;border-radius:5px;background:#254c43;color:#faf4e3;font:inherit;cursor:pointer}
+.lab-foot .lab-reset{background:#fffaf0;color:#254c43}
+@media (max-width:520px){.lab-row{grid-template-columns:1fr}.lab-checks{margin-left:0}}
+/* the title now sits under a dark timber ceiling, not a pale painted wall: cream type */
+.title h1{color:#f6efd9;text-shadow:0 2px 0 #2a1d1255,0 0 24px #2a1d1240}
+.title p{color:#f6efd9;text-shadow:0 1px 0 #2a1d1280,0 0 12px #2a1d1266}
+.stage[data-scene="room"] .cta .secondary{background:#faf4e3f2}
+/* a failed load says so instead of leaving the still image looking live */
+.stage[data-room="failed"] .loading{opacity:1;width:auto;height:auto;left:16px;right:16px;margin:0;padding:8px 12px;background:#faf4e3f2;border:1px solid #254c4340;border-radius:6px;color:#254c43;font:12px/1.5 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;text-align:center;overflow:visible}
+/* walk-in to app.html: only shown by the review copy, which has no app.html */
+.enter-note{position:absolute;left:50%;bottom:calc(36px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:calc(100% - 32px);margin:0;padding:10px 14px;border-radius:6px;background:#faf4e3f2;border:1px solid #254c4340;color:#254c43;font:13px/1.5 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;text-align:center;opacity:0;transition:opacity .3s;pointer-events:none;z-index:6}
+.enter-note[data-on="true"]{opacity:1}

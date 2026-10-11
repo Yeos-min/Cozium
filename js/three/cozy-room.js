@@ -3,10 +3,13 @@ import * as THREE from "three";
 import { loadModel } from "./assets.js";
 import { shelfFrames } from "./shelf-frame.js";
 import { TUNING } from "./tuning.js";
+import { roomPropColor } from "./room-style.js";
+import { surfaceMaterial } from "./materials.js";
 
 const materials = new Map();
 function material(color) {
-  if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.92 }));
+  color = roomPropColor(color);
+  if (!materials.has(color)) materials.set(color, surfaceMaterial({ color, roughness: 0.92 }));
   return materials.get(color);
 }
 
@@ -32,6 +35,7 @@ function roundedGeometry(w, h, d, r) {
 }
 
 export function roomBox(parent, size, position, color, radius = 0.04) {
+  radius = 0;
   const geometry = radius ? roundedGeometry(...size, radius) : new THREE.BoxGeometry(...size);
   const mesh = new THREE.Mesh(geometry, material(color));
   mesh.position.set(...position);
@@ -42,6 +46,7 @@ export function roomBox(parent, size, position, color, radius = 0.04) {
 }
 
 function cylinder(parent, top, bottom, height, position, color, segments = 12) {
+  segments = Math.min(segments, 8);
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(top, bottom, height, segments), material(color));
   mesh.position.set(...position);
   mesh.castShadow = true;
@@ -175,7 +180,8 @@ function deskDetails(parent, right, half) {
 function wallArt(parent, x, y, z, w, h, variant = 0) {
   roomBox(parent, [w, h, 0.075], [x, y, z], "#a48a66");
   const canvas = document.createElement("canvas");
-  canvas.width = 384; canvas.height = 512;
+  canvas.width = 384;
+  canvas.height = 512;
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#eee7d7"; ctx.fillRect(0, 0, 384, 512);
   if (variant === 0) {
@@ -221,7 +227,7 @@ export function furnishRoom(parent, half) {
     const pillow = roomBox(bedFallback, [1.04, 0.26, 0.65], [left + dx, 1.07, -2.13], "#ece3cd", 0.12);
     pillow.rotation.y = dx * 0.1;
   }
-  loadModel(THREE, "bed").then((model) => {
+  if (!TUNING.room.primitiveBed) loadModel(THREE, "bed").then((model) => {
     if (!model) return;
     if (parent.userData.disposed) {
       model.traverse((child) => {
@@ -246,7 +252,7 @@ export function furnishRoom(parent, half) {
   window.position.set(-4.9, 3.12, back + 0.03);
   parent.add(window);
   roomBox(window, [3.25, 2.58, 0.13], [0, 0, 0], wood);
-  const sky = new THREE.Mesh(new THREE.PlaneGeometry(3.03, 2.36), new THREE.MeshBasicMaterial({ color: "#c4dae2" }));
+  const sky = new THREE.Mesh(new THREE.PlaneGeometry(3.03, 2.36), new THREE.MeshBasicMaterial({ color: roomPropColor("#c4dae2") }));
   sky.position.z = 0.073; window.add(sky);
   for (let i = 0; i < 6; i++) {
     const block = roomBox(window, [0.33, 0.36 + i % 3 * 0.16, 0.015], [-1.18 + i * 0.46, -0.94 + i % 3 * 0.07, 0.086], i % 2 ? "#a1b6b0" : "#b5c1bc", 0);
@@ -284,14 +290,6 @@ export function furnishRoom(parent, half) {
   bedsideCorner(parent, left + 0.05, -4.35, back);
   plant(parent, right - 0.03, 0, -3.7, 1.6);
 
-  // Soft sun patches: low-opacity floor shapes, no screen-space postprocessing.
-  const sunMaterial = new THREE.MeshBasicMaterial({ color: "#fff0cb", transparent: true, opacity: 0.14, depthWrite: false });
-  for (let i = 0; i < 3; i++) {
-    const sun = new THREE.Mesh(new THREE.PlaneGeometry(1.45, 3.0), sunMaterial);
-    sun.rotation.set(-Math.PI / 2, 0, -0.52);
-    sun.position.set(-3.8 + i * 1.35, 0.009, -0.7 + i * 0.55);
-    parent.add(sun);
-  }
   // 바닥 배치 충돌용 보수적인 가구 발자국. 위 가구 모델과 함께 갱신한다.
   return [
     { x: left, z: -0.9, width: 2.65, depth: 4.25 },
@@ -322,8 +320,11 @@ export function buildFolderShelf(parent, slots, width, depth, shelfY, height) {
   plant(parent, max - 0.45, top, z, 0.72);
 }
 
-/** 인접한 수납칸이 판과 경계 기둥을 공유한다. 상자는 별도 오브젝트로 집어 옮긴다. */
-export function buildShelfCells(parent, slots) {
+/**
+ * 인접한 수납칸이 판과 경계 기둥을 공유한다. 상자는 별도 오브젝트로 집어 옮긴다.
+ * surface를 주면 판 전체를 그 재질로 짓는다(다락방: 방 모델의 목재 재질, 10-11).
+ */
+export function buildShelfCells(parent, slots, surface = null) {
   for (const frame of shelfFrames(slots)) {
     const group = new THREE.Group();
     group.name = "shared-shelf-frame";
@@ -334,6 +335,7 @@ export function buildShelfCells(parent, slots) {
     for (const part of frame.parts) {
       const color = part.kind === "back" ? "#b2a084" : part.kind === "foot" ? "#957a5b" : "#b9946d";
       const mesh = roomBox(group, part.size, part.position, color, part.kind === "back" ? 0 : 0.015);
+      if (surface) mesh.material = surface;
       mesh.name = `shelf-${part.kind}`;
     }
   }

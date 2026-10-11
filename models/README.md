@@ -1,33 +1,17 @@
-# 3D 모델 넣는 법
+# 3D 모델
 
-침대는 `Bed.glb`를 사용하고 나머지는 코드로 만든 프리미티브다. 여기에 `.glb`를 넣고 [`js/three/assets.js`](../js/three/assets.js)의 경로를 채우면 지원하는 슬롯의 모델이 바뀐다.
-**고칠 파일은 `assets.js` 하나다.** 다른 코드는 손대지 않는다.
+| 파일 | 쓰는 곳 | 비고 |
+| --- | --- | --- |
+| `room.glb` | 랜딩(`js/landing-story/room-layer.js`), 게임 방(`js/three/scene-kit.js`) | 사용자 Blender 다락방. 미터 단위, 게임은 ×2. 숫자는 `js/three/attic-room.js` |
+| `box.glb` | 게임 폴더 상자(`js/three/assets.js`의 `box` 슬롯) | 0.514 × 0.493 × 0.682 m, 앞 = +Z 짧은 면 |
 
-```js
-// js/three/assets.js
-export const MODEL_MANIFEST = {
-  card: {
-    url: "./models/card.glb",            // 모든 카드에 같은 모델
-    byFamily: {
-      image: "./models/card-photo.glb",  // 계열별로 다르게 하고 싶으면
-      model3d: "./models/card-blend.glb",
-    },
-  },
-  box: { url: "./models/box.glb" },
-  pile: { url: null },
-  desk: { url: "./models/desk.glb", fit: false, scale: 1 },
-};
-```
+`room.glb`의 금속·거칠기 텍스처는 웹용으로 JPEG(최대 1024 px)로 바꿔 넣었다(10-11, 4.4 → 3.1 MB). 지금 그림(툰 재질)은
+그 텍스처를 쓰지 않고, 렌더 패널의 ‘모델 그대로(PBR)’에서만 보인다. 새로 내보내면 같은 변환을 다시 한다.
+침대·책상은 `room.glb` 안에 있어 예전 `Bed.glb`·`desk` 슬롯은 뺐다(`_archive/`).
 
+카드·더미는 아직 코드 프리미티브다. 여기에 `.glb`를 넣고 [`js/three/assets.js`](../js/three/assets.js)의 경로를 채우면 바뀐다.
 파일이 없거나 깨져도 장면은 죽지 않는다. 콘솔에 한 줄 남기고 프리미티브로 되돌아간다.
 
-## 현재 침대
-
-- `models/Bed.glb` 전체를 불러온다. 침대만 선택해서 내보내며, 내부 오브젝트 이름은 자유롭게 바꿀 수 있다.
-- GLB의 러프니스·금속성·노멀 맵을 그대로 사용한다. `opaque: true`는 이전 파일의 투명 겹침을 막기 위한 설정이다.
-- `SLOT_SIZE.bed`의 2.55 × 1.8 × 4.05 안에 비율을 유지해 맞춘다. 바닥 중앙 기준으로 배치하고 러그 위로 0.04 올린다.
-- 파일을 교체한 뒤 페이지를 새로고침해야 메모리에 올라온 이전 모델도 다시 로드된다. 서버 재시작은 필요 없다.
-- `/tools/bed-preview.html`에서 GLB 전체를 회전하며 확인할 수 있다.
 ## 규격
 
 | 슬롯 | 자동으로 맞춰지는 크기 (월드 단위) | 실제 비유 |
