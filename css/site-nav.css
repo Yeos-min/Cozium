@@ -1,0 +1,26 @@
+/* Site navigation shared by the landing (index.html) and the help page (help.html), 2026-10-08.
+   Everything sits together on the left: logo, 이용 안내, 정리방 들어가기 (user request, 2026-10-08).
+   On the landing it shows on arrival, tucks up after 3 s and comes back when the pointer reaches the top edge
+   (js/landing-story/story.js). On the help page it simply stays. Dark bar (the style guide's darkest, #182c24) with
+   cream type, no blur, no shadow (user request 2026-10-09: the ivory bar was too light). */
+@font-face{font-family:Room;src:url("../assets/landing/fonts/Fraunces.ttf") format("truetype");font-weight:600;font-display:swap}
+.site-nav{
+  --nav-ink:#f3edd3; --nav-paper:#182c24f7; --nav-line:#f3edd31f;
+  position:fixed;top:0;left:0;right:0;z-index:20;height:64px;padding:0 36px;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:flex-start;gap:40px;
+  background:var(--nav-paper);border-bottom:1px solid var(--nav-line);color:var(--nav-ink);
+  font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  transform:translateY(0);transition:transform .45s cubic-bezier(.2,.8,.2,1);
+}
+.site-nav[data-state="closed"]{transform:translateY(calc(-100% - 2px));pointer-events:none}
+.site-nav a{color:var(--nav-ink);text-decoration:none}
+.site-nav .brand{font:600 25px/1 Room,Georgia,serif;letter-spacing:-.055em;display:flex;align-items:baseline}
+.site-nav .brand span{display:inline-block;margin-left:5px;font-size:19px;font-family:Georgia,serif;transform:rotate(-12deg)}
+.site-nav .links{display:flex;align-items:center;gap:26px}
+.site-nav .links a{font-size:15px;font-weight:500;line-height:1}
+.site-nav .links a:not(.go):hover,.site-nav .links a[aria-current="page"]{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:6px}
+.site-nav .go{padding:11px 17px;border-radius:7px;background:var(--nav-ink);color:#182c24}
+.site-nav .go:hover{background:#fffaf0}
+.site-nav a:focus-visible{outline:2px solid var(--nav-ink);outline-offset:4px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){.site-nav{transition:none}}
+@media (max-width:700px){.site-nav{height:56px;padding:0 18px;gap:20px}.site-nav .brand{font-size:22px}.site-nav .links{gap:16px}.site-nav .links a{font-size:14px}.site-nav .go{padding:9px 12px}}

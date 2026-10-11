@@ -6,9 +6,13 @@
  */
 import { CSS2DObject } from "./scene-kit.js";
 import { loadModel } from "./assets.js";
-import { makeBoxTexture } from "./card-face.js";
+import { makeBoxLabelTexture, makeBoxTexture } from "./card-face.js";
 import { makeTextOverlay } from "./text-overlay.js";
 import { TUNING, springStep } from "./tuning.js";
+import { surfaceMaterial, toonFrom } from "./materials.js";
+
+// 사용자 상자 모델(box.glb)의 몸통에 곱하는 폴더별 색. 크래프트 텍스처 위라 밝게 둔다.
+const MODEL_TINTS = ["#ffffff", "#d6e4bf", "#f7d9b0", "#d9d3ea"];
 
 export class BoxObject {
   constructor(THREE, { id, width, depth }) {
@@ -22,14 +26,14 @@ export class BoxObject {
     this.group = new THREE.Group();
     this.group.userData.folderId = id;
 
-    this.bodyMaterial = new THREE.MeshStandardMaterial({ color: TUNING.box.color, roughness: 0.88, metalness: 0.02 });
-    this.rimMaterial = new THREE.MeshStandardMaterial({
+    this.bodyMaterial = surfaceMaterial({ color: TUNING.box.color, roughness: 0.88, metalness: 0.02 });
+    this.rimMaterial = surfaceMaterial({
       color: TUNING.box.rimColor,
       roughness: 0.6,
       metalness: 0.05,
       emissive: new THREE.Color("#000000"),
     });
-    this.frontMaterial = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.85, metalness: 0 });
+    this.frontMaterial = surfaceMaterial({ color: "#ffffff", roughness: 0.85, metalness: 0 });
 
     this.parts = new THREE.Group();
     this.group.add(this.parts);
@@ -75,12 +79,15 @@ export class BoxObject {
       this.rim.add(horizontal, vertical);
     }
     this.parts.add(this.rim);
+    // 겨눔 표시(테두리 선, 안쪽 바닥 빛)는 모델로 바뀌어도 남는다.
+    this.feedback = new THREE.Group();
+    this.group.add(this.feedback);
     this.outline = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(width + 0.025, height + 0.025, depth + 0.025)),
       new THREE.LineBasicMaterial({ color: TUNING.box.targetRimColor, transparent: true, opacity: 0 }),
     );
     this.outline.position.y = height / 2;
-    this.parts.add(this.outline);
+    this.feedback.add(this.outline);
 
     // 놓을 자리 하이라이트. 상자 안쪽 바닥이 밝아진다.
     this.innerGlowMaterial = new THREE.MeshBasicMaterial({
@@ -95,7 +102,7 @@ export class BoxObject {
     );
     this.innerGlow.rotation.x = -Math.PI / 2;
     this.innerGlow.position.y = wall + 0.006;
-    this.parts.add(this.innerGlow);
+    this.feedback.add(this.innerGlow);
 
     // 쌓인 상자의 위·아래를 구분하도록 실제 부피에 맞춘 판정 영역.
     this.catcher = new THREE.Mesh(
@@ -118,12 +125,52 @@ export class BoxObject {
     this.#swapInModel();
   }
 
+  /**
+   * 사용자 상자 모델(10-11). 재질을 상자마다 복제해서 몸통은 폴더 색, 테두리는 겨눔 빛을 받는다.
+   * 앞면 UV가 아틀라스 조각이라 이름은 손잡이 구멍 아래 작은 판(nameplate)에 붙인다.
+   */
   async #swapInModel() {
     const model = await loadModel(this.THREE, "box");
     if (!model || this.disposed) return;
+    const THREE = this.THREE;
+    this.modelMaterials = { body: [], rim: [] };
+    model.traverse((child) => {
+      if (!child.isMesh) return;
+      const list = (Array.isArray(child.material) ? child.material : [child.material]).map((source) => {
+        const material = toonFrom(source.clone());
+        if (source.name === "box_body") this.modelMaterials.body.push(material);
+        if (source.name === "box_rim") {
+          material.emissive ??= new THREE.Color("#000000");
+          this.modelMaterials.rim.push(material);
+        }
+        return material;
+      });
+      child.material = Array.isArray(child.material) ? list : list[0];
+    });
+    // 판은 모델의 자식이라 모델 배율(×2)을 물려받는다. 크기는 모델 안쪽 단위로 잰다.
+    const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3()).divide(model.scale);
+    const front = size.z / 2;
+    // box.glb 손잡이 구멍은 앞면 높이 0.71–0.84(×2 단위). 이름표는 그 아래, 앞면 폭의 84%.
+    const plateWidth = size.x * 0.84, plateHeight = size.y * 0.5;
+    const plateGeometry = new THREE.PlaneGeometry(plateWidth, plateHeight);
+    plateGeometry.addGroup(0, Infinity, 0);
+    this.plateMaterial = surfaceMaterial({ color: "#ffffff", roughness: 0.9, metalness: 0 });
+    // 정점 흔들림(Wobble)은 화면에서 정점을 몇 px씩 옮긴다. 앞면 큰 삼각형과 작은 판이 서로 다르게 옮겨져
+    // 깊이가 엇갈리면 판에 상자 몸통이 삼각형으로 뚫고 나온다(10-11 사용자 제보). 판을 조금 띄우고
+    // 기울기에 비례해 앞으로 당기는 polygonOffset을 준다. 글씨는 판보다 한 단계 더 앞으로.
+    this.plateMaterial.polygonOffset = true;
+    this.plateMaterial.polygonOffsetFactor = -4;
+    this.plateMaterial.polygonOffsetUnits = -4;
+    this.plate = new THREE.Mesh(plateGeometry, [this.plateMaterial]);
+    this.plate.position.set(0, size.y * 0.33, front + 0.008);
+    this.plate.receiveShadow = true;
+    model.add(this.plate);
+    this.plateText = makeTextOverlay(THREE, this.plate, null, 0);
+    for (const ink of this.plateText.mesh.material) Object.assign(ink, { polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
     this.parts.visible = false;
     this.group.add(model);
     this.model = model;
+    if (this.info) this.setInfo(this.info);
   }
 
   /**
@@ -135,7 +182,9 @@ export class BoxObject {
    * @param {boolean} info.virtual
    * @param {boolean} info.canOpen
    */
-  setInfo({ index, name, subtitle, isSelf, virtual, canOpen, fullPath }) {
+  setInfo(info) {
+    const { index, name, subtitle, isSelf, virtual, canOpen, fullPath } = info;
+    this.info = info;
     const accent = virtual ? TUNING.box.virtualRimColor : TUNING.box.targetRimColor;
     const palette = ["#a48d69", "#84876b", "#b2a285", "#737a60"];
     const bodyColor = palette[(index - 1) % palette.length];
@@ -152,6 +201,17 @@ export class BoxObject {
     this.textOverlay.setTexture(this.frontMaterial.map.userData.textTexture);
     this.rimMaterial.color.set(virtual ? TUNING.box.virtualRimColor : TUNING.box.rimColor);
     this.isSelf = isSelf;
+    if (this.model) {
+      const tint = MODEL_TINTS[(index - 1) % MODEL_TINTS.length];
+      for (const material of this.modelMaterials.body) material.color.set(tint);
+      for (const material of this.modelMaterials.rim) material.color.set(virtual ? TUNING.box.virtualRimColor : "#ffffff");
+      const plate = makeBoxLabelTexture(this.THREE, { index, name: isSelf ? `← ${name}` : name, subtitle, accent });
+      if (this.plateMaterial.map !== plate) {
+        this.plateMaterial.map = plate;
+        this.plateMaterial.needsUpdate = true;
+        this.plateText.setTexture(plate.userData.textTexture);
+      }
+    }
 
     this.baseLabel = isSelf ? `← ${name}` : name;
     this.label.textContent = this.baseLabel;
@@ -183,14 +243,16 @@ export class BoxObject {
     const target = this.targeted ? TUNING.box.lift : 0;
     [this.state.lift, this.state.liftV] = springStep(this.state.lift, this.state.liftV, target, dt, TUNING.box.spring);
     this.parts.position.y = this.state.lift;
+    this.feedback.position.y = this.state.lift;
     if (this.model) this.model.position.y = this.state.lift;
 
     const glowTarget = this.targeted ? 1 : 0;
     this.state.glow += (glowTarget - this.state.glow) * Math.min(1, dt * 12);
+    const rims = this.modelMaterials ? [this.rimMaterial, ...this.modelMaterials.rim] : [this.rimMaterial];
     if (this.state.glow > 0.002) {
-      this.rimMaterial.emissive.set(TUNING.box.targetRimColor).multiplyScalar(this.state.glow * 0.75);
-    } else if (this.rimMaterial.emissive.r > 0) {
-      this.rimMaterial.emissive.setScalar(0);
+      for (const rim of rims) rim.emissive.set(TUNING.box.targetRimColor).multiplyScalar(this.state.glow * 0.75);
+    } else if (this.rimMaterial.emissive.r > 0 || rims.some((rim) => rim.emissive.r > 0)) {
+      for (const rim of rims) rim.emissive.setScalar(0);
     }
     this.innerGlowMaterial.opacity = this.state.glow * TUNING.box.innerGlow;
     this.outline.material.opacity = this.state.glow * 0.95;
@@ -221,6 +283,10 @@ export class BoxObject {
   dispose() {
     this.disposed = true;
     this.textOverlay.dispose();
+    this.plateText?.dispose();
+    this.plate?.geometry.dispose();
+    this.plateMaterial?.dispose();
+    for (const material of [...(this.modelMaterials?.body ?? []), ...(this.modelMaterials?.rim ?? [])]) material.dispose();
     this.labelObject.removeFromParent();
     this.label.remove();
     this.group.removeFromParent();

@@ -4,6 +4,42 @@
 /.claude/
 /.codex/
 /.agents/
+# Other copies and agent outputs kept inside the project folder on the D drive (not the site)
+/Cozium/
+/Claude outputs/
+
+# 2026-10-11 clean-up: no longer part of the site. tools/archive-unused.ps1 moves these into _archive/;
+# these lines keep them out of the repository even before the script has run.
+/landing-classic.html
+/css/landing.css
+/js/landing/
+/js/landing-story/godrays.js
+/js/three/cozy-room.js
+/js/three/shelf-frame.js
+/tests/shelf-frame.test.js
+/tests/landing/*.test.mjs
+!/tests/landing/preload.test.mjs
+/assets/landing/box/
+/assets/landing/parts/desktop-v3/
+/assets/landing/parts/*.png
+/assets/landing/parts/*.txt
+/assets/landing/parts/*.json
+/assets/landing/parts/room-v3/*.png
+/assets/landing/parts/room-v3/closed-box-room-v3.*
+/assets/landing/parts/room-v3/prompts.json
+/assets/landing/parts/room-v3/alpha-report.json
+/assets/landing/parts/desktop-v2/cozium-box*.svg
+/assets/landing/parts/desktop-v2/validation-report.json
+/models/Bed.glb
+/tools/bed-preview.html
+/tools/attic-icons/
+/tools/attic-blockout/
+/tools/intro-video/
+/tools/optimize-landing-assets.py
+/tools/landing-assets-report.json
+/docs/prototypes/
+/docs/screenshots/landing.png
+/docs/design/landing-audit-*.jpg
 
 # Dependencies and local configuration
 node_modules/

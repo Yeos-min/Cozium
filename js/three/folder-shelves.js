@@ -1,33 +1,5 @@
 import { overlaps } from "./box-placement.js";
 
-// 이름을 읽을 수 있는 고정 크기. 가구 사이 빈 벽을 따라 확장하고 두 단까지만 쓴다.
-export const SHELF_BOX = { width: 1.7, depth: 1.12 };
-export function folderShelfSlots(half, obstacles, shelfY = 0.34, height = 1.08) {
-  const { width, depth } = SHELF_BOX;
-  const pitch = width + 0.24;
-  const edgeX = half.x - depth / 2 - 0.42, edgeZ = half.z - depth / 2 - 0.42;
-  const candidates = [];
-  const add = (x, z, yaw) => {
-    const footprint = { x, z, yaw, width: width + 0.22, depth: depth + 0.34 };
-    if (obstacles.some(obstacle => overlaps(footprint, obstacle, 0.08))) return;
-    if (candidates.some(slot => overlaps(footprint, { ...slot, width: width + 0.22, depth: depth + 0.34 }, 0.01))) return;
-    candidates.push({ x, z, yaw, width, depth });
-  };
-  // 중앙 네 칸부터 시작. 폴더 수가 바뀌어도 기존 칸의 좌표는 변하지 않는다.
-  const columns = [-1.5, -0.5, 0.5, 1.5];
-  for (let n = 2.5; n * pitch + width / 2 < half.x - 0.4; n++) columns.push(-n, n);
-  for (const n of columns) add(n * pitch, -edgeZ, 0);
-  for (let z = -edgeZ + pitch; z < edgeZ - width / 2; z += pitch) {
-    add(-edgeX, z, Math.PI / 2);
-    add(edgeX, z, -Math.PI / 2);
-  }
-  for (const n of columns) add(n * pitch, edgeZ, Math.PI);
-  return [0, 1].flatMap(level => candidates.map((slot, index) => ({
-    ...slot, y: shelfY + level * (height + 0.25), height,
-    slotId: `${level}:${index}`,
-  })));
-}
-
 /** 같은 폴더는 같은 슬롯을 유지한다. 직접 놓은 상자와 겹치는 신규 슬롯은 건너뛴다. */
 export class FolderShelfAssignments {
   #indices = new Map();
@@ -49,4 +21,36 @@ export class FolderShelfAssignments {
     }
     return new Map(ids.map(id => [id, this.#indices.get(id)]));
   }
+}
+
+/**
+ * 정해진 벽 구간을 따라 상자 칸을 놓는다(다락방, 2026-10-11). runs는 attic-room.js의 ATTIC_SHELF_RUNS 꼴.
+ * 같은 order의 구간은 번갈아 채운다(양쪽이 같이 차오르게). 두 단, 아래 단부터.
+ * wall "z": z = at인 벽(줄이 x를 따라 감), wall "x": x = at인 벽(줄이 z를 따라 감). 상자 앞면(+Z)이 facing 쪽을 본다.
+ */
+export function wallShelfSlots(runs, box, { shelfY = 0.34, height = box.height, levelGap = 0.25, levels = 2, gap = 0.24 } = {}) {
+  const pitch = box.width + gap;
+  const columns = runs.map((run) => {
+    const sign = Math.sign(run.to - run.from) || 1;
+    const length = Math.abs(run.to - run.from);
+    const list = [];
+    for (let k = 0; k * pitch + box.width <= length + 1e-6; k++) {
+      const along = run.from + sign * (k * pitch + box.width / 2);
+      const across = run.at + run.facing * (0.12 + box.depth / 2);
+      const onX = run.wall === "x";
+      // 앞(+Z)을 +x로 돌리려면 yaw +90°, −x로는 −90°
+      const yaw = onX ? run.facing * Math.PI / 2 : (run.facing > 0 ? 0 : Math.PI);
+      list.push({ x: onX ? across : along, z: onX ? along : across, yaw, width: box.width, depth: box.depth, order: run.order ?? 0, k });
+    }
+    return list;
+  });
+  const ordered = [];
+  for (const order of [...new Set(runs.map((run) => run.order ?? 0))].sort((a, b) => a - b)) {
+    const group = columns.filter((_, i) => (runs[i].order ?? 0) === order);
+    const longest = Math.max(0, ...group.map((list) => list.length));
+    for (let k = 0; k < longest; k++) for (const list of group) if (list[k]) ordered.push(list[k]);
+  }
+  return Array.from({ length: levels }, (_, level) => level).flatMap((level) => ordered.map(({ order, k, ...slot }, index) => ({
+    ...slot, y: shelfY + level * (height + levelGap), height, slotId: `${level}:${index}`,
+  })));
 }

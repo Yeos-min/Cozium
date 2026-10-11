@@ -16,6 +16,13 @@ import { floorSlotCount, placeFloorItems } from "../ui/floor-layout.js";
 export const SELECTABLE_STATUSES = new Set(["idle", "conflict", "error"]);
 export const BOARD_STATUSES = new Set(["idle", "conflict", "error", "moving"]);
 
+/** 레이아웃이 준 자리 → 항목 위치. home(바닥이 아닌 처음 자리)이 있으면 같이 둔다. */
+function positionFrom(spot) {
+  const position = { x: spot.x, y: spot.y, rot: spot.rot };
+  if (spot.home) position.home = spot.home;
+  return position;
+}
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -355,7 +362,7 @@ export class SessionStore {
       }
       const entry = this.#files.get(id);
       entry.status = "idle";
-      entry.position = { x: spot.x, y: spot.y, rot: spot.rot };
+      entry.position = positionFrom(spot);
       entry.group = spot.group;
       entry.stackSeq = (this.#stackCounter += 1);
       ids.push(id);
@@ -386,7 +393,7 @@ export class SessionStore {
         leftovers.push(entry.id);
         continue;
       }
-      entry.position = { x: spot.x, y: spot.y, rot: spot.rot };
+      entry.position = positionFrom(spot);
       entry.group = spot.group;
       entry.stackSeq = (this.#stackCounter += 1);
     }
@@ -431,6 +438,29 @@ export class SessionStore {
 
   // ───────────────────────── 위치 ─────────────────────────
 
+  /**
+   * 파일을 처음 자리(핀보드·책 더미)로 되돌린다(다락방, 10-11). 그 자리의 정원(layout.homeCapacity)까지만.
+   * 칸은 장면이 정한다. 바닥 좌표는 그대로 둔다(나중에 내려놓으면 덮어쓴다).
+   * @returns {string[]} 실제로 그 자리에 간 id
+   */
+  setHome(ids, home) {
+    const limit = this.#layoutConfig.homeCapacity?.[home] ?? Infinity;
+    const wanted = new Set(ids);
+    let used = 0;
+    for (const [id, entry] of this.#files) if (entry.position?.home === home && BOARD_STATUSES.has(entry.status) && !wanted.has(id)) used += 1;
+    const placed = [];
+    for (const id of ids) {
+      const entry = this.#files.get(id);
+      if (!entry?.position || used >= limit) continue;
+      entry.position = { ...entry.position, home };
+      entry.stackSeq = (this.#stackCounter += 1);
+      used += 1;
+      placed.push(id);
+    }
+    if (placed.length) this.#emit("positions");
+    return placed;
+  }
+
   setPositions(list) {
     const { width, height } = this.card;
     const maxX = this.#bounds.x + this.#bounds.width - width;
@@ -438,8 +468,10 @@ export class SessionStore {
     for (const { id, x, y } of list) {
       const entry = this.#files.get(id);
       if (!entry || !entry.position) continue;
+      // 사용자가 내려놓은 자리는 바닥이다. 핀보드·책 더미 같은 처음 자리(home)는 여기서 끝난다.
+      const { home: _home, ...rest } = entry.position;
       entry.position = {
-        ...entry.position,
+        ...rest,
         x: Math.round(clamp(x, this.#bounds.x, maxX)),
         y: Math.round(clamp(y, this.#bounds.y, maxY)),
       };

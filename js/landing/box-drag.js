@@ -2,15 +2,17 @@ import { attachTapeDrag } from "./tape-input.js";
 import { TAPE, getOverheadMatrix, getTapePose, createTapeMaterials, drawTapeScene } from "./tape-renderer.js";
 import { getFlapStates, OPEN_DURATION } from "./flap-geometry.js";
 import { createFlapMaterials, drawOpeningScene } from "./flap-renderer.js";
+import { createScenePreparation } from "./scene-preparation.js";
+import { getCanvasResolution } from "./canvas-resolution.js";
 
-export function mountBoxScene(stage, { active = true } = {}) {
+export function mountBoxScene(stage, { active = true, autoPrepare = true } = {}) {
 const canvas = stage.querySelector("canvas");
 const ctx = canvas.getContext("2d");
 const grip = stage.querySelector(".tape-grip");
 const status = stage.querySelector(".status");
 const liveStatus = stage.querySelector("#tape-status");
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-let ready = false, width = 0, height = 0, matrix = getOverheadMatrix(1, 1);
+let ready = false, width = 0, height = 0, ratio = 1, matrix = getOverheadMatrix(1, 1);
 let input = { progress: 0, dragging: false, pointer: null, complete: false };
 let progress = 0, hover = 0, hovered = false, escape = 0, completeAt = 0, lastTime = 0;
 let frame = 0, pausedAt = active ? 0 : performance.now();
@@ -24,12 +26,26 @@ function resize() {
   const rect = stage.getBoundingClientRect();
   width = Math.max(1, rect.width);
   height = Math.max(1, rect.height);
-  const dpr = Math.min(2, devicePixelRatio || 1);
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
+  const resolution = getCanvasResolution(width, height);
+  ratio = resolution.ratio;
+  canvas.width = resolution.width;
+  canvas.height = resolution.height;
   matrix = getOverheadMatrix(width, height);
   canvas.dataset.imageRect = JSON.stringify(matrix);
   if (ready) render(active ? performance.now() : pausedAt);
+  wake();
+}
+
+function wake() {
+  if (ready && active && !frame) {
+    lastTime = 0;
+    frame = requestAnimationFrame(draw);
+  }
+}
+function setHovered(value) {
+  if (hovered === value) return;
+  hovered = value;
+  wake();
 }
 
 function sourcePoint(point) {
@@ -76,6 +92,7 @@ const drag = attachTapeDrag(grip, {
     stage.dataset.dragging = String(state.dragging);
     canvas.dataset.peel = state.progress.toFixed(4);
     canvas.dataset.complete = String(state.complete);
+    wake();
   },
   onComplete() {
     completeAt = performance.now();
@@ -84,17 +101,18 @@ const drag = attachTapeDrag(grip, {
     grip.disabled = true;
     liveStatus.textContent = "테이프를 모두 떼었어요.";
     stage.dispatchEvent(new CustomEvent("cozium:tape-removed", { bubbles: true }));
+    wake();
   },
 });
 
 stage.addEventListener("pointermove", (event) => {
   if (!active || input.dragging || input.complete) return;
   const { x, y } = sourcePoint({ x: event.clientX, y: event.clientY });
-  hovered = event.target === grip || (x >= TAPE.left && x <= TAPE.left + TAPE.width && y >= TAPE.top && y <= TAPE.top + TAPE.height);
+  setHovered(event.target === grip || (x >= TAPE.left && x <= TAPE.left + TAPE.width && y >= TAPE.top && y <= TAPE.top + TAPE.height));
 });
-stage.addEventListener("pointerleave", () => { hovered = false; });
-grip.addEventListener("focus", () => { hovered = active; });
-grip.addEventListener("blur", () => { hovered = false; });
+stage.addEventListener("pointerleave", () => setHovered(false));
+grip.addEventListener("focus", () => setHovered(active));
+grip.addEventListener("blur", () => setHovered(false));
 stage.addEventListener("wheel", (event) => {
   if (active && !event.ctrlKey) event.preventDefault();
 }, { passive: false });
@@ -115,6 +133,7 @@ function reset() {
   syncGrip();
   liveStatus.textContent = "상자가 처음 상태로 돌아왔어요.";
   if (ready) render(active ? performance.now() : pausedAt);
+  wake();
 }
 stage.querySelector(".reset")?.addEventListener("click", reset);
 
@@ -138,11 +157,14 @@ function render(time, advance = false) {
       if (progress > .999) progress = 1;
       escape = reduced ? 1 : Math.max(0, Math.min(1, (time - completeAt - 100) / 430));
     }
-    if (advance) hover += ((hovered && !input.complete ? 1 : 0) - hover) * (reduced ? 1 : Math.min(1, delta / 100));
+    if (advance) {
+      const target = hovered && !input.complete ? 1 : 0;
+      hover += (target - hover) * (reduced ? 1 : Math.min(1, delta / 100));
+      if (Math.abs(target - hover) < .0005) hover = target;
+    }
     const pose = getTapePose(progress, hover, heldTip);
     end = pose.tip;
-    const dpr = canvas.width / width;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, width, height);
     ctx.translate(matrix.x, matrix.y);
     ctx.scale(matrix.scale, matrix.scale);
@@ -174,13 +196,16 @@ function draw(time) {
   frame = 0;
   if (!ready || !active) return;
   render(time, true);
-  frame = requestAnimationFrame(draw);
+  const hoverTarget = hovered && !input.complete ? 1 : 0;
+  if (active && inspectTime === null && ((input.complete && !openingDone) || Math.abs(hoverTarget - hover) >= .0005)) frame = requestAnimationFrame(draw);
+  else lastTime = 0;
 }
 
 function setActive(value) {
   const next = Boolean(value);
   if (next === active) return;
   const now = performance.now();
+  if (next) prepare();
   if (next && completeAt) completeAt += now - pausedAt;
   active = next;
   if (!active) {
@@ -193,7 +218,7 @@ function setActive(value) {
   syncGrip();
   if (ready) {
     resize();
-    if (active && !frame) frame = requestAnimationFrame(draw);
+    wake();
   }
 }
 
@@ -209,7 +234,7 @@ function loadImage(file) {
 resize();
 addEventListener("resize", resize);
 syncGrip();
-const loaded = Promise.all([loadImage("box-overhead-closed-v2.png"), loadImage("box-overhead-untaped-v1.png"), loadImage("box-overhead-open-v2.png"), loadImage("box-opening-v1/floor.png"), loadImage("box-opening-v1/body.png"), loadImage("box-opening-v1/inner-closed.png")]).then(([closed, clean, open, floor, body, inner]) => {
+const { ready: loaded, prepare } = createScenePreparation(() => Promise.all([loadImage("box-overhead-closed-v2.webp"), loadImage("box-overhead-untaped-v1.webp"), loadImage("box-overhead-open-v2.webp"), loadImage("box-opening-v1/floor.webp"), loadImage("box-opening-v1/body.webp"), loadImage("box-opening-v1/inner-closed.webp")]).then(([closed, clean, open, floor, body, inner]) => {
   if (!ctx) throw new Error("Canvas 2D를 사용할 수 없어요.");
   Object.assign(images, { closed, clean, open, floor, body, inner, materials: createTapeMaterials(closed) });
   images.flapMaterials = createFlapMaterials(images);
@@ -226,7 +251,7 @@ const loaded = Promise.all([loadImage("box-overhead-closed-v2.png"), loadImage("
   status.hidden = true;
   canvas.dataset.ready = "true";
   resize();
-  if (active && !frame) frame = requestAnimationFrame(draw);
+  wake();
   return canvas;
 }).catch((error) => {
   status.hidden = false;
@@ -234,7 +259,7 @@ const loaded = Promise.all([loadImage("box-overhead-closed-v2.png"), loadImage("
   canvas.dataset.ready = "error";
   canvas.dataset.error = error.message;
   throw error;
-});
+}), autoPrepare);
 function getOpenPlate() {
   if (!ready) return null;
   if (!images.openPlate) {
@@ -245,7 +270,7 @@ function getOpenPlate() {
   }
   return images.openPlate;
 }
-return { ready: loaded, canvas, reset, setActive, getClosedPlate: () => images.sealedPlate, getOpenPlate };
+return { ready: loaded, prepare, canvas, reset, setActive, getClosedPlate: () => images.sealedPlate, getFloorImage: () => images.floor, getOpenPlate };
 }
 
 if (typeof document !== "undefined") {

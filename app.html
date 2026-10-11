@@ -4,10 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="내 바탕화면을 정리해야 할 물건이 흩어진 공간으로 바꿔, 집어 옮기며 정리하는 웹 프로토타입" />
-    <meta name="theme-color" content="#10120f" />
+    <meta name="theme-color" content="#182c24" />
     <title>Cozium — 나의 정리방</title>
     <link rel="stylesheet" href="./css/styles.css" />
     <link rel="stylesheet" href="./css/folder-interior.css" />
+    <link rel="stylesheet" href="./css/onboarding.css" />
+    <!-- 다락방(models/room.glb, 4.4 MB)을 가져오기 화면에 있는 동안 미리 받는다. GLTFLoader의 fetch와 같은 요청(crossorigin). -->
+    <link rel="preload" href="./models/room.glb" as="fetch" type="model/gltf-binary" crossorigin />
     <!-- three.js는 vendor/에 넣어 두었다. 발표 중 네트워크가 끊겨도 돌아간다. -->
     <script type="importmap">
       {
@@ -20,13 +23,10 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="./" aria-label="정리대 홈">
-        <span class="brand-mark" aria-hidden="true">J</span>
-        <span>
-          <strong>정리대</strong>
-          <small>DESKTOP CLEANUP · PROTOTYPE 0-C</small>
-        </span>
-      </a>
+      <div class="topbar-left">
+        <a class="brand" href="./" aria-label="Cozium 처음으로">cozium<span aria-hidden="true">⌁</span></a>
+        <a class="help-link" href="./help.html">이용 안내</a>
+      </div>
       <div class="topbar-right">
         <span class="mode-pill" id="mode-pill" data-mode="none">모드 선택 전</span>
         <span class="scope-pill"><span></span> Chromium 데스크톱 전용</span>
@@ -34,56 +34,49 @@
     </header>
 
     <main class="app-shell">
-      <!-- ───────── 온보딩: 웹 체험 / Desktop Helper ───────── -->
+      <!-- ───────── 온보딩: 밤의 방 (2026-10-08). 배경 배치는 js/ui/onboarding-room.js ───────── -->
       <section id="onboarding" class="onboarding" aria-labelledby="page-title">
-        <div class="onboarding-head">
-          <div>
-            <p class="eyebrow">0-C · 2D 검증</p>
-            <h1 id="page-title">내 바탕화면을<br /><em>쓸어 담으세요.</em></h1>
-          </div>
-          <p class="intro-copy">
-            바탕화면의 파일이 책상 위에 흩어진 물건처럼 놓입니다. 손으로 집어 폴더에 넣으세요.
-            설치 없이 체험할 수 있고, Desktop Helper를 연결하면 실제 폴더에 그대로 반영됩니다.
-          </p>
-        </div>
-
-        <div id="support-state" class="support-state" role="alert" hidden></div>
-
-        <div id="memory-tools" class="memory-tools">
-          <div>
-            <h2>파일 준비 없이 먼저 체험해 보세요</h2>
-            <p>준비된 가상 파일과 폴더로 정리를 체험합니다. 설치나 파일 접근 권한이 필요 없고, 실제 파일은 변경하지 않습니다.</p>
-          </div>
-          <button class="button button-commit" id="load-sample" type="button">가상 파일로 체험하기</button>
-        </div>
-
-        <div class="modes">
-          <article class="mode" id="mode-web" data-mode="web">
-            <header class="mode-head">
-              <span class="mode-tag">설치 없음 · 확인창 없음</span>
-              <h2>웹에서 바로 체험하기</h2>
-            </header>
-            <p>
-              바탕화면에서 <kbd>Ctrl</kbd><kbd>A</kbd>로 전부 고른 뒤 아래에 놓으세요. 파일은 읽기만 하고
-              <strong>디스크는 바꾸지 않습니다.</strong> 정리 결과는 계획으로 남습니다.
-            </p>
-            <div class="drop-target" data-drop="desktop" tabindex="0" aria-label="바탕화면 항목 드롭 영역">
-              <span class="drop-symbol" aria-hidden="true">↓</span>
-              <p>바탕화면 항목 <strong>전부</strong>를 여기에 놓으세요.</p>
-              <small>파일은 카드가 되고 폴더는 배송지가 됩니다. 휴지통·내 PC 같은 항목은 자동으로 빠집니다. 폴더 안은 한 단계씩만 봅니다.</small>
+        <div class="ob-room" aria-hidden="true">
+          <div class="ob-plate" id="ob-plate">
+            <img class="ob-paint" src="./assets/landing/parts/room-v3/room-background.webp" alt="" />
+            <div class="ob-night"></div>
+            <div class="ob-screen" id="ob-screen">
+              <img src="./assets/landing/parts/desktop-v2/wallpaper.svg" alt="" />
+              <img class="ob-screen-files" src="./assets/landing/parts/desktop-v2/desktop-composition.svg" alt="" />
             </div>
-            <p class="file-preview" id="web-summary"></p>
-            <button class="button button-commit" id="start-web" type="button" disabled>책상 열기 · 체험</button>
-          </article>
+            <div class="ob-glow"></div>
+            <img class="ob-paint ob-fg" src="./assets/landing/parts/room-v3/foreground-left.webp" alt="" />
+            <img class="ob-paint ob-fg" src="./assets/landing/parts/room-v3/foreground-files-right.webp" alt="" />
+            <img class="ob-paint ob-fg" src="./assets/landing/parts/room-v3/foreground-door-right.webp" alt="" />
+          </div>
+        </div>
 
-          <article class="mode" id="mode-helper" data-mode="helper">
-            <header class="mode-head">
-              <span class="mode-tag mode-tag-real">실제 반영</span>
-              <h2>내 Desktop과 연결하기</h2>
-            </header>
+        <div class="ob-panel">
+          <h1 id="page-title">내 바탕화면을<br /><em>쓸어 담으세요.</em></h1>
+          <p class="ob-lede">바탕화면의 파일이 방바닥의 물건이 됩니다. 같은 종류끼리 한 번에 집어 상자에 넣으세요.</p>
+
+          <div id="support-state" class="support-state" role="alert" hidden></div>
+
+          <div class="ob-web" id="mode-web" data-mode="web">
+            <div class="drop-target ob-drop" data-drop="desktop" tabindex="0" aria-label="바탕화면 항목 드롭 영역">
+              <strong>바탕화면 항목을 전부 여기에 놓으세요</strong>
+              <span>바탕화면에서 <kbd>Ctrl</kbd><kbd>A</kbd>로 고른 뒤 끌어다 놓기</span>
+            </div>
+            <p class="ob-fine">파일은 읽기만 하고 디스크는 바꾸지 않습니다. 어디로도 보내지 않습니다. <a href="./help.html#privacy">파일과 개인정보</a></p>
+            <p class="file-preview" id="web-summary"></p>
+            <button class="button button-commit ob-start" id="start-web" type="button" disabled>책상 열기 · 체험</button>
+          </div>
+
+          <div class="ob-sample" id="memory-tools">
+            <button class="ob-link" id="load-sample" type="button">파일 없이 먼저 둘러보기 <span aria-hidden="true">→</span></button>
+            <span>준비된 가상 파일로 시작합니다.</span>
+          </div>
+
+          <details class="ob-helper" id="mode-helper" data-mode="helper">
+            <summary>실제로 옮기려면: Desktop Helper 연결</summary>
             <p>
-              작은 Desktop Helper를 실행하면 바탕화면을 자동으로 읽고, <strong>옮기는 순간 실제 폴더에 반영</strong>됩니다.
-              되돌리기도 실제로 됩니다. Helper는 바탕화면 안의 이동과 새 폴더만 할 수 있고, 지우기는 없습니다.
+              내 컴퓨터에서 작은 Helper를 실행하면 바탕화면을 직접 읽고, 상자에 넣는 순간 실제 폴더로 옮깁니다.
+              되돌리기도 실제로 됩니다. 이동과 새 폴더만 하고, 지우기는 없습니다.
             </p>
             <ol class="howto">
               <li><a id="helper-download" href="https://github.com/min20011009/desktop-cleanup-prototype/releases" target="_blank" rel="noopener">Desktop Helper</a>를 받아 실행합니다. Node 20 이상이 있으면 <code>node desktop-helper.mjs</code>.</li>
@@ -97,21 +90,21 @@
             </form>
             <p class="file-preview" id="helper-state"></p>
             <button class="button button-commit" id="start-helper" type="button" disabled>바탕화면 읽기 · 시작</button>
-          </article>
+          </details>
+
+          <p class="step-help">
+            보드에는 한 번에 <strong id="capacity-label">16</strong>장씩 올라오고, 나머지는 더미에서 이어서 나옵니다.
+            어떤 파일을 어디에 넣을지는 전부 당신이 정합니다. 자동 추천은 없습니다.
+          </p>
+
+          <div id="onboarding-notice" class="notice" role="status" aria-live="polite" hidden></div>
         </div>
-
-        <p class="step-help">
-          보드에는 한 번에 <strong id="capacity-label">16</strong>장씩 올라오고, 나머지는 더미에서 이어서 나옵니다.
-          어떤 파일을 어디에 넣을지는 전부 당신이 정합니다. 자동 추천은 없습니다.
-        </p>
-
-        <div id="onboarding-notice" class="notice" role="status" aria-live="polite" hidden></div>
       </section>
 
       <!-- ───────── 보드 ───────── -->
       <section id="stage" class="stage" aria-label="정리 보드" hidden>
         <div class="stage-bar">
-          <div class="room-brand"><strong>Desktop Clean-UP</strong><small id="room-mode">나의 작은 정리방</small></div>
+          <div class="room-brand"><strong>Cozium</strong><small id="room-mode">나의 작은 정리방</small></div>
           <div class="stage-bar-group">
             <button class="button button-undo button-small" id="undo-button" type="button" disabled>
               <span class="undo-label">마지막 더미 되돌리기</span> <kbd>Ctrl</kbd><kbd>Z</kbd>
@@ -126,7 +119,7 @@
         <div class="stage-body">
           <div class="board-stack">
             <div id="board-root" class="board-viewport"></div>
-            <div class="room-key-hints"><span><kbd>W A S D</kbd> 이동</span><span><kbd>Tab</kbd> 정리 / 상자 배치</span><span><kbd>Esc</kbd> 커서 · 배치 취소</span></div>
+            <div class="room-key-hints"><span><kbd>W A S D</kbd> 이동</span><span><kbd>Space</kbd> 점프</span><span><kbd>Tab</kbd> 정리 / 상자 배치</span><span><kbd>Esc</kbd> 커서 · 배치 취소</span></div>
             <div class="progress-hud" id="progress-hud" aria-live="polite">
               <div class="progress-count">
                 <strong id="progress-done">0</strong><span id="progress-total">/ 0</span>
@@ -146,21 +139,33 @@
                   <option value="right">우측 세로열</option>
                 </select>
               </label>
-              <label class="control">카메라 <select id="camera"></select></label>
-              <label class="control" id="kuwahara-control">그림 질감
-                <select id="kuwahara" aria-label="그림 질감 (Kuwahara)">
-                  <option value="off">끄기</option>
-                  <option value="weak" selected>약 · 붓결</option>
-                  <option value="medium">중 · 유화</option>
+              <label class="control" id="render-quality-control">화면 품질
+                <select id="render-quality" aria-label="화면 품질">
+                  <option value="auto" selected>자동 · 성능에 맞춤</option>
+                  <option value="high">선명하게</option>
+                  <option value="low">가볍게</option>
                 </select>
-              </label>
-              <label class="control" id="brush-radius-control">붓결 크기
-                <input id="brush-radius" type="range" min="2" max="6" step="0.5" value="4" aria-label="붓결 크기" />
-                <output id="brush-radius-value" for="brush-radius">4</output>
+                <output id="render-quality-state" for="render-quality"></output>
               </label>
               <label class="control" id="outline-control">외곽선 굵기
                 <input id="outline-thickness" type="range" min="0" max="4" step="0.25" value="1" aria-label="외곽선 굵기" />
                 <output id="outline-thickness-value" for="outline-thickness">1 px</output>
+              </label>
+              <label class="control">Ordered dithering
+                <select id="dithering" aria-label="Ordered dithering">
+                  <option value="off">Off · 끄기</option>
+                  <option value="fine" selected>Fine · 촘촘한 색 단계</option>
+                  <option value="medium">Medium · 중간</option>
+                  <option value="coarse">Coarse · 거친 색 단계</option>
+                </select>
+              </label>
+              <label class="control">PS1 vertex wobble
+                <select id="vertex-wobble" aria-label="PS1 vertex wobble">
+                  <option value="off">Off · 끄기</option>
+                  <option value="subtle">Subtle · 약하게</option>
+                  <option value="wobble" selected>Wobble · 흔들림</option>
+                  <option value="ps1">PS1 · 강하게</option>
+                </select>
               </label>
             </div>
             <form id="new-folder-form" class="new-folder-form" autocomplete="off" hidden>
@@ -203,7 +208,7 @@
     </main>
 
     <footer>
-      <span>Prototype 0-C</span>
+      <span>Cozium</span>
       <span>덮어쓰기 없음 · 삭제 없음 · 세션 되돌리기 · 바탕화면 밖은 건드리지 않음</span>
     </footer>
 
@@ -234,5 +239,6 @@
     </template>
 
     <script type="module" src="./js/app.js"></script>
+    <script type="module" src="./js/ui/onboarding-room.js"></script>
   </body>
 </html>

@@ -16,9 +16,13 @@ export function rotatedRect({ x, y, width, height, rot = 0 }) {
 
 /** 한 자리에는 한 파일만 놓는다. 회전한 모서리까지 간격을 확보한다. */
 export function floorSlots(bounds, config = {}, seed = 0) {
+  // slotArea: 처음 깔리는 칸만 이 안에 둔다(다락방: 바닥 가운데). 내려놓기는 bounds 전체에서 된다.
+  bounds = config.slotArea ?? bounds;
   const card = { ...LAYOUT_DEFAULTS.card, ...config.card };
   const cfg = { ...FLOOR_LAYOUT, ...config.floor };
-  const rotated = rotatedRect({ x: 0, y: 0, ...card, rot: cfg.rotation });
+  // baseRotation: 모든 칸을 같은 방향으로 돌려 놓는다(다락방: 카드 위쪽이 상자 벽을 보게 90°). 흔들림은 그 위에.
+  const base = cfg.baseRotation ?? 0;
+  const rotated = rotatedRect({ x: 0, y: 0, ...card, rot: Math.abs(base) + cfg.rotation });
   const width = Math.ceil(rotated.width);
   const height = Math.ceil(rotated.height);
   const cols = Math.floor((bounds.width + cfg.gap) / (width + cfg.gap));
@@ -34,22 +38,37 @@ export function floorSlots(bounds, config = {}, seed = 0) {
       slots.push({
         x: originX + col * (width + cfg.gap) + (width - card.width) / 2,
         y: originY + row * (height + cfg.gap) + (height - card.height) / 2,
-        rot: (random() * 2 - 1) * cfg.rotation,
+        rot: base + (random() * 2 - 1) * cfg.rotation,
         order: slots.length,
+        row, col,
       });
     }
   }
-  return slots;
+  // centerFirst: 가운데 칸부터 쓴다(세로 줄 가운데 → 바깥, 같은 거리면 가로 순서). order는 그대로 둔다.
+  if (cfg.centerFirst) {
+    const mid = (rows - 1) / 2;
+    slots.sort((a, b) => Math.abs(a.row - mid) - Math.abs(b.row - mid) || a.row - b.row || a.col - b.col);
+  }
+  return slots.map(({ row, col, ...slot }) => slot);
 }
 
 export function floorSlotCount(bounds, config) {
   return floorSlots(bounds, config).length;
 }
 
+/**
+ * config.home(item)가 "floor"가 아닌 자리(예: 다락방의 핀보드·책 더미)를 돌려주면, 그 자리의 정원
+ * (config.homeCapacity[home]) 안에서는 바닥 슬롯을 쓰지 않고 `home`만 표시한다. 정원이 차면 바닥에 깔린다.
+ * 자리 안에서 어디에 놓일지는 장면이 정한다. 기존 항목 중 home이 있는 것은 그 정원을 차지할 뿐 바닥을 막지 않는다.
+ */
 export function placeFloorItems({ items, bounds, existing = [], seed, config = {} }) {
   if (!items?.length) return new Map();
   const randomSeed = seed ?? hashString(items.map(item => item.name).sort().join("|"));
-  const occupied = existing.map(rotatedRect);
+  const homeOf = typeof config.home === "function" ? config.home : null;
+  const capacity = config.homeCapacity ?? {};
+  const used = {};
+  for (const rect of existing) if (rect.home) used[rect.home] = (used[rect.home] ?? 0) + 1;
+  const occupied = existing.filter(rect => !rect.home).map(rotatedRect);
   const card = { ...LAYOUT_DEFAULTS.card, ...config.card };
   // 수동 보충도 겹침 없이 놓는다. 사용자가 옮겨 놓은 파일의 회전 범위까지 확인한다.
   const available = floorSlots(bounds, config, randomSeed)
@@ -59,8 +78,14 @@ export function placeFloorItems({ items, bounds, existing = [], seed, config = {
   const result = new Map();
   for (const [group, members] of groups) {
     for (const item of members) {
+      const home = homeOf?.(item);
+      if (home && home !== "floor" && (used[home] ?? 0) < (capacity[home] ?? Infinity)) {
+        used[home] = (used[home] ?? 0) + 1;
+        result.set(item.id, { x: bounds.x, y: bounds.y, rot: 0, group, order: -1, home });
+        continue;
+      }
       const slot = available.shift();
-      if (!slot) return result;
+      if (!slot) continue;
       result.set(item.id, { x: slot.x, y: slot.y, rot: slot.rot, group, order: slot.order });
     }
   }

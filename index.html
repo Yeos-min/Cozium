@@ -2,46 +2,52 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#e9e4ce">
-<title>Cozium — 이삿짐이 도착하는 방</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#eae3ce">
+<title>Cozium — 흩어진 하루가 제자리를 찾는 곳</title>
 <script src="./js/entry-route.js"></script>
-<link rel="preload" href="./assets/landing/parts/room-v3/room-background.png" as="image">
-<link rel="preload" href="./assets/landing/parts/room-v3/closed-box-room-v3.png" as="image">
-<link rel="preload" href="./assets/landing/box/box-opening-v1/floor.png" as="image">
-<link rel="stylesheet" href="./css/landing.css">
+<!-- 첫 화면에 필요한 것만: 같은 카메라의 정지 이미지, 제목 글꼴, 방 모델. tests/landing/preload.test.mjs가 잠근다. -->
+<link rel="preload" href="./assets/landing/room-3d/poster-C.webp" as="image" type="image/webp">
+<link rel="preload" href="./models/room.glb" as="fetch" type="model/gltf-binary" crossorigin>
+<link rel="preload" href="./assets/landing/fonts/Fraunces.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="./css/landing-story.css">
+<link rel="stylesheet" href="./css/site-nav.css">
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script>
 </head>
 <body>
-<section class="journey" aria-label="Cozium의 방과 이삿짐 도착 장면"><div class="stage">
-<canvas class="room-canvas" role="img" aria-label="방의 빈 바닥에 상자가 도착하고, 착지한 상자를 선택하는 장면"></canvas>
-<button class="box-action" type="button" aria-label="상자를 선택해 다음 장면으로" hidden disabled></button>
-<div class="light" aria-hidden="true"></div>
-<div class="overhead-scene" aria-hidden="true">
-<canvas role="img" aria-label="햇살이 드는 나무 바닥 위, 위에서 내려다본 Cozium 상자"></canvas>
-<button type="button" class="tape-grip" aria-label="테이프의 들린 끝" hidden disabled></button>
-<p class="status" role="status">장면을 준비하고 있어요.</p>
-<p class="sr-only" aria-live="polite" id="tape-status"></p>
-</div>
-<div class="desktop-scene" aria-hidden="true" hidden>
-<canvas role="button" tabindex="-1" aria-label="이름 없는 파일 아이콘 80개가 놓인 바탕화면"></canvas>
-<p class="status" role="status">바탕화면을 준비하고 있어요.</p>
-<p class="sr-only" aria-live="polite"></p>
-</div>
-<div class="return-scene" aria-hidden="true" hidden>
-<canvas role="img" tabindex="-1" aria-label="노트와 사진이 담긴 탑뷰 상자에서 정리된 같은 방으로 돌아오는 장면"></canvas>
-<p class="status" role="status">마무리 장면을 준비하고 있어요.</p>
-<p class="sr-only" aria-live="polite"></p>
-</div>
-<header><a class="brand" href="./index.html">cozium<span aria-hidden="true">⌁</span></a><a class="entry" href="./app.html">내 정리방<b aria-hidden="true">↗</b></a></header>
-<div class="title"><h1>Cozium</h1><p>흩어진 하루가<br>제자리를 찾는 곳.</p>
-<nav class="ending-actions" aria-label="정리방 시작 방법" hidden inert>
-<a class="ending-primary" href="./app.html?entry=files"><span>내 파일로 시작하기</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h14m-5-5 5 5-5 5"/></svg></a>
-<a class="ending-secondary" href="./app.html?entry=sample&amp;storage=memory">체험해 보기</a>
-</nav></div>
-<div class="caption" aria-hidden="true"><span>01</span><i></i><b class="caption-label" style="font-weight:400">아직, 자리를 찾는 중</b></div>
-<span class="cue" aria-hidden="true"><i></i></span><p class="status room-status" role="status">방을 준비하고 있어요.</p>
-<button type="button" class="reset" aria-label="도입부 다시 보기" title="다시 보기" hidden>↺</button>
-</div></section>
-<script type="module" src="./js/landing/hero.js"></script>
+<header class="site-nav" id="topNav" data-state="open">
+  <a class="brand" href="./index.html" aria-label="Cozium 처음으로">cozium<span aria-hidden="true">⌁</span></a>
+  <nav class="links" aria-label="사이트">
+    <a href="./help.html">이용 안내</a>
+    <a class="go" href="./app.html">정리방 들어가기</a>
+  </nav>
+</header>
+<main class="stage" id="stage" data-try="closed" data-scene="room" data-room="loading" aria-label="Cozium: 어질러진 바탕화면의 파일이 방의 물건이 되어 상자로 정리되는 이야기">
+  <canvas class="room" id="room" aria-hidden="true"></canvas>
+  <img class="poster" id="poster" src="./assets/landing/room-3d/poster-C.webp" alt="">
+  <canvas class="gl" id="gl" hidden aria-hidden="true"></canvas>
+  <div class="world" id="world">
+    <div class="plate desk" id="desk" style="opacity:0">
+      <img src="./assets/landing/parts/desktop-v2/wallpaper.svg" alt="">
+      <div class="icons" id="deskIcons"></div>
+    </div>
+    <div class="plate" id="deskChrome" style="opacity:0">
+      <img src="./assets/landing/parts/desktop-v2/taskbar.svg" alt="" style="left:19px;top:850px;width:1634px;height:56px">
+      <img src="./assets/landing/parts/desktop-v2/monitor-frame.svg" alt="">
+    </div>
+    <div class="title" id="title">
+      <h1>Cozium</h1>
+      <p>흩어진 하루가<br>제자리를 찾는 곳.</p>
+      <nav class="cta" id="cta" aria-label="정리방 시작" hidden>
+        <a class="primary" href="./app.html">정리방 들어가기 →</a>
+      </nav>
+    </div>
+  </div>
+  <span class="cue" id="cue" aria-hidden="true"><i></i></span>
+  <div class="loading" aria-hidden="true"><i></i></div>
+  <div class="veil" id="veil" aria-hidden="true"></div>
+  <p class="sr-only" id="sceneStatus" aria-live="polite"></p>
+</main>
+<script type="module" src="./js/landing-story/story.js"></script>
 </body>
 </html>

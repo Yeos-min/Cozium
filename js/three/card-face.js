@@ -77,10 +77,12 @@ function drawPaperFace(ctx, ink, item, color, width, height) {
   ctx.fillStyle = TUNING.card.faceColor;
   ctx.fillRect(0, 0, width, height);
 
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, width, 14);
   // A printed document glyph, not a synthetic preview of the user's file.
-  ctx.fillStyle = "#e0dbc9";
+  ctx.fillStyle = "#d2d7da";
   roundRect(ctx, 143, 22, 114, 102, 6); ctx.fill();
-  ctx.fillStyle = "#a3a28f";
+  ctx.fillStyle = "#63758e";
   for (let line = 0; line < 5; line++) ctx.fillRect(159, 41 + line * 14, line === 4 ? 48 : 82, 5);
   ctx.fillStyle = "#3b3c32";
   ctx.textBaseline = "middle";
@@ -188,7 +190,7 @@ function drawNoteFace(ctx, ink, item, width, height) {
   lines.forEach((line, index) => drawText(ctx, ink, line, 32, 120 + index * 40));
   ctx.fillStyle = "#81734d";
   ctx.font = "17px 'Segoe UI', system-ui, sans-serif";
-  drawText(ctx, ink, `TXT · ${formatSize(item.size)}`, 32, height - 38);
+  drawText(ctx, ink, `${extLabel(item)} · ${formatSize(item.size)}`, 32, height - 38);
 
   // 접힌 귀퉁이. 지오메트리의 잘린 모서리와 UV 위치를 맞춘다.
   const fold = width * formStyle(item.extension).fold;
@@ -204,6 +206,34 @@ function drawNoteFace(ctx, ink, item, width, height) {
   ctx.lineTo(width, height - fold);
   ctx.lineTo(width - fold, height);
   ctx.closePath(); ctx.fill();
+}
+
+/** 다락방 책 더미의 책 표지(10-11). 표지 색은 이름으로 정해져 같은 파일은 늘 같은 책이다. */
+const BOOK_COVERS = ["#3f5d7a", "#a9483b", "#6f7d3a", "#b98232", "#3f736f", "#71506a", "#8b5a3c"];
+function drawBookFace(ctx, ink, item, width, height) {
+  let hash = 0;
+  for (const char of item.name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  const cover = BOOK_COVERS[hash % BOOK_COVERS.length];
+  ctx.fillStyle = cover;
+  ctx.fillRect(0, 0, width, height);
+  // 책등 쪽 접힘 선과 모서리 띠
+  ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+  ctx.fillRect(0, 0, 26, height);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+  ctx.fillRect(26, 0, 5, height);
+  // 제목 딱지
+  ctx.fillStyle = "#f3ead3";
+  roundRect(ctx, 58, 46, width - 96, height - 120, 8);
+  ctx.fill();
+  ctx.fillStyle = "#3a3226";
+  ctx.textBaseline = "middle";
+  ctx.font = "700 30px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  const lines = wrap(ctx, item.name, width - 130, 3);
+  const top = 46 + (height - 120) / 2 - (lines.length - 1) * 19;
+  lines.forEach((line, index) => drawText(ctx, ink, line, 74, top + index * 38));
+  ctx.fillStyle = "#f3ead3";
+  ctx.font = "600 19px 'Segoe UI', system-ui, sans-serif";
+  drawText(ctx, ink, `${extLabel(item)} · ${formatSize(item.size)}`, 60, height - 38);
 }
 
 /**
@@ -226,8 +256,10 @@ export function makeCardTexture(THREE, item, color, loadThumbnail) {
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   const inkCanvas = makeInkCanvas(width, height);
+  ctx.imageSmoothingEnabled = true;
   const ink = inkCanvas.getContext("2d");
   if (style.kind === "note") drawNoteFace(ctx, ink, item, width, height);
+  else if (style.kind === "book") drawBookFace(ctx, ink, item, width, height);
   else if (style.kind === "photo") drawPhotoFace(ctx, ink, item, null, width, height);
   else drawPaperFace(ctx, ink, item, color, width, height);
 
@@ -285,7 +317,7 @@ export function makeBoxTexture(THREE, { index, name, subtitle, accent, bodyColor
 
   ctx.fillStyle = bodyColor;
   ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = "rgba(255,255,255,0.09)";
+  ctx.fillStyle = "#f0b66b";
   ctx.fillRect(0, 0, width, 6);
 
   ctx.fillStyle = "#383a2b";
@@ -302,6 +334,57 @@ export function makeBoxTexture(THREE, { index, name, subtitle, accent, bodyColor
   ctx.fillStyle = "#827b65";
   ctx.font = "500 20px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   drawText(ctx, ink, `${index} · ${subtitle}`, width / 2, 180);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  const textTexture = new THREE.CanvasTexture(inkCanvas);
+  textTexture.colorSpace = THREE.SRGBColorSpace;
+  textTexture.anisotropy = 8;
+  texture.userData.textTexture = textTexture;
+  cache.set(key, texture);
+  return texture;
+}
+
+/**
+ * 다락방 상자(`models/box.glb`) 앞면 손잡이 구멍 아래에 붙이는 이름표. (10-11)
+ * 모델 앞면 UV가 아틀라스 조각이라 앞면 전체 대신 작은 판에 그린다. 번호는 숫자 키다.
+ */
+export function makeBoxLabelTexture(THREE, { index, name, subtitle, accent }) {
+  const key = `boxlabel|${index}|${name}|${subtitle}|${accent}`;
+  if (cache.has(key)) return cache.get(key);
+  const width = 420;
+  const height = 250;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  const inkCanvas = makeInkCanvas(width, height);
+  const ink = inkCanvas.getContext("2d");
+
+  ctx.fillStyle = "#f3ead3";
+  roundRect(ctx, 4, 4, width - 8, height - 8, 14);
+  ctx.fill();
+  ctx.strokeStyle = "#6b5a3e";
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  // 번호 동그라미: 숫자 키
+  ctx.fillStyle = accent ?? "#ffdb68";
+  ctx.beginPath(); ctx.arc(52, 58, 30, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#6b5a3e"; ctx.lineWidth = 4; ctx.stroke();
+  ctx.fillStyle = "#3d3426";
+  ctx.font = "800 34px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  drawText(ctx, ink, String(index), 52, 60);
+  ctx.textAlign = "left";
+  ctx.font = "700 40px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  const lines = wrap(ctx, name, width - 60, 2);
+  const top = lines.length > 1 ? 122 : 140;
+  lines.forEach((line, i) => drawText(ctx, ink, line, 30, top + i * 46));
+  ctx.fillStyle = "#7d6f55";
+  ctx.font = "500 24px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  drawText(ctx, ink, subtitle, 104, 58);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;

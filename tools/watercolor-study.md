@@ -1,3 +1,5 @@
+> Retired on 2026-10-10: Kuwahara and pixel rendering were removed at the user's request. This is historical evidence; see ../docs/render-effects.md for the current implementation.
+
 # Watercolor look study
 
 Open `/tools/watercolor-study.html` to compare the same bed/window camera:

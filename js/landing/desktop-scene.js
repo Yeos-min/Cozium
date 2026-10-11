@@ -1,6 +1,8 @@
 import { getOverheadMatrix } from "./tape-renderer.js";
 import { mapQuad } from "./flap-renderer.js";
 import { mountDesktopInteraction, COLLECTION_BOX_DESIGN } from "./desktop-interaction.js";
+import { createScenePreparation } from "./scene-preparation.js";
+import { getCanvasResolution } from "./canvas-resolution.js";
 
 const FRAME = { width: 1672, height: 941 };
 const PORTAL = [[364, 199], [1307, 199], [1316, 693], [355, 693]];
@@ -90,7 +92,7 @@ function drawTaskbar(ctx, image, pose) {
   }
 }
 
-export function mountDesktopScene(root, { getOpenPlate, onCollectionBoxSelected }) {
+export function mountDesktopScene(root, { getOpenPlate, onCollectionBoxSelected, autoPrepare = true }) {
   const canvas = root.querySelector("canvas");
   const status = root.querySelector(".status");
   const liveStatus = root.querySelector(".sr-only");
@@ -115,7 +117,7 @@ export function mountDesktopScene(root, { getOpenPlate, onCollectionBoxSelected 
   record({ ready: "false", loaded: "0", expected: "83", failed: "0" });
   setStatus("새 화면을 준비하는 중이에요.");
 
-  const ready = (async () => {
+  const { ready, prepare } = createScenePreparation(async () => {
     try {
       if (!ctx || !warpCtx) throw new Error("Canvas 2D is unavailable for the desktop scene.");
       if (typeof getOpenPlate !== "function") throw new Error("getOpenPlate must be a function.");
@@ -161,8 +163,8 @@ export function mountDesktopScene(root, { getOpenPlate, onCollectionBoxSelected 
       composition.forEach((asset) => plateCtx.drawImage(asset.image, ...asset.offset));
       interaction = mountDesktopInteraction(root, {
         items: assets.filter((asset) => asset.type === "item"),
-        boxUrl: new URL("../../assets/landing/box/box-collection-draft3.png", import.meta.url).href,
-        boxClosedUrl: new URL("../../assets/landing/box/box-collection-closed-v1.png", import.meta.url).href,
+        boxUrl: new URL("../../assets/landing/box/box-collection-draft3.webp", import.meta.url).href,
+        boxClosedUrl: new URL("../../assets/landing/box/box-collection-closed-v1.webp", import.meta.url).href,
         boxGeometry: COLLECTION_BOX_DESIGN,
         requestRender: () => render(lastProgress, lastReducedMotion),
         onCollectionBoxSelected: () => onCollectionBoxSelected?.(getCollectionBoxState()),
@@ -177,7 +179,7 @@ export function mountDesktopScene(root, { getOpenPlate, onCollectionBoxSelected 
       setStatus("바탕화면 이미지를 불러오지 못했어요.", true);
       throw error;
     }
-  })();
+  }, autoPrepare);
 
   function render(progress, reducedMotion = false) {
     lastProgress = progress;
@@ -189,8 +191,8 @@ export function mountDesktopScene(root, { getOpenPlate, onCollectionBoxSelected 
     lastPose = pose;
     interaction?.configure(pose.desktopRect, interactiveEnabled && pose.done && progress > 0 && !root.hidden, reducedMotion);
     if (!ctx || !warpCtx) return pose;
-    const dpr = Math.max(1, Math.min(2, Number(globalThis.devicePixelRatio) || 1));
-    const pixelWidth = Math.max(1, Math.round(width * dpr)), pixelHeight = Math.max(1, Math.round(height * dpr));
+    const resolution = getCanvasResolution(width, height);
+    const dpr = resolution.ratio, pixelWidth = resolution.width, pixelHeight = resolution.height;
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
       canvas.width = pixelWidth;
       canvas.height = pixelHeight;
@@ -270,5 +272,5 @@ export function mountDesktopScene(root, { getOpenPlate, onCollectionBoxSelected 
   }
   function setActive(value) { interactiveEnabled = Boolean(value); return render(lastProgress, lastReducedMotion); }
   function reset() { interactiveEnabled = true; interaction?.reset(); return render(0); }
-  return { ready, render, reset, setActive, getCollectionBoxState, getDesktopPlate };
+  return { ready, prepare, render, reset, setActive, getCollectionBoxState, getDesktopPlate };
 }

@@ -34,7 +34,7 @@ test("old helper entry preserves connection parameters without losing the app pa
 });
 
 test("legacy development options open the organizer", () => {
-  for (const query of ["storage=memory", "view=2d", "layout=grid", "seed=1&capacity=24", "token=test-only-token"]) {
+  for (const query of ["storage=memory", "view=2d", "layout=grid", "seed=1&capacity=24", "token=test-only-token", "quality=low"]) {
     assert.equal(redirectOf(`http://localhost:5173/?${query}`), `http://localhost:5173/app.html?${query}`);
   }
 });

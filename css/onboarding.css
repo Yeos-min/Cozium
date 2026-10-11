@@ -1,0 +1,85 @@
+/* Import screen: "the room at night" (2026-10-08).
+   The landing's room painting, dimmed to night, with only the laptop screen lit. The choices sit in one column over
+   the dark side of the room. The drop area is drawn as a small laptop screen; dropping files lights up the real one.
+   Painting placement: js/ui/onboarding-room.js. Loaded after styles.css. */
+
+.topbar { position: relative; z-index: 3; background: transparent; border-bottom-color: rgba(243, 237, 211, 0.08); }
+main.app-shell { position: relative; z-index: 1; }
+body > footer { position: relative; z-index: 1; justify-content: flex-start; gap: 28px; }
+
+/* ── the room ── */
+.ob-room { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: #13241d; }
+.ob-plate { position: absolute; left: 0; top: 0; width: 1672px; height: 941px; transform-origin: 0 0; }
+.ob-plate > img, .ob-night { position: absolute; left: 0; top: 0; width: 1672px; height: 941px; display: block; }
+.ob-paint { filter: brightness(0.42) saturate(0.72) contrast(1.05); }
+.ob-paint.ob-fg { filter: brightness(0.3) saturate(0.68); }
+.ob-night { background: #0f241b; mix-blend-mode: multiply; opacity: 0.55; }
+.ob-screen { position: absolute; left: 0; top: 0; width: 1672px; height: 941px; transform-origin: 0 0; }
+.ob-screen img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ob-screen-files { opacity: 0; transition: opacity 0.6s ease; }
+.ob-glow {
+  position: absolute; left: 1120px; top: 205px; width: 330px; height: 250px;
+  background: radial-gradient(ellipse at 52% 45%, rgba(255, 233, 176, 0.42), transparent 68%);
+  mix-blend-mode: screen; opacity: 0.75; transition: opacity 0.35s ease;
+}
+/* the dark side of the room carries the text */
+.ob-room::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(19, 36, 29, 0.94) 0%, rgba(19, 36, 29, 0.86) 30%, rgba(19, 36, 29, 0.35) 52%, rgba(19, 36, 29, 0) 66%);
+}
+.onboarding:has(.ob-drop.is-dragging) .ob-glow { opacity: 1; }
+/* files dropped: the laptop desktop fills up */
+.onboarding:has(#mode-web[data-ready="true"]) .ob-screen-files { opacity: 1; }
+
+/* ── the column ── */
+.onboarding { position: relative; }
+.ob-panel { position: relative; z-index: 1; width: min(500px, 44vw); word-break: keep-all; padding: clamp(28px, 7vh, 72px) 0 28px; }
+.ob-panel h1 { margin: 0 0 16px; font-size: clamp(38px, 3.4vw, 50px); line-height: 1.12; letter-spacing: -0.035em; font-weight: 600; color: var(--text); }
+.ob-panel h1 em { font-style: normal; color: var(--accent); }
+.ob-lede { margin: 0 0 30px; color: var(--muted); font-size: 15px; line-height: 1.75; }
+
+/* drop area = a small laptop screen */
+.ob-drop {
+  display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  min-height: 168px; padding: 26px 28px; box-sizing: border-box;
+  border: 9px solid #0f1d17; border-radius: 14px; outline: 1px solid rgba(243, 237, 211, 0.12); outline-offset: 0;
+  background: url("../assets/landing/parts/desktop-v2/wallpaper.svg") center / cover, #f5ebd5;
+  color: #254c43; cursor: copy; transition: transform 0.18s ease, outline-color 0.18s ease;
+}
+.ob-drop strong { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.ob-drop span { color: #4d6a5e; font-size: 13px; }
+.ob-drop kbd { color: #254c43; background: #fffaf0; border-color: #254c4340; }
+/* (the old .drop-target focus/drag rules recolour the border and background; keep the screen look) */
+.ob-drop.drop-target:focus-visible, .ob-drop.drop-target.is-dragging { border-color: #0f1d17; background: url("../assets/landing/parts/desktop-v2/wallpaper.svg") center / cover, #f5ebd5; outline: 2px solid var(--accent); outline-offset: 3px; }
+.ob-drop.drop-target.is-dragging { transform: scale(1.015); }
+.ob-drop.is-disabled { opacity: 0.4; pointer-events: none; }
+.ob-fine { margin: 12px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+.ob-fine a { color: var(--text); text-underline-offset: 3px; }
+.ob-web .file-preview { margin-top: 10px; color: var(--text); }
+.ob-web .ob-start { width: 100%; min-height: 46px; margin-top: 12px; font-size: 14px; }
+.ob-start:disabled, .ob-helper .button-commit:disabled { display: none; }
+
+/* sample: a quiet second way in */
+.ob-sample { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin: 30px 0 0; padding-top: 22px; border-top: 1px solid rgba(243, 237, 211, 0.12); }
+.ob-link { padding: 0; border: 0; background: none; color: var(--text); font-size: 15px; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(217, 183, 104, 0.7); text-underline-offset: 6px; }
+.ob-link:hover { color: var(--accent); }
+.ob-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 3px; }
+.ob-sample > span { color: var(--muted); font-size: 13px; }
+
+/* helper: folded away until wanted */
+.ob-helper { margin: 18px 0 0; padding: 0; border-top: 1px solid rgba(243, 237, 211, 0.12); border-bottom: 1px solid rgba(243, 237, 211, 0.12); }
+.ob-helper > summary { list-style: none; cursor: pointer; position: relative; padding: 16px 30px 16px 0; color: var(--text); font-size: 14px; font-weight: 600; }
+.ob-helper > summary::-webkit-details-marker { display: none; }
+.ob-helper > summary::after { content: ""; position: absolute; right: 6px; top: 50%; width: 8px; height: 8px; margin-top: -6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); transition: transform 0.2s ease; }
+.ob-helper[open] > summary::after { transform: rotate(-135deg); margin-top: -1px; }
+.ob-helper > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ob-helper > p { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.ob-helper .howto a { color: var(--accent); }
+.ob-helper code { padding: 1px 5px; background: #122219; border: 1px solid var(--line); border-radius: 4px; font-size: 11px; }
+.ob-helper .helper-form { margin-bottom: 4px; }
+.ob-helper .button-commit { width: 100%; margin: 10px 0 16px; }
+.ob-helper .file-preview { margin-top: 8px; }
+.ob-helper[data-ready="true"] > summary { color: var(--success); }
+.ob-panel .step-help { margin-top: 18px; }
+
+@media (prefers-reduced-motion: reduce) { .ob-drop, .ob-glow, .ob-screen-files, .ob-helper > summary::after { transition: none; } }

@@ -2,12 +2,12 @@
  * board-3d.js — 3D 장면. 2D Board와 **같은 인터페이스**를 구현한다.
  *
  *   new Board3D({ root, store, labels, onDropToFolder, onPullWave, onOpenFolder, onLeaveFolder })
- *   .setPlacement(placement) / .cameraPresets / .setCamera(id) / .destroy()
+ *   .setPlacement(placement) / .destroy()
  *
  * 파일 시스템도, 어떤 Provider인지도 모른다. SessionStore를 읽어 오브젝트를 맞추고 제스처를 콜백으로 올린다.
  * 숫자는 전부 tuning.js에 있다. 모델 교체는 assets.js 한 곳이다.
  */
-import { SELECTABLE_STATUSES } from "../state/session-store.js";
+import { BOARD_STATUSES, SELECTABLE_STATUSES } from "../state/session-store.js";
 import {
   BOARD_SIZE,
   STAGE_LABEL,
@@ -18,13 +18,16 @@ import {
 } from "../ui/board-layout.js";
 import { BoxObject } from "./box-object.js";
 import { CardObject, disposeSharedCardGeometry } from "./card-object.js";
-import { reservePileShape, stackHeights } from "./stacking.js";
+import { reservePileShape, stackHeights, thicknessOf } from "./stacking.js";
 import { CSS2DObject, SceneKit, THREE, toLogical, toWorld, toWorldSize } from "./scene-kit.js";
-import { TUNING } from "./tuning.js";
+import { TUNING, UNIT } from "./tuning.js";
+import { ATTIC_BOOKS, ATTIC_PILE, ATTIC_PINBOARD, atticFloorBounds, bookSlot, pinboardPose } from "./attic-room.js";
+import { HomeSlots, fileHome } from "./file-homes.js";
 import { BoxPlacementState, rotateBox, supportsBox, validateBoxPlacement } from "./box-placement.js";
-import { FolderShelfAssignments, folderShelfSlots } from "./folder-shelves.js";
+import { FolderShelfAssignments } from "./folder-shelves.js";
 import { PointerLockState } from "./pointer-lock-state.js";
 import { movementKey } from "./walk-collision.js";
+import { surfaceMaterial } from "./materials.js";
 
 /**
  * 한 줄에 count개를 넣는다. 넘치면 간격을 줄이고, 그래도 넘치면 크기를 줄인다.
@@ -87,6 +90,8 @@ export class Board3D {
   #breadcrumb;
   #marquee;
   #hoverLabel;
+  #hoverName;
+  #hoverMeta;
   #hoverAnchor;
   #drag = null;
   #marqueeState = null;
@@ -130,6 +135,8 @@ export class Board3D {
   #shelfPager;
   #shownTargets = [];
   #arrangeHint;
+  #homeSlots = new HomeSlots();
+  #homePoses = new Map();
 
   constructor({ root, store, labels = { verb: "옮김" }, onDropToFolder, onPullWave, onOpenFolder, onLeaveFolder, loadThumbnail = null }) {
     this.#root = root;
@@ -164,6 +171,7 @@ export class Board3D {
     if (typeof window !== "undefined") {
       window.__tuning = TUNING;
       window.__board = this;
+      window.__kit = this.#kit; // 장면 들여다보기(카메라·방). 읽기용
     }
   }
 
@@ -212,13 +220,13 @@ export class Board3D {
     return false; // 3D에는 2D의 사선 미리보기가 필요 없다. 카메라 프리셋이 대신한다.
   }
 
-  get cameraPresets() {
-    return this.#kit.cameraPresets;
-  }
-
   get walking() {
     return this.#kit.isWalking;
   }
+
+  setRenderQuality(mode) { this.#kit.setRenderQuality(mode); }
+  refreshRenderStyle() { this.#kit.refreshRenderStyle(); }
+  get renderQuality() { return this.#kit.renderQuality; }
 
   /** 마우스가 시점에 붙어 있는가 (포인터 락) */
   get locked() {
@@ -227,6 +235,8 @@ export class Board3D {
 
   setSuspended(value) {
     this.#suspended = value;
+    this.#kit.clearLook();
+    this.#look = null;
     this.#keys.clear();
     this.#gathering = false;
     this.#pushMoveInput();
@@ -372,25 +382,12 @@ export class Board3D {
     this.#previewBox(event);
   }
 
-  setCamera(id) {
-    this.cancelBoxPlacement();
-    this.#kit.setCameraPreset(id);
-    this.#keys.clear();
-    this.#gathering = false;
-    this.#kit.setMoveInput({ forward: 0, strafe: 0, sprint: false });
-    if (!this.#kit.isWalking && document.pointerLockElement) document.exitPointerLock?.();
-    this.#updateLockUi();
-    // 1인칭에서는 폴더가 앞에 있어야 한다. 발밑에 두면 넘겨다보게 된다.
-    this.setPlacement(this.#kit.isWalking ? "far" : "bottom");
-    this.#overlay.dataset.walking = String(this.#kit.isWalking);
-    this.sync();
-  }
-
   setPlacement(placement) {
     if (placement === this.#placement) return;
     this.#placement = placement;
     this.#kit.setPlacement(placement);
-    this.#store.setBounds(playBoundsFor(placement));
+    // 1인칭(다락방): 파일 바닥은 방 모델에 맞춘 사각형이다(attic-room.js). 나머지 배치는 예전 보드.
+    this.#store.setBounds(this.walking && placement === "far" ? atticFloorBounds(UNIT) : playBoundsFor(placement));
     this.sync();
   }
 
@@ -429,6 +426,9 @@ export class Board3D {
     this.#hoverLabel = document.createElement("div");
     this.#hoverLabel.className = "hover-label";
     this.#hoverLabel.hidden = true;
+    this.#hoverName = document.createElement("strong");
+    this.#hoverMeta = document.createElement("small");
+    this.#hoverLabel.append(this.#hoverName, this.#hoverMeta);
 
     // 1인칭에서는 커서가 사라지므로 조준선이 커서를 대신한다
     this.#crosshair = document.createElement("div");
@@ -439,7 +439,7 @@ export class Board3D {
     this.#lockPrompt = document.createElement("button");
     this.#lockPrompt.type = "button";
     this.#lockPrompt.className = "lock-prompt";
-    this.#lockPrompt.innerHTML = "<strong>방 둘러보기</strong><small>클릭해서 시작 · WASD 이동 · Esc 커서</small>";
+    this.#lockPrompt.innerHTML = "<strong>방 둘러보기</strong><small>클릭해서 시작 · WASD 이동 · Space 점프 · Esc 커서</small>";
     this.#lockPrompt.hidden = true;
     this.#lockPrompt.addEventListener("click", () => this.#requestLock());
 
@@ -478,7 +478,7 @@ export class Board3D {
     this.pileLabelObject.position.set(0, 0.5, 0);
     this.#pile.add(this.pileLabelObject);
 
-    this.pileMaterial = new THREE.MeshStandardMaterial({ color: TUNING.card.faceColor, roughness: 0.85, metalness: 0.02 });
+    this.pileMaterial = surfaceMaterial({ color: TUNING.card.faceColor, roughness: 0.85, metalness: 0.02 });
     this.pileGeometry = new THREE.BoxGeometry(this.pileCardSize.w, TUNING.card.thickness, this.pileCardSize.d);
   }
 
@@ -537,7 +537,7 @@ export class Board3D {
     const seen = new Set();
 
     const shelf = this.walking && this.#placement === "far";
-    const available = folderShelfSlots(this.#kit.roomHalf, this.#kit.roomObstacles, TUNING.room.shelfY, TUNING.box.height);
+    const available = this.#kit.shelfSlots;
     const customPoses = new Map(targets.map(target => [target.id, this.#boxPlacement.get(target.id)]).filter(([, pose]) => pose));
     const assigned = this.#shelfAssignments.assign(targets.map(target => target.id), available, customPoses);
     const pages = Math.max(1, Math.ceil((Math.max(-1, ...assigned.values()) + 1) / available.length));
@@ -559,14 +559,14 @@ export class Board3D {
       this.#shelfPager.replaceChildren(button("이전 구역", -1), label, button("다음 구역", 1));
     }
     const shelfSlots = shelf ? targets.map(target => available[assigned.get(target.id) % available.length]) : [];
-    // 두 번째 단만 사용하더라도 아래 칸의 가구가 받쳐 준다.
-    for (const slot of [...shelfSlots]) {
-      const lower = available.find(candidate => candidate.x === slot.x && candidate.z === slot.z && candidate.y < slot.y);
-      if (lower && !shelfSlots.includes(lower)) shelfSlots.push(lower);
-    }
+    // 선반 틀이 없으니(다락방, 10-11) 위 칸 상자는 아래 칸에 상자가 있을 때만 그 높이에 뜬다. 아래가 비면 바닥으로 내린다.
+    const lowerOf = (slot) => available.find(candidate => candidate.x === slot.x && candidate.z === slot.z && candidate.y < slot.y);
+    const restingY = new Map(shelfSlots.map(slot => {
+      const lower = lowerOf(slot);
+      return [slot, lower && !shelfSlots.includes(lower) ? lower.y : slot.y];
+    }));
     this.#shelfSlots = shelfSlots;
-    this.#shelfObstacles = shelfSlots.map(slot => ({ ...slot, width: slot.width + 0.2, depth: slot.depth + 0.32,
-      y: slot.y - 0.12, height: slot.height + 0.37 }));
+    this.#shelfObstacles = shelfSlots.map(slot => ({ ...slot, y: restingY.get(slot), width: slot.width + 0.1, depth: slot.depth + 0.1 }));
     targets.forEach((target, index) => {
       const key = target.isSelf ? `self:${target.id}` : target.id;
       seen.add(key);
@@ -608,7 +608,7 @@ export class Board3D {
         fullPath: store.folderLabel(target.id),
       });
       const spot = home ?? toWorld(slots[index].cx, slots[index].cy);
-      box.place(custom?.x ?? spot.x, custom?.z ?? spot.z, custom?.y ?? home?.y ?? 0);
+      box.place(custom?.x ?? spot.x, custom?.z ?? spot.z, custom?.y ?? (home ? restingY.get(home) ?? home.y : 0));
       box.group.rotation.y = custom?.yaw ?? home?.yaw ?? 0;
       box.group.visible = this.#heldBox?.id !== box.id;
     });
@@ -633,7 +633,7 @@ export class Board3D {
   #restHeights() {
     const dragging = this.#drag?.ids;
     const resting = this.#store.boardEntries
-      .filter((entry) => entry.position && entry.status !== "moving" && !dragging?.has(entry.id)
+      .filter((entry) => entry.position && !entry.position.home && entry.status !== "moving" && !dragging?.has(entry.id)
         && !(this.walking && this.#store.isSelected(entry.id)))
       .sort((a, b) => (a.stackSeq ?? 0) - (b.stackSeq ?? 0))
       .map((entry) => ({ id: entry.id, x: entry.position.x, y: entry.position.y, size: entry.item.size, extension: entry.item.extension }));
@@ -661,6 +661,7 @@ export class Board3D {
     }
     const pilePosition = this.#pile.position;
     const restHeights = this.#restHeights();
+    this.#syncHomes();
 
     for (const entry of store.files) {
       if (entry.status === "queued") continue;
@@ -679,6 +680,8 @@ export class Board3D {
         if (this.#pendingSpill.has(entry.id)) {
           card.spillFrom({ x: pilePosition.x, z: pilePosition.z }, this.#spillIndex * TUNING.supplyStagger);
           this.#spillIndex += 1;
+        } else if (this.#homePoses.has(entry.id)) {
+          card.place(this.#homePoses.get(entry.id));
         } else if (entry.position) {
           const spot = toWorld(entry.position.x + store.card.width / 2, entry.position.y + store.card.height / 2);
           card.place({ x: spot.x, z: spot.z, spin: (entry.position.rot * Math.PI) / 180 });
@@ -693,6 +696,38 @@ export class Board3D {
       card.dispose();
       this.#cards.delete(id);
       if (this.#hoveredCardId === id) this.#hoveredCardId = null;
+    }
+  }
+
+  /**
+   * 다락방의 처음 자리(핀보드·책 더미)에 있는 파일의 자세. 저장소는 home만 표시하고 칸은 장면이 정한다.
+   * 같은 파일은 같은 칸을 유지한다. 책은 칸 순서대로 실제 두께만큼 쌓인다.
+   */
+  #syncHomes() {
+    const byHome = new Map([["pinboard", []], ["books", []]]);
+    const entries = this.#store.files
+      .filter((entry) => entry.position?.home && BOARD_STATUSES.has(entry.status) && entry.status !== "moving")
+      .sort((a, b) => (a.stackSeq ?? 0) - (b.stackSeq ?? 0));
+    for (const entry of entries) byHome.get(entry.position.home)?.push(entry.id);
+    const assigned = this.#homeSlots.assign(byHome);
+    this.#homePoses.clear();
+    const books = [];
+    for (const entry of entries) {
+      const slot = assigned.get(entry.id);
+      if (!slot) continue;
+      if (slot.home === "pinboard") this.#homePoses.set(entry.id, pinboardPose(slot.index));
+      else books.push({ entry, ...bookSlot(slot.index) });
+    }
+    const { stacks, scale } = ATTIC_BOOKS;
+    const tops = stacks.map(() => 0);
+    for (const book of books.sort((a, b) => a.level - b.level)) {
+      const stack = stacks[book.stack % stacks.length];
+      const wobble = Math.sin((book.level + 1) * 7.31 + book.stack) * 0.05;
+      this.#homePoses.set(book.entry.id, {
+        x: stack.x + wobble * 0.4, y: tops[book.stack], z: stack.z + wobble * 0.3,
+        spin: stack.yaw + wobble, scale, facePitch: 0,
+      });
+      tops[book.stack] += thicknessOf(book.entry.item.size, book.entry.item.extension) * scale + TUNING.card.stackGap;
     }
   }
 
@@ -723,8 +758,20 @@ export class Board3D {
     }
 
     if (!entry.position) return;
-    const spot = toWorld(entry.position.x + store.card.width / 2, entry.position.y + store.card.height / 2);
     const hovered = this.#hoveredCardId === entry.id;
+    const home = this.#homePoses.get(entry.id);
+    if (home) {
+      // 핀보드는 겨누면 방 쪽으로 살짝 들리고, 책은 위로 뜬다.
+      card.spring = TUNING.card.spring;
+      card.follow = 1;
+      card.setTarget({
+        ...home,
+        z: home.z - (hovered && home.facePitch ? 0.08 : 0),
+        y: home.y + (hovered && !home.facePitch ? 0.06 : 0),
+      });
+      return;
+    }
+    const spot = toWorld(entry.position.x + store.card.width / 2, entry.position.y + store.card.height / 2);
     card.spring = TUNING.card.spring;
     card.follow = 1;
     card.setTarget({
@@ -739,7 +786,7 @@ export class Board3D {
   #syncPile() {
     const store = this.#store;
     const { pile } = boxSlots(this.#placement, store.visibleTargets.length);
-    const spot = toWorld(pile.cx, pile.cy);
+    const spot = this.walking ? ATTIC_PILE : toWorld(pile.cx, pile.cy);
     this.#pile.position.set(spot.x, 0, spot.z);
 
     const queued = store.queuedCount;
@@ -827,15 +874,13 @@ export class Board3D {
     const stage = entry.status === "moving" ? STAGE_LABEL[entry.stage] ?? "옮기는 중" : null;
     this.#hoverLabel.hidden = false;
     this.#hoverLabel.style.transform = `translate(-50%, -100%) translate(${screen.x}px, ${screen.y}px)`;
-    this.#hoverLabel.dataset.tone = entry.status === "conflict" ? "error" : entry.status === "error" ? "warn" : "info";
-    this.#hoverLabel.innerHTML = "";
-    const name = document.createElement("strong");
-    name.textContent = entry.item.name;
-    const meta = document.createElement("small");
-    meta.textContent = count > 1
+    const tone = entry.status === "conflict" ? "error" : entry.status === "error" ? "warn" : "info";
+    if (this.#hoverLabel.dataset.tone !== tone) this.#hoverLabel.dataset.tone = tone;
+    if (this.#hoverName.textContent !== entry.item.name) this.#hoverName.textContent = entry.item.name;
+    const meta = count > 1
       ? `${count}장 집는 중`
       : stage ?? entry.message ?? `${formatSize(entry.item.size)} · ${entry.item.extension ? entry.item.extension.toUpperCase() : "확장자 없음"}`;
-    this.#hoverLabel.append(name, meta);
+    if (this.#hoverMeta.textContent !== meta) this.#hoverMeta.textContent = meta;
   }
 
   // ───────────────────────── 포인터 ─────────────────────────
@@ -871,6 +916,8 @@ export class Board3D {
     });
 
     this.#onLockChange = () => {
+      this.#kit.clearLook();
+      this.#look = null;
       this.#pointerLock.changed(document.pointerLockElement === canvas);
       if (this.#locked && this.#suspended) { document.exitPointerLock(); return; }
       if (!this.#locked) {
@@ -1002,17 +1049,24 @@ export class Board3D {
    */
   #placeHeldAt(event) {
     const aim = this.#aim(event);
+    const store = this.#store;
+    let held = store.selection;
+    // 핀보드를 겨누면 사진·메모는 다시 꽂는다(10-11 사용자: 떼면 다시 못 붙이던 것). 칸이 모자라거나 다른 종류는 바닥으로.
+    if (this.#aimsAtPinboard(aim)) {
+      const pinned = new Set(store.setHome(held.filter((id) => fileHome(store.entry(id)?.item) === "pinboard"), "pinboard"));
+      held = held.filter((id) => !pinned.has(id));
+      if (!held.length) { store.clearSelection(); return; }
+    }
     let point = this.#kit.worldAt(aim.x, aim.y, 0);
     if (!point) {
       const flat = this.#kit.forwardFlat();
       const eye = this.#kit.eye;
       point = new THREE.Vector3(eye.x + flat.x * 3, 0, eye.z + flat.z * 3);
     }
-    const store = this.#store;
     const center = toLogical(point.x, point.z);
     const GOLDEN_ANGLE = 2.399963;
     store.setPositions(
-      store.selection.map((id, index) => {
+      held.map((id, index) => {
         const radius = index === 0 ? 0 : 28 * Math.sqrt(index);
         const angle = index * GOLDEN_ANGLE;
         return {
@@ -1057,12 +1111,27 @@ export class Board3D {
     });
   }
 
+  /** 겨눈 곳이 다락방 벽 핀보드(코르크)인지. 판 둘레 25 cm까지 봐준다. */
+  #aimsAtPinboard(aim) {
+    if (!this.walking || this.#arranging) return false;
+    const kit = this.#kit;
+    kit.raycaster.setFromCamera(kit.ndcFrom(aim.x, aim.y), kit.camera);
+    const { origin, direction } = kit.raycaster.ray;
+    const board = ATTIC_PINBOARD;
+    if (Math.abs(direction.z) < 1e-4) return false;
+    const t = (board.z - origin.z) / direction.z;
+    if (t <= 0 || t > 14) return false;
+    const x = origin.x + direction.x * t, y = origin.y + direction.y * t, pad = 0.25;
+    return x > board.minX - pad && x < board.maxX + pad && y > board.minY - pad && y < board.maxY + pad;
+  }
+
   #updateHandHint() {
     const held = this.#store.selection.length;
     const walking = this.#kit.isWalking;
     this.#handHint.hidden = this.#arranging || !walking || held === 0;
     if (held > 0 && walking) {
-      const message = `<kbd>좌클릭</kbd> 상자에 넣기 <span>· ${held}장</span> <kbd>우클릭</kbd> 내려놓기`;
+      const pin = this.#locked && this.#aimsAtPinboard(this.#aim(null));
+      const message = `<kbd>좌클릭</kbd> 상자에 넣기 <span>· ${held}장</span> <kbd>우클릭</kbd> ${pin ? "핀보드에 꽂기" : "내려놓기"}`;
       if (this.#handHint.innerHTML !== message) this.#handHint.innerHTML = message;
     }
   }
@@ -1382,6 +1451,8 @@ export class Board3D {
   }
 
   #cancelGestures() {
+    this.#kit.clearLook();
+    this.#look = null;
     this.#clearSpring();
     if (this.#drag) {
       for (const id of this.#drag.ids) {
@@ -1414,6 +1485,11 @@ export class Board3D {
       if (this.#suspended) return;
       if (!this.#kit.isWalking || event.ctrlKey || event.metaKey || event.altKey || isEditing(event.target)) return;
       const key = movementKey(event);
+      if (key === "space") {
+        event.preventDefault(); // 포커스된 버튼이 눌리지 않게
+        if (!event.repeat) this.#kit.jump(); // 상자를 옮기는 중(Tab)에도: 길을 막은 상자를 넘어가려고
+        return;
+      }
       if (!MOVE_KEYS.has(key)) return;
       event.preventDefault();
       this.#keys.add(key);
@@ -1424,6 +1500,8 @@ export class Board3D {
       this.#pushMoveInput();
     };
     this.#onBlur = () => {
+      this.#kit.clearLook();
+      this.#look = null;
       if (this.#keys.size === 0) return;
       this.#keys.clear();
       this.#pushMoveInput();

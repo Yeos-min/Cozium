@@ -1,3 +1,10 @@
+> **현재 협업 기준 (2026-10-06)**
+>
+> 먼저 [AGENTS.md](AGENTS.md), [작업 타임라인](docs/agent-timeline.md), [디자인 시스템](docs/design-system.md), [성능 기준](docs/performance.md)을 읽으세요.
+> 사용자 확인: D 프로젝트 루트가 최신본, C 프로젝트는 GitHub PR용 복제본입니다. 아래의 이전 단계별 계획·테스트 수를 최신 상태로 해석하지 마세요.
+> 실행 진입점은 `index.html`(Cozium 랜딩), `app.html`(파일 정리 앱)입니다. 이번 우선 작업은 1인칭 입력 반응과 기기별 성능입니다. 랜딩은 2026-10-11 3D 다락방으로 교체됐습니다(`js/landing-story/story.js`·`room-layer.js`. 이전 그림 랜딩 `landing-classic.html`은 10-11 `_archive/`로 뺐습니다) — [디자인 시스템](docs/design-system.md)의 ‘현재 랜딩’. 가져오기 화면 디자인은 후속 작업입니다.
+> 사용자 최신 지시가 과거 규격보다 우선합니다. 작업 날짜·시각·담당 범위·실제 검증 결과를 타임라인에 남깁니다.
+
 # CLAUDE.md
 
 ## 이 문서를 읽는 법
@@ -360,3 +367,4 @@ Chrome은 loopback을 안전 출처로 봐 mixed content는 통과한다. Chrome
 - 모순이 보이면 즉시 지적할 것.
 - `[확정]` / `[미결정]` / `[검증필요]` 표기에 어긋나는 구현이 필요해 보이면, **진행하지 말고 먼저 물어볼 것.**
 - 자동 테스트 통과를 실기기 검증으로 보고하지 말 것.
+

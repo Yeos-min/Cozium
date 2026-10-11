@@ -13,7 +13,10 @@ test("new forms recognize mixed-case extensions while PDF and unknown files keep
   assert.equal(fileForm("PNG"), "photo");
   assert.equal(fileForm("JpEg"), "photo");
   assert.equal(fileForm("TXT"), "note");
-  for (const extension of ["pdf", "blend", "docx", "custom", "", undefined]) {
+  assert.equal(fileForm("md"), "note");
+  // 다락방(10-11, 사용자): 문서는 책 더미에서 책으로 나온다
+  for (const extension of ["pdf", "DOCX", "hwp"]) assert.equal(fileForm(extension), "book");
+  for (const extension of ["blend", "pptx", "custom", "", undefined]) {
     assert.equal(fileForm(extension), "card");
     assert.deepEqual(fileFootprint(extension, CARD), CARD);
     assert.equal(thicknessOf(MB, extension), TUNING.card.thickness * thicknessMultiplier(MB));

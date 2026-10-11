@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { FILLED_HOLD_MS, REDUCED_FILLED_HOLD_MS, REDUCED_RETURN_MS, RETURN_DURATION, RETURN_FOCUS_MS, RETURN_ROOM_MS, getReturnPose, mountReturnScene } from "../../js/landing/return-scene.js";
 import { getOverheadMatrix } from "../../js/landing/tape-renderer.js";
+import { getCanvasResolution } from "../../js/landing/canvas-resolution.js";
 
 const viewports = [[1280, 720], [1920, 1080], [2934, 1532], [2400, 1000], [1024, 768], [390, 844]];
 const near = (a, b, tolerance = 1e-8) => assert.ok(Math.abs(a - b) <= tolerance, `${a} != ${b}`);
@@ -104,7 +105,7 @@ test("invalid dimensions, elapsed values and rectangles remain bounded and resta
   assert.equal(getReturnPose(1280, 720, 0).phase, "return-to-box");
 });
 
-async function harness(t, { deferred = false, imageError = false, imageWidth = 1672, imageHeight = 941 } = {}) {
+async function harness(t, { deferred = false, imageError = false, imageWidth = 1672, imageHeight = 941, autoPrepare = true } = {}) {
   const names = ["document", "Image", "requestAnimationFrame", "cancelAnimationFrame", "devicePixelRatio"];
   const originals = new Map(names.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   const frames = new Map(), pending = [], copies = [], drawing = [], phases = [], completions = [];
@@ -140,6 +141,7 @@ async function harness(t, { deferred = false, imageError = false, imageWidth = 1
   const plate = { width: 2560, height: 1440 };
   const callbacks = { phase: null, complete: null };
   const scene = mountReturnScene(root, {
+    autoPrepare,
     getDesktopPlate: () => plate,
     getCollectionBoxRect: () => ({ x: 970, y: 465, width: 220, height: 170 }),
     onPhase(phase, pose) { phases.push(phase); callbacks.phase?.(phase, pose); },
@@ -159,16 +161,31 @@ async function harness(t, { deferred = false, imageError = false, imageWidth = 1
       else delete globalThis[name];
     }
   });
-  if (!deferred && !imageError && imageWidth === 1672 && imageHeight === 941) await scene.ready;
+  if (autoPrepare && !deferred && !imageError && imageWidth === 1672 && imageHeight === 941) await scene.ready;
   return { scene, root, canvas, status, live, frames, pending, copies, drawing, plate, phases, completions, callbacks, bounds, advance, visibility };
 }
+
+test("a deferred return downloads nothing until start prepares its two images", async (t) => {
+  const h = await harness(t, { autoPrepare: false, deferred: true });
+  assert.equal(h.pending.length, 0);
+  assert.equal(h.root.dataset.ready, "false");
+  const starting = h.scene.start();
+  assert.equal(h.pending.length, 2);
+  assert.equal(h.scene.prepare(), h.scene.ready);
+  h.pending.forEach(({ resolve }) => resolve());
+  assert.equal(await starting, true);
+  h.advance(RETURN_DURATION + 200);
+  assert.equal(h.root.dataset.phase, "tidy-room");
+  assert.equal(h.completions.length, 1);
+});
 
 test("the mounted scene copies device-resolution pixels and completes the four ending phases once", async (t) => {
   const h = await harness(t);
   assert.equal(await h.scene.start(), true);
   assert.equal(h.copies[0].image, h.plate);
-  assert.equal(h.canvas.width, 2560);
-  assert.equal(h.canvas.height, 1440);
+  const resolution = getCanvasResolution(1280, 720, 2);
+  assert.equal(h.canvas.width, resolution.width);
+  assert.equal(h.canvas.height, resolution.height);
   const desktopDraw = h.drawing.find((call) => call.image.width === 2560);
   assert.deepEqual(desktopDraw.args, [0, 0, 2560, 1440, 0, 0, 1280, 720]);
   h.advance(RETURN_DURATION + 200);

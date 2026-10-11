@@ -1,5 +1,5 @@
 export const BOX_CONFIG = {
-  file: "closed-box-room-v3.png",
+  file: "closed-box-room-v3.webp",
   sourceRect: { x: 691, y: 540, w: 322, h: 183 },
   sourceContact: [249, 181],
   foot: { x: 940, y: 721 },
