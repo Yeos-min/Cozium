@@ -327,6 +327,9 @@ export class RoomLayer {
     this.resize(this.size.w, this.size.h);
     for (const group of Object.values(this.lights)) group.traverse((light) => {
       if (!light.isLight || !light.shadow) return;
+      // only lights built with a shadow (#buildLights); the screen glow must never get one (it streaked the wall, 10-11)
+      light.userData.castsShadow ??= light.castShadow;
+      if (!light.userData.castsShadow) return;
       if (light.isPointLight) light.castShadow = p.effects;
       const size = light.isPointLight ? p.shadowSize / 2 : p.shadowSize;
       if (light.castShadow && light.shadow.mapSize.x !== size) {
