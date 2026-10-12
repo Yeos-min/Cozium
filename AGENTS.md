@@ -4,6 +4,7 @@
 
 - 사용자 컴퓨터의 최신본은 `D:\울산대\3학년 2학기\웹디자인2\Project\desktop-cleanup-prototype` **루트**다. 사용자가 2026-10-06에 확인했다.
 - `C:\dev\Desktop Clean UP`은 GitHub PR 편의를 위한 복제본이다. 여기의 오래된 파일을 D 루트에 일괄 덮어쓰지 않는다. D 프로젝트 안의 `Cozium/`, `_archive/`도 현재 실행 소스가 아니다.
+- D → C 올리기(2026-10-13): `tools\sync-to-c.bat` 더블클릭 = C를 D와 똑같이 맞춤(robocopy /MIR). C의 `.git`은 안 건드리고, `_archive`·`Cozium`·`Claude outputs`·`output`·`.claude` 등과 10-11 정리 대상 옛 파일은 복사하지 않음(C에 있으면 지움 → 삭제도 커밋됨). 그다음 C에서 `git add -A` → commit → push. 손으로 지우고 복붙하던 방식 대신.
 - 다른 컴퓨터의 Git 체크아웃에서 작업한다면 해당 체크아웃 루트를 사용하고, 타임라인에서 최신 동기화 여부를 확인한다. 위 D 경로가 없다고 오래된 복제본을 최신본으로 추정하지 않는다.
 - 작업 전에 [작업 타임라인](docs/agent-timeline.md), [디자인 시스템](docs/design-system.md), [성능 기준](docs/performance.md)을 읽는다. 파일 처리 안전 규칙과 상세 앱 규격은 [CLAUDE.md](CLAUDE.md)를 함께 읽는다.
 - 현재 실행 진입점은 `index.html`(랜딩), `app.html`(정리 앱)이다. 오래된 스케치나 개발 이력을 현재 구현으로 해석하지 않는다.

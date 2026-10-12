@@ -44,7 +44,8 @@ export class VertexSnapEffect {
     this.renderer.getDrawingBufferSize(this.size);
     this.uniforms.retroSnapGrid.value.copy(this.size).divideScalar(Math.max(0.001, cellSize * this.renderer.getPixelRatio()));
     scene.traverse(object => {
-      if (!object.isMesh) return;
+      // userData.noSnap: big static quads (a floor of four corners) whose corners would snap apart (landing, 10-13)
+      if (!object.isMesh || object.userData.noSnap) return;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       for (const material of materials) this.patchMaterial(material);
     });

@@ -252,7 +252,7 @@ export class SceneKit {
 
   /** 책상 노트북 화면에 랜딩의 바탕화면을 띄운다. 랜딩에서 들어온 그 노트북이다. */
   #lightLaptop(mesh) {
-    new THREE.TextureLoader().load("./assets/landing/parts/desktop-v2/wallpaper.svg", (texture) => {
+    new THREE.TextureLoader().load("./assets/landing/parts/desktop-v4/wallpaper.webp", (texture) => { // 10-13 새 바탕화면
       if (this.disposed) { texture.dispose(); return; }
       texture.flipY = false; // glTF UV: 왼쪽 위가 (0, 0)
       texture.colorSpace = THREE.SRGBColorSpace;

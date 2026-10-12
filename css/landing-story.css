@@ -14,6 +14,8 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);ove
 .world{position:absolute;left:0;top:0;width:1672px;height:941px;transform-origin:0 0;pointer-events:none}
 .plate{position:absolute;left:0;top:0;width:1672px;height:941px;transform-origin:0 0;will-change:transform,opacity;pointer-events:none}
 .plate>img{position:absolute;left:0;top:0;width:1672px;height:941px;display:block}
+.plate>img[src*="taskbar"]{filter:drop-shadow(0 2px 5px rgba(58,43,33,.18))}
+.plate>.frame{position:absolute;left:0;top:0;width:1672px;height:941px;box-sizing:border-box;border:30px solid transparent;border-image-slice:30;border-image-width:30px;border-image-repeat:stretch}
 .desk>.icons{position:absolute;inset:0}
 /* The vector desktop sits on a painted screen: feather its edge a few screen pixels so it melts into the soft bezel. --fe is set per frame in the plate's own units. */
 .desk{--fe:6px;mask-image:linear-gradient(to right,transparent,#000 var(--fe),#000 calc(100% - var(--fe)),transparent),linear-gradient(to bottom,transparent,#000 var(--fe),#000 calc(100% - var(--fe)),transparent);mask-composite:intersect}

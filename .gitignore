@@ -40,6 +40,9 @@
 /docs/prototypes/
 /docs/screenshots/landing.png
 /docs/design/landing-audit-*.jpg
+/assets/landing/room-3d/inside-floor.webp
+# where tools/sync-to-c.ps1 remembers the C clone (per computer)
+/tools/sync-target.txt
 
 # Dependencies and local configuration
 node_modules/
