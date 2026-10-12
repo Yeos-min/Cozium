@@ -33,6 +33,10 @@ export const CAMERAS = {
   C: { label: "넓게", p: [-3.15, 1.55, 2.4], yaw: -72, hfov: 70, shift: .2 },
 };
 const END_HFOV = 38;      // lens at the end of the walk-in, when the screen fills the frame
+// Mouse parallax (user, 10-13): standing in the room the camera leans a little towards the pointer — turns (deg) and
+// slides (m, along its own axes), eased over `ease` s. It fades out as the walk-in starts, so the laptop's screen and
+// the desktop riding on it end exactly where they did. No extra cost: the room is drawn every frame anyway.
+export const LOOK = { yaw: 2.4, pitch: 1.4, slide: .06, rise: .03, ease: .35, fadeUntil: .3 };
 const SCREEN = "Laptop_screen";
 
 // Light setups to compare. "game" is TUNING.light as the game uses it today.
@@ -45,7 +49,8 @@ export const MATERIALS = {
 
 // metres: w, d, thickness. A little larger than life (×1.4), like the game's chunky cards, so the mess reads from the door.
 const FILE_SIZE = Object.fromEntries(Object.entries({
-  document: [.30, .218, .005], photo: [.16, .128, .003], video: [.22, .16, .016], audio: [.13, .13, .012], archive: [.30, .218, .035],
+  // w, d in the proportions of the faces (desktop-v4/faces, 10-13)
+  document: [.26, .256, .005], photo: [.16, .144, .003], video: [.22, .181, .016], audio: [.13, .13, .012], archive: [.27, .239, .035],
 }).map(([k, v]) => [k, v.map((x, i) => i === 2 ? Math.max(.012, x * 1.4) : x * 1.4)])); // ≥ 1.2 cm: thinner ones fought the floor under wobble
 const EDGE = { document: "#e9dfc7", photo: "#f3efe4", video: "#4a524c", audio: "#d8bf73", archive: "#a98258" };
 const KINDS = ["document", "document", "photo", "photo", "photo", "video", "audio", "archive", "document"];
@@ -65,6 +70,7 @@ export class RoomLayer {
     this.quality = new RenderQuality(new URLSearchParams(location.search).get("render"), { tier: detectDeviceTier(this.renderer.getContext()) });
     this.onQuality = null;
     this._last = 0;
+    this.lookTarget = new THREE.Vector2(); this.lookNow = new THREE.Vector2(); // pointer, −1…1 (x right, y down)
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(50, 16 / 9, .04, 60);
     this.camera.rotation.order = "YXZ";
@@ -422,12 +428,25 @@ export class RoomLayer {
     });
   }
 
+  // Where the pointer is, −1…1 across the viewport (0, 0 = straight ahead). The camera eases towards it.
+  setLook(x, y) { this.lookTarget.set(clamp(x, -1, 1), clamp(y, -1, 1)); }
+
+  // The walk-in pose, leaned towards the pointer while still standing in the room (t below LOOK.fadeUntil).
+  #lookPose(P, t, dt) {
+    this.lookNow.lerp(this.lookTarget, 1 - Math.exp(-dt / LOOK.ease));
+    const w = 1 - smooth(0, LOOK.fadeUntil, t), x = this.lookNow.x * w, y = this.lookNow.y * w;
+    if (Math.abs(x) + Math.abs(y) < 1e-4) return P;
+    P.q.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-y * LOOK.pitch * DEG, -x * LOOK.yaw * DEG, 0, "YXZ")));
+    P.pos.add(new THREE.Vector3(x * LOOK.slide, -y * LOOK.rise, 0).applyQuaternion(P.q));
+    return P;
+  }
+
   render(t, plateW, plateH) {
     if (!this.ready) return null;
-    const now = performance.now();
-    if (this._last && this.quality.observe((now - this._last) / 1000, !document.hidden)) this.#applyQuality();
+    const now = performance.now(), dt = this._last ? Math.min(.1, (now - this._last) / 1000) : 0;
+    if (this._last && this.quality.observe(dt, !document.hidden)) this.#applyQuality();
     this._last = now;
-    this.#applyPose(this.poseAt(t), plateW, plateH);
+    this.#applyPose(this.#lookPose(this.poseAt(t), t, dt), plateW, plateH);
     this.snap.prepare(this.scene);
     this.outline.render(this.scene, this.camera);
     this.rays?.render(this.renderer, this.camera, performance.now() / 1000, this.renderer.getPixelRatio());

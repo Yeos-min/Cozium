@@ -404,3 +404,46 @@ desktop-v3와 tools/attic-icons/는 지우지 않음(쓰지 않음). 롤백 직�
 남은 일(사용자): D에서 powershell -ExecutionPolicy Bypass -File tools\archive-unused.ps1 -DryRun → 확인 후 -DryRun 빼고 → D를 C로 복사 → C에서 git add -A(옛 파일 삭제도 커밋에 포함; .gitignore만으론 이미 추적 중인 파일이 안 빠짐) → push.
 백업: _archive/claude-optimize-20261011/(바꾼 텍스트 원본, room.glb, webp 4장).
 검증: 리포 사본 npm test 165/166(옛 랜딩 테스트가 빠져 288 → 166, 실패 1은 원래부터의 Linux 전용). 헤드리스(SwiftShader): 랜딩 자동(low로 시작)·?render=high, 게임 자동·?quality=high, 핀보드 다시 꽂기 그대로. 실제 GPU·학교 PC·모바일에서 단계 고르는 게 맞는지는 미확인.
+2026-10-11 21:35–21:50 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 밤 장면 벽 줄무늬 수정(20시 최적화 회귀)
+사용자 캡처(GitHub Pages): 책상 뒤 벽·화분에 세로 줄무늬, 화분이 까맣게. 원인: room-layer.js #applyQuality가 모든 PointLight에 castShadow = profile.effects를 줘서, 그림자 없던 노트북 화면 빛(glow)까지 그림자를 켬(bias 0 → 줄무늬 그림자 여드름). 고침: #buildLights에서 그림자를 달았던 빛만(userData.castsShadow) 크기·켜고 끄기 대상. room.glb 압축·그림자 autoUpdate는 원인 아님(각각 되돌려 렌더해 확인).
+백업: _archive/claude-fix-glow-20261011/js/landing-story/room-layer.js.
+검증: 리포 사본 npm test 165/166. 헤드리스 ?render=high 밤 장면이 최적화 전 코드와 같아짐, 자동(low)도 정상. 실제 GPU는 사용자가 Pages에서 확인.
+2026-10-13 00:48–01:05 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 방 마우스 패럴랙스(사용자 선택 1번 "시선 패럴랙스")
+room-layer.js: LOOK { yaw 2.4°, pitch 1.4°, slide 6 cm, rise 3 cm, ease 0.35 s, fadeUntil 0.3 }, setLook(x, y)(−1…1), #lookPose — walk-in 자세에 마우스 쪽 회전·이동을 얹고 walk-in t 0→0.3 동안 사라짐(노트북 화면에 붙는 바탕화면 위치·끝 자세 그대로). 방은 원래 매 프레임 그리므로 렌더 비용 추가 없음, 그림자 다시 안 그림. story.js: 마우스(hover+fine pointer)만 pointermove → setLook, 창 밖/blur → 정면, prefers-reduced-motion이면 안 붙임. docs/design-system.md ‘현재 랜딩’에 한 줄.
+백업: _archive/claude-landing-look-20261013/.
+검증: 리포 사본 npm test 165/166. 헤드리스 ?render=high 마우스 왼쪽 위·가운데·오른쪽 아래 캡처(밤 장면, 정리된 방). 실제 손맛·정점 흔들림이 움직일 때 거슬리는지는 사용자 확인 필요.
+2026-10-13 00:57–01:15 KST — Claude (Cowork, claude-opus-5-5) — 완료: 노트북 안 바탕화면 위아래 잘림(사용자 캡처, 1965×950 창)
+원인: 바탕화면 판(1672×941)을 화면을 덮게(cover) 맞추는데 보통 브라우저 창은 16:9보다 넓어서 위아래 각 ~66 px가 잘림 → 첫 줄 아이콘·작업표시줄 반쯤 잘림(원화 시절부터 같은 구조). 고침: story.js layoutWorld가 잘리는 양을 재서 아이콘 격자(#deskIcons)를 그만큼 안으로 밀고(격자가 작업표시줄·반대편 끝에 닿기 전까지), 작업표시줄을 그만큼 올림. 바닥 장면 위 카메라 POSE_TOP도 같은 양만큼 옮겨서 바탕화면 → 3D 바닥 넘어감이 그대로 맞음. 마우스 패럴랙스는 사용자 확인 완료("잘 움직이네"). docs/design-system.md ‘현재 랜딩’에 한 줄.
+백업: _archive/claude-landing-safe-20261013/.
+검증: 리포 사본 npm test 165/166. 헤드리스 1965×950·1600×900·1200×900에서 바탕화면·넘어가는 첫 프레임·정리된 바탕화면 캡처: 위 줄·작업표시줄 다 보이고 넘어감 위치 같음. 좁은 창(4:3)에선 작업표시줄 오른쪽 트레이가 여전히 잘림.
+2026-10-13 01:06–01:25 KST — Claude (Cowork, claude-opus-5-5) — 완료: 노트북 안 바탕화면 잘림 다시 고침(사용자: "위로만 올라갔는데 아래는 필요없는 여백만")
+01:15 수정은 작업표시줄만 올리고 모니터 테두리는 판 가장자리에 둬서, 넓은 창에서 테두리 위아래가 잘린 채 작업표시줄 아래가 빈 벽지로 보였음. 고침: story.js fitChrome — 모니터 테두리를 같은 monitor-frame.svg로 9-slice 테두리(div.frame, border-image 30px, 모서리 유지·변만 늘림)로 그려 창에 보이는 영역에 맞추고, 작업표시줄을 그 안 원래 자리(테두리 안쪽 아래)에. 걸어 들어가는 동안(dive 0.8→1)은 노트북 화면 가장자리에 붙었다가 안으로 들어옴, 나갈 때 반대. 좁은 창에선 작업표시줄이 비율 유지하며 작아져 트레이까지 보임. 아이콘 격자·POSE_TOP 이동은 그대로. css/landing-story.css .plate>.frame, docs/design-system.md 줄 고침. 테두리 파일을 새로 만들 때도 이름·크기 그대로 갈아 끼우면 됨.
+백업: _archive/claude-landing-frame-20261013/.
+검증: 리포 사본 npm test 165/166. 헤드리스 2000×975(사용자 창): 들어가는 중·바탕화면·바닥 넘어감 첫 프레임·정리된 바탕화면 — 테두리 네 변 다 보이고 작업표시줄이 테두리 바로 안. 1600×900은 전과 픽셀 동일, 1200×900 테두리·트레이 다 보임.
+2026-10-13 01:28–01:50 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 노트북 안 장면을 새 바닥·상자로, 전환 중 바닥 번쩍임 수정
+사용자: "전환될 때 바닥이 위버링 때문인지 번쩍번쩍", "상자 디자인이랑 바닥 다 변경됐는데 계속 이렇게 나오는 것도".
+1) 번쩍임 원인(옛 코드로 0.002 간격 프레임 비교해 확인): 바닥(16.7×9.4)과 바닥 밑 200 m 판이 각각 모서리 넷짜리 사각형이라 정점 흔들림이 모서리를 따로 옮김 → 기울어지는 동안 밑판이 큰 삼각형으로 바닥을 뚫고 나오고 프레임마다 모양이 바뀜. 고침: js/three/vertex-snap.js prepare가 userData.noSnap 메시를 건너뜀(게임은 해당 없음, 동작 같음), story.js에서 바닥·밑판·바탕화면 벽지·벽·햇빛 판에 noSnap.
+2) 바닥: room.glb Room_BaseColor에서 바닥 UV 사각형(5.7×8.6 m)을 잘라 assets/landing/room-3d/attic-floor.webp(신규, 13 KB). 1 단위 ≈ 0.47 m(문서 카드 0.42 m = 0.9 단위)로 반복(MirroredRepeat), 판자가 안쪽(z)으로, 바닥 판 x −11…11·z −6.3…9, 밑판 색 #59473a. 옛 inside-floor.webp는 안 씀(지우진 않음).
+3) 상자: 코드 상자 → 사용자 models/box.glb ×2.6(1.34×1.28×1.77 단위), MeshToon + 이 장면 전용 반구광·방향광(다른 건 여전히 빛 없음), 사진·음악·영상은 연두빛 #cfe0b6, 문서·압축파일은 크래프트 그대로. 이름표: 손잡이 구멍 아래 앞면 84% 폭 판(아이콘·이름·개수·+N, labelCanvas 512×292, polygonOffset). 수납장(상판·칸막이·뒤판) 뺌 — 게임처럼 뒷벽 앞 바닥에 한 줄(SHELF_Y 0, SHELF_Z = −6.2 + 깊이/2). 깊은 상자라 담긴 물건은 높이 절반부터 쌓아 테두리 위로 보이게(slotIn), 폴더 아이콘이 상자가 되는 자리도 맞춤. 햇빛 판 가장자리를 부드럽게(딱딱한 사각형이 어두운 바닥에서 유리판처럼 보였음). docs/design-system.md 해당 줄.
+백업: _archive/claude-landing-inside-20261013/.
+검증: 리포 사본 npm test 165/166. 헤드리스 ?render=high: 전환 0.320–0.330 프레임에 삼각형 뚫림 없음(옛 코드는 있음), 바닥 장면·직접 담기(더미 집기 → 상자 위 +16 → 넣으면 16, 상자 위로 사진 보임)·정리된 바탕화면으로 돌아감. 실제 GPU 확인은 사용자.
+2026-10-13 01:47–02:00 KST — Claude (Cowork, claude-opus-5-5) — 완료: 노트북 안 장면 벽을 다락방 벽으로(사용자: "벽 색이 이게 맞나? 우리꺼랑 별로 차이 안 나나?")
+비교: 다락방 벽(room.glb Room_BaseColor 벽 부분) #f5f0e9 거의 흰 회벽 + 진한 나무 보(Wood beam #241d18), 이 장면은 원화 시절 크림 #eee0c8 + 황토 걸레받이였음. 고침(story.js): 뒷벽·옆벽 = assets/landing/room-3d/attic-plaster.webp(신규, 회벽 2.25 m 조각 반복, 옆벽은 한 톤 어둡게), 나무 #3a2c22로 굽도리(바닥 선)·무릎벽 보(1.19 m = 2.5 단위)·상자 사이 기둥(x 0, ±2.3, ±4.6, ±6.9, ±9.2). wallCanvas 삭제. docs/design-system.md 한 줄.
+백업: _archive/claude-landing-wall-20261013/.
+검증: 리포 사본 npm test 165/166. 헤드리스 바닥 장면·정리 중·기울어지는 중 캡처, 정리된 다락방 렌더와 나란히 비교.
+2026-10-13 01:52–01:56 KST — Claude (Cowork, claude-opus-5-5) — 완료: 노트북 안 장면 벽 세로 기둥 뺌(사용자 "세로빔은 빼자"). 굽도리·무릎벽 보만 남김. story.js 한 줄, design-system.md 한 줄. 백업은 01:47 항목 _archive/claude-landing-wall-20261013/(기둥 넣기 전) 대신 이번 직전본이 D의 그 항목 결과와 같음. npm test 165/166, 헤드리스 바닥 장면 캡처.
+2026-10-13 02:21–02:40 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 바탕화면 그림 교체(사용자 GPT 시안: 아이콘 7·바닥 물건 윗면 5·배경화면·작업표시줄, 프롬프트는 Claude가 씀)
+1) 자르기 → assets/landing/parts/desktop-v4/(신규, README): icons/*.webp 256²(덩어리 찾아 잘라 정사각형 6% 여백, 옅은 가장자리 번짐 걷어 냄), faces/*.webp 폭 512(비율 doc 1.02·photo 1.11·video 1.22·audio 1.0·archive 1.13), wallpaper.webp 1672×941(작업표시줄·테두리 없는 판), taskbar.webp 3268×120(원본 2110×153이 칸보다 두꺼워 양끝 모서리 유지·가운데만 늘리고 앱 칸·트레이를 같은 배율로 다시 얹음 → 판에서 1634×60), monitor-frame.svg(v2 모양, 시안 테두리 색 #463529 계열).
+2) 코드: index.html 바탕화면·작업표시줄(top 846, 높이 60)·테두리 경로, story.js DESK 경로·아이콘·배경, drawFace가 faces 그림을 그림(못 받으면 예전 그림), facesReady 뒤 room.load(방 물건도 같은 앞면), OBJECT_SIZE를 앞면 비율로(깊이 ≤ 0.73, 더미 줄 간격 0.8), TASKBAR.below 95(fitChrome·안전 영역), room-layer.js FILE_SIZE도 같은 비율, css 작업표시줄 그림자, js/three/scene-kit.js 게임 노트북 화면도 새 배경화면(Codex 담당 파일, 경로 한 줄), tests/landing/preload.test.mjs v4 경로·faces 존재 검사. docs/design-system.md 한 줄. desktop-v2는 남김(앱 온보딩 app.html·css/onboarding.css가 아직 씀).
+백업: _archive/claude-desktop-v4-20261013/.
+검증: 리포 사본 npm test 165/166. 헤드리스 ?render=high 1280×720: 밤 방(바닥 물건 새 앞면)·바탕화면·바닥으로 넘어감·바닥 장면·정리된 바탕화면·낮 방. 게임 노트북 화면은 경로만 바꿈(렌더 미확인).
+2026-10-13 02:35–02:50 KST — Claude (Cowork, claude-opus-5-5) — 완료: 바탕화면 테두리·작업표시줄이 예전 그대로 보이던 것, 아이콘 배치 정리
+1) 사용자 캡처: 새 배경·아이콘인데 테두리 초록·작업표시줄 옛 것. 원인: 브라우저가 예전 index.html을 들고 새 story.js와 섞임(D index.html은 새 경로 확인). 고침: story.js가 작업표시줄·테두리·배경 그림 경로를 DESK에서 직접 넣음(index.html이 옛것이어도 새 그림, 작업표시줄 높이 60). 옛 index.html + 새 JS로 헤드리스 확인.
+2) 사용자: "파일 배치 너무 어수선, 컴퓨터 화면은 안 저렇잖아" → 10-08부터 넣었던 아이콘 위치 흔들림(±16 px)·기울기(±11°) 뺌. 격자에 반듯이, 종류는 뒤섞인 채. 나타나는 순서는 같은 씨앗 유지. docs/design-system.md 장면 표 줄 고침.
+백업: 직전본 = _archive 없이 D의 02:40 반영본(desk4)과 같음 — 02:40 백업 _archive/claude-desktop-v4-20261013/은 그 전 상태.
+검증: 리포 사본 npm test 165/166. 헤드리스 바탕화면·바닥으로 넘어감 첫 프레임(위치 맞음)·밤 방.
+2026-10-13 03:21–03:55 KST — Claude (Cowork, claude-opus-5-5) — 완료: 제작 일정 캔버스(개별점검용, 코드 변경 없음) + D → C 올리기 스크립트
+1) 사용자 요청: 10.14 개별점검용 제작 스케줄. 첫 판에 주차·D-day·최종 발표일·ALPHA/BETA·실기기 검증·플레이테스트를 임의로 넣었다가 사용자 지적("니 맘대로", 11월 말은 본인 목표, 출시가 아님) → 사용자가 말한 5가지(UI 리디자인, 데모·파일 가져오기, 시작 키 설명, 정리 완료 피드백, 도움말)만 날짜 범위로. Claude 디자인 캔버스 「Cozium 제작 로드맵」.
+2) 사용자: C를 다 지우고 D를 다 복붙해서 올리는데 올라가면 안 되는 파일이 있다 → tools/sync-to-c.ps1 + sync-to-c.bat(신규, 더블클릭). robocopy /MIR D → C, C의 .git 보존, _archive·Cozium·Claude outputs·output·.claude·.codex·.agents·node_modules와 10-11 정리 대상 옛 파일(archive-unused.ps1 목록) + inside-floor.webp는 복사 안 함(C에 있으면 지워져 삭제도 커밋됨). 첫 실행 때 C 경로 묻고 tools/sync-target.txt에 기억(기본 C:\dev\Desktop Clean UP, AGENTS.md 기준), 실행 전 확인, -DryRun, 끝나면 C의 git status 40줄. D는 아무것도 안 지움. .gitignore에 inside-floor.webp·sync-target.txt, AGENTS.md에 올리기 방법 한 줄.
+백업: _archive/claude-sync-20261013/(.gitignore, AGENTS.md).
+검증: pwsh 구문 검사 0 오류, 가짜 D/C 폴더 + robocopy 대역으로 인자(제외 목록, preload.test.mjs는 남김) 확인. 실제 Windows robocopy 실행은 미확인 → 처음엔 -DryRun 권장.

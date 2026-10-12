@@ -44,7 +44,8 @@ test("every asset the landing loads exists and three.js comes from the vendored 
     ...[...html.matchAll(/\b(?:src|href)="(\.\/[^"?#]+)"/g)].map((m) => m[1]),
     ...[...story.matchAll(/["`](\.\/(?:assets|models)\/[^"`$]+)["`]/g)].map((m) => m[1]),
   ]);
-  for (const kind of ["document", "photo", "video", "audio", "archive", "folder-sage", "folder-sand"]) urls.add(`./assets/landing/parts/desktop-v2/icons/${kind}.svg`);
+  for (const kind of ["document", "photo", "video", "audio", "archive"]) urls.add(`./assets/landing/parts/desktop-v4/faces/${kind}.webp`);
+  for (const kind of ["document", "photo", "video", "audio", "archive", "folder-sage", "folder-sand"]) urls.add(`./assets/landing/parts/desktop-v4/icons/${kind}.webp`);
   for (const cam of ["A", "B", "C"]) urls.add(`./assets/landing/room-3d/poster-${cam}.webp`); // the ?lab panel can switch cameras
   for (const url of urls) await access(new URL(url, root));
   // 10-11 clean-up: the old landing's pictures (assets/landing/box/, desktop-v3) are no longer in the repository

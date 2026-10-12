@@ -8,6 +8,8 @@
 // Nothing here touches real files. Structure and tuning: docs/landing-redesign.md §7.
 import * as THREE from "three";
 import { RoomLayer, StyledPass, TEXT_LAYER } from "./room-layer.js";
+import { GLTFLoader } from "../../vendor/three/addons/loaders/GLTFLoader.js";
+import { toonGradient } from "../three/materials.js";
 import { initLab } from "./render-lab.js";
 
 // ───────────── helpers ─────────────
@@ -69,10 +71,11 @@ for (const [r, c] of cells) {
   if (folderIndex >= 0) items.push({ folder: folderIndex, kind: "folder", name: FOLDERS[folderIndex].name, px, py });
   else items.push({ ...kindPool.pop(), px, py });
 }
-// A messy desktop (2026-10-08, as in the intro video): every icon a little off its cell and tilted. Its own seed, so the
-// rest of the layout (piles, fall order) keeps its numbers.
+// A messy desktop is a full one, not a scattered one (user, 10-13: "a computer screen isn't like that"): every icon
+// sits on its grid cell, upright, kinds mixed. (10-08 to 10-13 each icon was nudged ±16 px and tilted ±11°, after the
+// intro video.) Its own seed for the arrival order below, so the rest of the layout keeps its numbers.
 const RJ = rng(20261008);
-for (const it of items) { it.px += (RJ() - .5) * 32; it.py += (RJ() - .5) * 34; it.deg = (RJ() - .5) * 22; }
+for (const it of items) { RJ(); RJ(); RJ(); it.deg = 0; } // the old jitter draws, kept so the arrival order stays the same
 // The screen starts empty; the icons arrive one by one while the camera dives in, closer and closer together.
 // Driven by progress like everything else, so scrolling back takes them away again.
 const POP = [.03, .2], POP_LEN = .016;
@@ -82,7 +85,9 @@ const POP = [.03, .2], POP_LEN = .016;
   order.forEach((idx, k) => { items[idx].popP = POP[0] + (POP[1] - POP[0]) * Math.sqrt(k / (order.length - 1)); });
 }
 const files = items.filter((it) => it.kind !== "folder");
-const iconFile = (it) => it.kind === "folder" ? `./assets/landing/parts/desktop-v2/icons/folder-${FOLDERS[it.folder].tone}.svg` : `./assets/landing/parts/desktop-v2/icons/${it.kind}.svg`;
+// Desktop pictures (10-13): the user's GPT set, cut to size in assets/landing/parts/desktop-v4/ (README there).
+const DESK = "./assets/landing/parts/desktop-v4";
+const iconFile = (it) => it.kind === "folder" ? `${DESK}/icons/folder-${FOLDERS[it.folder].tone}.webp` : `${DESK}/icons/${it.kind}.webp`;
 
 // ───────────── DOM: room, desktop, chrome ─────────────
 const stage = $("#stage"), world = $("#world");
@@ -170,10 +175,45 @@ function featherDesk(q) {
 }
 
 let vw = innerWidth, vh = innerHeight, cover = 1;
+// Safe area (user, 10-13): the plate is cover-fitted, so a window wider than 16:9 — a usual browser window, with its
+// tab and bookmark bars — crops its top and bottom (a taller one, its sides). Three things answer the crop:
+//  · the icon grid moves in by it, and the top-down camera with it (POSE_TOP), so the desktop still hands off to the
+//    floor seamlessly. Each shift stops where the grid (≈ 984 × 640 plate px incl. jitter and names) would run into the
+//    far edge or the taskbar; past that (a phone) the grid simply doesn't fit.
+//  · the monitor frame and the taskbar sit on the visible part of the window (fitChrome). The frame is the same SVG
+//    drawn as a 9-slice border (corners kept, edges stretched), so a new monitor-frame.svg still just drops in.
+//    During the walk-in they stay on the plate's edges (the laptop's screen edges) and move in as the screen fills.
+const GRID = { right: 984, bottom: 640 };
+const TASKBAR = { below: 95 }; // its top sits 95 plate px above the bottom edge (846 on the 941 plate, 60 tall — index.html)
+let safe = { x: 0, y: 0 }, crop = { x: 0, y: 0 }, chromeK = -1;
+// The chrome's pictures come from DESK here, not from index.html: a browser holding an older index.html next to a
+// newer story.js showed the old taskbar and frame on the new wallpaper (user, 10-13).
+const taskbar = deskChrome.querySelector('img[src*="taskbar"]');
+if (taskbar) { taskbar.src = `${DESK}/taskbar.webp`; taskbar.style.height = "60px"; }
+const frame = document.createElement("div");
+{
+  const img = deskChrome.querySelector('img[src*="monitor-frame"]');
+  frame.className = "frame";
+  frame.style.borderImageSource = `url("${DESK}/monitor-frame.svg")`;
+  img?.replaceWith(frame);
+}
+{ const wp = desk.querySelector('img[src*="wallpaper"]'); if (wp) wp.src = `${DESK}/wallpaper.webp`; }
+function fitChrome(k) { // 0 = on the plate's edges, 1 = on the visible part of the window
+  k = Math.round(clamp(k) * 200) / 200;
+  if (k === chromeK) return;
+  chromeK = k;
+  const x = crop.x * k, y = crop.y * k, w = W0 - 2 * x, h = H0 - 2 * y;
+  Object.assign(frame.style, { left: `${x.toFixed(1)}px`, top: `${y.toFixed(1)}px`, width: `${w.toFixed(1)}px`, height: `${h.toFixed(1)}px` });
+  if (taskbar) Object.assign(taskbar.style, { left: `${(x + 19).toFixed(1)}px`, top: `${(H0 - y - TASKBAR.below).toFixed(1)}px`, width: `${(w - 38).toFixed(1)}px` });
+}
 function layoutWorld() {
   vw = stage.clientWidth; vh = stage.clientHeight;
   cover = Math.max(vw / W0, vh / H0);
   world.style.transform = `translate(${(vw - W0 * cover) / 2}px,${(vh - H0 * cover) / 2}px) scale(${cover})`;
+  crop = { x: Math.max(0, (W0 - vw / cover) / 2), y: Math.max(0, (H0 - vh / cover) / 2) };
+  safe = { x: Math.min(crop.x, Math.max(0, W0 - crop.x - 20 - GRID.right)), y: Math.min(crop.y, Math.max(0, H0 - TASKBAR.below - crop.y - 10 - GRID.bottom)) };
+  deskIcons.style.transform = safe.x || safe.y ? `translate(${safe.x.toFixed(1)}px,${safe.y.toFixed(1)}px)` : "";
+  const k = chromeK; chromeK = -1; fitChrome(Math.max(0, k));
 }
 
 // ───────────── WebGL world: the desktop becomes the floor ─────────────
@@ -192,6 +232,10 @@ const camera = new THREE.PerspectiveCamera(FOV, 16 / 9, 0.05, 120);
 camera.rotation.order = "YXZ";
 const toWorld = (px, py) => [(px + 34 - W0 / 2) / 100, (py + 34 - H0 / 2) / 100];
 const loader = (src) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
+// Top faces of the file things (desktop-v4/faces): the room's things and the floor's both draw them (drawFace), so they
+// load before either is built. A face that fails falls back to the drawn one below.
+const FACE_KINDS = ["document", "photo", "video", "audio", "archive"], faceImages = {};
+const facesReady = Promise.all(FACE_KINDS.map((k) => loader(`${DESK}/faces/${k}.webp`).then((im) => { faceImages[k] = im; }, () => console.warn("landing: face", k))));
 function canvasTex(cv) { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
 function makeCanvas(w, h, draw) { const cv = document.createElement("canvas"); cv.width = w; cv.height = h; draw(cv.getContext("2d"), w, h); return cv; }
 function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
@@ -202,6 +246,8 @@ const iconImages = {};
 const textures = {};
 
 function drawFace(kind) {
+  const img = faceImages[kind];
+  if (img) return makeCanvas(512, Math.round(512 * img.naturalHeight / img.naturalWidth), (g, w, h) => g.drawImage(img, 0, 0, w, h));
   const w = 256, h = kind === "audio" ? 256 : kind === "photo" ? 204 : 186;
   return makeCanvas(w, h, (g) => {
     g.lineJoin = "round";
@@ -240,7 +286,9 @@ function drawFace(kind) {
     }
   });
 }
-const OBJECT_SIZE = { document: [.9, .66], photo: [.84, .67], video: [.92, .66], audio: [.65, .65], archive: [.88, .65] };
+// w × d in units, in the proportions of the faces (desktop-v4/faces: 1.02, 1.11, 1.22, 1.0, 1.13), no deeper than 0.73 so
+// the piles' rows (0.8 apart) don't touch
+const OBJECT_SIZE = { document: [.74, .73], photo: [.8, .72], video: [.87, .715], audio: [.66, .66], archive: [.81, .715] };
 const EDGE = { document: "#e2d6bc", photo: "#efe9da", video: "#d6cbb2", audio: "#d8bf73", archive: "#a98258" };
 
 let grainMap = null, fiberMap = null;
@@ -277,41 +325,29 @@ function shadowTex() {
   }));
 }
 
-// Floor: the painted overhead floor in the desk rectangle, feathered into a plain board tone.
-function floorCanvas(img) {
-  return makeCanvas(2048, 1153, (g, w, h) => {
-    g.fillStyle = "#e9d6b3"; g.fillRect(0, 0, w, h);
-    // the painted boards rise 16.25° to the right (measured on floor.webp); turn them level and crop to cover
-    const a = 16.25 * Math.PI / 180;
-    g.save(); g.translate(w / 2, h / 2); g.rotate(a);
-    const k = Math.cos(a) + (w / h) * Math.sin(a) + .01; g.drawImage(img, -w * k / 2, -h * k / 2, w * k, h * k); g.restore();
-    const fade = (x0, y0, x1, y1) => { const grd = g.createLinearGradient(x0, y0, x1, y1); grd.addColorStop(0, "rgba(233,214,179,1)"); grd.addColorStop(1, "rgba(233,214,179,0)"); return grd; };
-    g.fillStyle = fade(0, 0, 180, 0); g.fillRect(0, 0, 180, h);
-    g.fillStyle = fade(w, 0, w - 180, 0); g.fillRect(w - 180, 0, 180, h);
-    g.fillStyle = fade(0, 0, 0, 120); g.fillRect(0, 0, w, 120);
-  });
-}
-function wallCanvas() {
-  return makeCanvas(1024, 512, (g, w, h) => {
-    const grd = g.createLinearGradient(0, 0, 0, h); grd.addColorStop(0, "#f4ecda"); grd.addColorStop(1, "#ece0c6");
-    g.fillStyle = grd; g.fillRect(0, 0, w, h);
-    g.fillStyle = "#cfb48b"; g.fillRect(0, h - 30, w, 30); g.fillStyle = "#bfa47b"; g.fillRect(0, h - 33, w, 4);
-  });
-}
+// Floor (10-13, user: "the box design and the floor have changed"): the attic's own boards, cut out of room.glb's
+// Room_BaseColor (the floor's UV rectangle, 5.7 × 8.6 m) into assets/landing/room-3d/attic-floor.webp and tiled.
+// The game's scale: a 0.42 m document card is 0.9 units here, so 1 unit ≈ 0.47 m. Boards run into the room (z).
+const FLOOR_TILE = { w: 5.73 / .47, d: 8.62 / .47 }, FLOOR = { x0: -11, x1: 11, z0: -6.3, z1: 9 }, FLOOR_BASE = "#59473a";
+// Walls (10-13, user: "is this the wall colour? it's not like ours"): the attic's plaster — a wall patch of room.glb's
+// Room_BaseColor (#f5f0e9, faintly mottled, 2.25 m) in attic-plaster.webp — and its dark timber (Wood beam, #241d18 in
+// the texture, a little lighter here where nothing is lit): a sill along the floor, the knee-wall beam at the attic's
+// 1.19 m (posts between the boxes were tried and taken out, user 10-13). It replaced the painted landing's cream + tan skirting.
+const PLASTER_TILE = 2.25 / .47, PLASTER = "#f5f0e9", TIMBER = "#3a2c22", KNEE_Y = 1.19 / .47, WALL_Z = -6.25;
+// The nameplate on the front of a box.glb box (below the handle hole, as in the game's box-object.js): icon, name,
+// the count. 512 × 292 = the plate's 1.75 : 1.
 function labelCanvas(folder, count, icon, pending = 0) {
-  return makeCanvas(512, 256, (g, w, h) => {
-    const body = folder.tone === "sage" ? "#90a07c" : "#cfb185";
-    g.fillStyle = body; g.fillRect(0, 0, w, h);
-    g.fillStyle = "rgba(255,255,255,.08)"; g.fillRect(0, 0, w, 10);
-    g.fillStyle = "#f7f0de"; rr(g, 46, 62, 420, 128, 10); g.fill();
-    g.strokeStyle = INK; g.lineWidth = 4; rr(g, 46, 62, 420, 128, 10); g.stroke();
-    if (icon) g.drawImage(icon, 58, 72, 108, 108);
-    g.fillStyle = "#33372b"; g.font = `700 46px ${getComputedStyle(document.documentElement).getPropertyValue("--ui")}`; g.textBaseline = "middle";
-    g.fillText(folder.name, 170, 116);
+  return makeCanvas(512, 292, (g, w, h) => {
+    const ui = getComputedStyle(document.documentElement).getPropertyValue("--ui");
+    g.fillStyle = "#f7f0de"; rr(g, 6, 6, w - 12, h - 12, 18); g.fill();
+    g.strokeStyle = INK; g.lineWidth = 6; rr(g, 6, 6, w - 12, h - 12, 18); g.stroke();
+    if (icon) g.drawImage(icon, 30, 54, 120, 120);
+    g.fillStyle = "#33372b"; g.font = `700 64px ${ui}`; g.textBaseline = "middle";
+    g.fillText(folder.name, 168, 114, w - 190);
     if (count > 0 || pending > 0) {
       const t = pending > 0 ? `+${pending}` : String(count);
-      g.fillStyle = pending > 0 ? "#d9b768" : "#254c43"; rr(g, 352, 136, 104, 46, 23); g.fill();
-      g.fillStyle = pending > 0 ? "#254c43" : "#faf4e3"; g.font = `700 30px ${getComputedStyle(document.documentElement).getPropertyValue("--ui")}`; g.textAlign = "center"; g.fillText(t, 404, 160); g.textAlign = "left";
+      g.fillStyle = pending > 0 ? "#d9b768" : "#254c43"; rr(g, w - 178, h - 92, 148, 62, 31); g.fill();
+      g.fillStyle = pending > 0 ? "#254c43" : "#faf4e3"; g.font = `700 40px ${ui}`; g.textAlign = "center"; g.fillText(t, w - 104, h - 60); g.textAlign = "left";
     }
   });
 }
@@ -320,24 +356,33 @@ const objects = [];      // file things (from desktop icons)
 const folders = [];      // folder icon → box
 let wallpaper, floorMesh, room3d, shadowMap, guide = null;
 const GUIDE_N = 10;
-const SHELF_Z = -5.65, SHELF_Y = .32, BOX = { w: 1.9, h: 1.0, d: 1.05 };
+// Boxes: the user's box.glb (0.514 × 0.493 × 0.682 model units, front with the handle hole at +z) ×2.6, one row on the
+// floor along the back wall — no cabinet, as in the game since 10-11 ("boxes stack, no shelf frames needed").
+const BOX_SCALE = 2.6, BOX = { w: .514 * BOX_SCALE, h: .493 * BOX_SCALE, d: .682 * BOX_SCALE };
+const SHELF_Z = -6.2 + BOX.d / 2, SHELF_Y = 0;
 const slotX = [-3.45, -1.15, 1.15, 3.45];
 
 async function buildGL() {
   const iconKinds = ["document", "photo", "video", "audio", "archive", "folder-sage", "folder-sand"];
-  await Promise.all(iconKinds.map(async (k) => { iconImages[k] = await loader(`./assets/landing/parts/desktop-v2/icons/${k}.svg`); }));
-  const [wallImg, floorImg] = await Promise.all([loader("./assets/landing/parts/desktop-v2/wallpaper.svg"), loader("./assets/landing/room-3d/inside-floor.webp")]);
+  await Promise.all(iconKinds.map(async (k) => { iconImages[k] = await loader(`${DESK}/icons/${k}.webp`); }));
+  const [wallImg, floorImg, plasterImg, boxModel] = await Promise.all([
+    loader(`${DESK}/wallpaper.webp`), loader("./assets/landing/room-3d/attic-floor.webp"), loader("./assets/landing/room-3d/attic-plaster.webp"),
+    new GLTFLoader().loadAsync("./models/box.glb").then((g) => g.scene).catch((e) => { console.warn("landing: box.glb", e); return null; }),
+  ]);
   shadowMap = shadowTex();
   for (const k of iconKinds) textures["icon:" + k] = canvasTex(makeCanvas(160, 160, (g) => g.drawImage(iconImages[k], 0, 0, 160, 160)));
   for (const k of Object.keys(OBJECT_SIZE)) textures["face:" + k] = canvasTex(drawFace(k));
   textures.back = canvasTex(makeCanvas(64, 64, (g) => { g.fillStyle = "#ece3cd"; g.fillRect(0, 0, 64, 64); }));
 
   // ground, desk wallpaper, room
-  const groundTex = canvasTex(floorCanvas(floorImg));
+  const groundTex = new THREE.Texture(floorImg);
+  groundTex.colorSpace = THREE.SRGBColorSpace; groundTex.anisotropy = 8; groundTex.wrapS = groundTex.wrapT = THREE.MirroredRepeatWrapping;
+  const fw = FLOOR.x1 - FLOOR.x0, fd = FLOOR.z1 - FLOOR.z0;
+  groundTex.repeat.set(fw / FLOOR_TILE.w, fd / FLOOR_TILE.d); groundTex.needsUpdate = true;
   // the floor sits back in depth so the thin things on it never trade depth with it under vertex wobble (10-11 bug)
-  floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(W0 / 100, H0 / 100), basic({ map: groundTex, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 }));
-  floorMesh.rotation.x = -Math.PI / 2;
-  const base = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), basic({ color: "#e9d6b3", polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 }));
+  floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(fw, fd), basic({ map: groundTex, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 }));
+  floorMesh.rotation.x = -Math.PI / 2; floorMesh.position.set((FLOOR.x0 + FLOOR.x1) / 2, 0, (FLOOR.z0 + FLOOR.z1) / 2);
+  const base = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), basic({ color: FLOOR_BASE, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 }));
   base.rotation.x = -Math.PI / 2; base.position.y = -0.003;
   const wpTex = canvasTex(makeCanvas(2048, 1153, (g) => g.drawImage(wallImg, 0, 0, 2048, 1153)));
   wallpaper = new THREE.Mesh(new THREE.PlaneGeometry(W0 / 100, H0 / 100), basic({ map: wpTex, transparent: true, depthWrite: false }));
@@ -345,28 +390,44 @@ async function buildGL() {
   scene.add(base, floorMesh, wallpaper);
 
   room3d = new THREE.Group();
-  const wallTex = canvasTex(wallCanvas());
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(40, 9), basic({ map: wallTex }));
-  back.position.set(0, 4.5, -6.25);
-  const upper = new THREE.Mesh(new THREE.PlaneGeometry(200, 60), basic({ color: "#f4ecda" }));
-  upper.position.set(0, 38.9, -6.26); room3d.add(upper);
+  const plaster = (w, h, tint = "#ffffff") => {
+    const tex = new THREE.Texture(plasterImg);
+    tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.MirroredRepeatWrapping; tex.repeat.set(w / PLASTER_TILE, h / PLASTER_TILE); tex.needsUpdate = true;
+    return new THREE.Mesh(new THREE.PlaneGeometry(w, h), basic({ map: tex, color: tint }));
+  };
+  const back = plaster(40, 9);
+  back.position.set(0, 4.5, WALL_Z);
+  const upper = new THREE.Mesh(new THREE.PlaneGeometry(200, 60), basic({ color: PLASTER }));
+  upper.position.set(0, 38.9, WALL_Z - .01); room3d.add(upper);
   room3d.add(back);
   for (const s of [-1, 1]) {
-    const side = new THREE.Mesh(new THREE.PlaneGeometry(30, 9), basic({ color: "#e3d3b3" }));
+    const side = plaster(30, 9, "#ece6dc"); // the side walls a shade darker, turned from the light
     side.position.set(s * 10.5, 4.5, 0); side.rotation.y = -s * Math.PI / 2; room3d.add(side);
   }
-  // low open cabinet along the back wall, four cells (the game's wall shelf)
-  const wood = "#c39b6f", cab = new THREE.Group();
-  const top = shadedBox(9.5, .12, 1.3, wood); top.position.set(0, SHELF_Y + BOX.h + .2, SHELF_Z); cab.add(top);
-  const bottom = shadedBox(9.3, .14, 1.22, wood); bottom.position.set(0, SHELF_Y - .07, SHELF_Z); cab.add(bottom);
-  const kick = shadedBox(9.1, SHELF_Y - .14, 1.0, "#9c7a55"); kick.position.set(0, (SHELF_Y - .14) / 2, SHELF_Z - .06); cab.add(kick);
-  const backPanel = shadedBox(9.3, BOX.h + .3, .06, "#d8c09a", { ink: false }); backPanel.position.set(0, SHELF_Y + BOX.h / 2 + .06, SHELF_Z - .6); cab.add(backPanel);
-  for (const x of [-4.6, -2.3, 0, 2.3, 4.6]) { const div = shadedBox(.09, BOX.h + .27, 1.22, wood); div.position.set(x, SHELF_Y + BOX.h / 2 + .06, SHELF_Z); cab.add(div); }
-  room3d.add(cab);
+  const timber = (w, h, d, x, y, z) => { const b = shadedBox(w, h, d, TIMBER); b.position.set(x, y, z); room3d.add(b); };
+  timber(21, .22, .14, 0, .11, WALL_Z + .07);               // sill
+  timber(21, .26, .16, 0, KNEE_Y, WALL_Z + .08);            // knee-wall beam
+  // no posts: with the boxes in front they read as a railing (user, 10-13)
   // a window-light patch on the floor so the room reads as lit from the back-left
-  const sun = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 7), basic({ color: "#fff3d2", transparent: true, opacity: .22, depthWrite: false }));
+  // soft-edged (a hard-edged quad read as a pane of glass on the dark boards, 10-13)
+  const sunTex = canvasTex(makeCanvas(128, 256, (g, w, h) => {
+    const gx = g.createLinearGradient(0, 0, w, 0); gx.addColorStop(0, "rgba(255,243,210,0)"); gx.addColorStop(.3, "rgba(255,243,210,1)"); gx.addColorStop(.7, "rgba(255,243,210,1)"); gx.addColorStop(1, "rgba(255,243,210,0)");
+    g.fillStyle = gx; g.fillRect(0, 0, w, h);
+    g.globalCompositeOperation = "destination-in";
+    const gy = g.createLinearGradient(0, 0, 0, h); gy.addColorStop(0, "rgba(0,0,0,0)"); gy.addColorStop(.25, "#000"); gy.addColorStop(.8, "#000"); gy.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gy; g.fillRect(0, 0, w, h);
+  }));
+  const sun = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 7), basic({ map: sunTex, transparent: true, opacity: .2, depthWrite: false }));
   sun.rotation.set(-Math.PI / 2, 0, -.55); sun.position.set(-6.8, .004, -1.5); room3d.add(sun);
   scene.add(room3d);
+  // The floor, the wallpaper and the walls are big quads of four corners each: vertex wobble snapped their corners on
+  // their own, so during the tilt the base plane cut through the floor in flashes (user, 10-13). They don't wobble.
+  for (const m of [floorMesh, base, wallpaper, ...room3d.children]) m.userData.noSnap = true;
+  // light for the boxes only (toon, like the room); everything else here is unlit
+  scene.add(new THREE.HemisphereLight("#fff4e2", "#8a6a4a", 2.3));
+  const boxSun = new THREE.DirectionalLight("#fff1dc", 1.9); boxSun.position.set(-3, 8, 6); scene.add(boxSun);
+  const gradient = toonGradient();
+  const BOX_TINT = { sage: "#cfe0b6", sand: "#ffffff" };
 
   // file things
   const geo = {};
@@ -407,22 +468,29 @@ async function buildGL() {
     // On the game's text layer it is drawn after the effects, against the scene's depth, so it keeps its own outline.
     plane.layers.set(TEXT_LAYER);
     scene.add(plane);
-    const tone = f.tone === "sage" ? "#90a07c" : "#cfb185";
     const labelTex = canvasTex(labelCanvas(f, 0, iconImages[`folder-${f.tone}`]));
     const box = new THREE.Group();
-    const wall = .07;
-    const floorB = shadedBox(BOX.w, wall, BOX.d, tone, { fiber: true }); floorB.position.y = wall / 2;
-    const left = shadedBox(wall, BOX.h, BOX.d, tone, { fiber: true }); left.position.set(-(BOX.w - wall) / 2, BOX.h / 2, 0);
-    const right = shadedBox(wall, BOX.h, BOX.d, tone, { fiber: true }); right.position.set((BOX.w - wall) / 2, BOX.h / 2, 0);
-    const backW = shadedBox(BOX.w, BOX.h, wall, tone, { fiber: true }); backW.position.set(0, BOX.h / 2, -(BOX.d - wall) / 2);
-    const front = shadedBox(BOX.w, BOX.h * .78, wall, tone, { front: labelTex, fiber: true }); front.position.set(0, BOX.h * .39, (BOX.d - wall) / 2);
-    const inner = new THREE.Mesh(new THREE.PlaneGeometry(BOX.w - .16, BOX.d - .16), basic({ color: new THREE.Color(tone).multiplyScalar(.62) }));
-    inner.rotation.x = -Math.PI / 2; inner.position.y = wall + .002;
-    box.add(floorB, left, right, backW, front, inner);
+    if (boxModel) {
+      const model = boxModel.clone(true);
+      model.scale.setScalar(BOX_SCALE);
+      model.traverse((o) => {
+        if (!o.isMesh) return;
+        o.material = [].concat(o.material).map((m) => new THREE.MeshToonMaterial({
+          name: m.name, map: m.map ?? null, gradientMap: gradient,
+          color: new THREE.Color(m.name === "box_body" || m.name === "box_front" ? BOX_TINT[f.tone] : "#ffffff"),
+        }));
+        if (o.material.length === 1) o.material = o.material[0];
+      });
+      box.add(model);
+    } else box.add(shadedBox(BOX.w, BOX.h, BOX.d, f.tone === "sage" ? "#90a07c" : "#cfb185", { fiber: true })).children.at(-1).position.y = BOX.h / 2;
+    // nameplate below the handle hole (box-object.js): 84% of the front's width, half its height, a hair in front
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(BOX.w * .84, BOX.w * .84 / 1.75), basic({ map: labelTex, transparent: true, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+    plate.position.set(0, BOX.h * .36, BOX.d / 2 + .02);
+    box.add(plate);
     const catcher = new THREE.Mesh(new THREE.BoxGeometry(BOX.w + .5, BOX.h + 1.4, BOX.d + .6), basic({ visible: false }));
     catcher.position.y = BOX.h / 2 + .45; catcher.userData.box = i; box.add(catcher);
     const rimGlow = new THREE.Mesh(new THREE.PlaneGeometry(BOX.w - .2, BOX.d - .2), basic({ color: "#fff1bf", transparent: true, opacity: 0, depthWrite: false }));
-    rimGlow.rotation.x = -Math.PI / 2; rimGlow.position.y = wall + .01; box.add(rimGlow);
+    rimGlow.rotation.x = -Math.PI / 2; rimGlow.position.y = .06; box.add(rimGlow);
     box.position.set(slotX[i], SHELF_Y, SHELF_Z + .05);
     scene.add(box);
     const [hx, hz] = toWorld(it.px, it.py);
@@ -442,8 +510,8 @@ function fitTop() {
   const visibleH = vh / cover / 100;
   topDistance = visibleH / 2 / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
 }
-const POSE_TOP = () => ({ tx: 0, ty: 0, tz: 0, pitch: 90, r: topDistance });
-// The floor view backs off until every pile and the whole cabinet sit inside the frame (any aspect).
+const POSE_TOP = () => ({ tx: -safe.x / 100, ty: 0, tz: -safe.y / 100, pitch: 90, r: topDistance }); // follows the icons' safe-area shift (layoutWorld)
+// The floor view backs off until every pile and every box sit inside the frame (any aspect).
 let floorR = 11.5;
 const POSE_FLOOR = () => ({ tx: 0, ty: .55, tz: -1.2, pitch: 35, r: floorR });
 function setCamera(pose, cam = camera) {
@@ -455,7 +523,7 @@ function fitFloor() {
   if (!objects.length) return;
   const pts = [];
   for (const o of objects) for (const sx of [-1, 1]) for (const sz of [-1, 1]) pts.push(new THREE.Vector3(o.target.x + sx * o.size[0] * .56, 0, o.target.z + sz * o.size[1] * .56));
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) pts.push(new THREE.Vector3(sx * 4.78, SHELF_Y + BOX.h + .27, SHELF_Z + sz * .66));
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) pts.push(new THREE.Vector3((sx < 0 ? slotX[0] : slotX.at(-1)) + sx * BOX.w / 2, SHELF_Y + BOX.h + .1, SHELF_Z + sz * BOX.d / 2));
   const cam = camera.clone(); cam.aspect = vw / vh; cam.updateProjectionMatrix();
   const mx = Math.max(16, vw * .03), top = vh * .04, bottom = vh - 86, q = new THREE.Vector3();
   for (let r = 11.5; r < 40; r += .25) {
@@ -679,7 +747,7 @@ function release(e) {
 canvas.addEventListener("pointerup", release);
 canvas.addEventListener("pointerleave", () => { if (!hand.active) hoverObj = null; });
 canvas.addEventListener("pointercancel", () => { hand.sticky = false; release(); });
-function slotIn(box, n) { const f = folders[box]; return { x: f.box.position.x + ((n % 5) - 2) * .2, y: SHELF_Y + .09 + Math.min(n, 30) * .022, z: f.box.position.z + ((n % 2) ? .12 : -.1), rot: (n % 3 - 1) * .2 }; }
+function slotIn(box, n) { const f = folders[box]; return { x: f.box.position.x + ((n % 5) - 2) * .2, y: SHELF_Y + BOX.h * .5 + Math.min(n, 30) * .022, /* box.glb is deep: start halfway up so the pile shows over the rim */ z: f.box.position.z + ((n % 2) ? .12 : -.1), rot: (n % 3 - 1) * .2 }; }
 function depositInto(list, box) {
   const now = performance.now();
   list.forEach((o, i) => {
@@ -898,13 +966,13 @@ function frameGL(p, now) {
     placeShadow(o, x, z, Math.max(0, y - .02), (onFloor && o.group.visible && !(p >= B.clear[0] && clearU(o, clearT) > .85)) ? alpha * (icon ? 0 : 1) * shadowA : 0);
   }
 
-  // folders: rise to the cabinet and become boxes in the second part of "fall", come back as tidy icons in "back"
+  // folders: rise to the back wall and become boxes in the second part of "fall", come back as tidy icons in "back"
   const shelf = shelfU(p), counts = boxCounts(p);
   const holding = hand.active && hand.list.length > 0;
   if (holding && hand.overBox < 0 && now - callT0 > 2600) callBoxes();
   updateGuide(holding, now);
   for (const F of folders) {
-    const u = clamp((shelf - .08 - F.i * .1) / .58), slot = { x: slotX[F.i], y: SHELF_Y + .55, z: SHELF_Z + .7 };
+    const u = clamp((shelf - .08 - F.i * .1) / .58), slot = { x: slotX[F.i], y: SHELF_Y + BOX.h * .55, z: SHELF_Z + BOX.d / 2 + .15 };
     let px, py, pz, rx = -Math.PI / 2, s = 1, planeA = 1, boxS = 0, rz = 0;
     if (p < B.back[0]) {
       const e = inOut(u);
@@ -1035,11 +1103,13 @@ function frameDOM(p, counts) {
       el.style.transform = `translateY(${(1 - drop) * -14}px) rotate(${it.deg}deg) scale(${s})`;
     }
     deskChrome.style.opacity = String(smooth(.55, .9, dive));
+    fitChrome(smooth(.8, 1, dive));
     desk.hidden = false;
   } else if (p < B.out[0]) {
     roomCanvas.hidden = true; desk.hidden = true; if (paintRef) paintRef.style.opacity = "0";
     const fall = fallU(p), back = local("back", p);
     deskChrome.style.transform = "none"; desk.style.setProperty("--fe", "0px");
+    fitChrome(1);
     deskChrome.style.opacity = p < B.back[0] ? String(1 - smooth(0, .14, fall)) : String(smooth(.82, 1, back));
     desk.style.transform = "none";
   } else {
@@ -1060,6 +1130,7 @@ function frameDOM(p, counts) {
     }
     desk.hidden = false; desk.style.opacity = String(Math.max(1 - smooth(.86, 1, out) * .15, smooth(0, .2, eu)));
     deskChrome.style.opacity = String(Math.max(1 - smooth(.1, .3, out), smooth(.55, .9, eu)));
+    fitChrome(Math.max(1 - smooth(0, .2, out), smooth(.8, 1, eu)));
   }
   if (p < B.out[0]) tidyBuilt = false;
   // title: visible on the first room, back with the buttons on the last
@@ -1140,7 +1211,7 @@ resize();
 if (noGL) stage.dataset.still = "true";
 else buildGL().then(() => { glReady = true; fitFloor(); }).catch((e) => console.error("landing GL", e));
 // room.glb (4 MB); the poster shows the same camera until they are in, then fades out
-room.load("./models/room.glb").then(() => {
+facesReady.then(() => room.load("./models/room.glb")).then(() => {
   room.setStyle(lab.style);
   stage.dataset.room = "ready";
   if (cameBack) restAtEnd();
@@ -1174,6 +1245,17 @@ if (topNav && matchMedia("(hover: hover) and (pointer: fine)").matches) {
   topNav.addEventListener("pointerleave", () => navCloseLater(NAV_LEAVE));
   topNav.addEventListener("focusin", () => navSet(true));
   topNav.addEventListener("focusout", () => navCloseLater(NAV_LEAVE));
+}
+
+// ───────────── mouse parallax (10-13, user) ─────────────
+// The room camera leans a little towards the pointer (room-layer.js LOOK). Mouse only; reduced motion keeps it still;
+// leaving the window or the tab puts it back to straight ahead.
+if (!reduced && matchMedia("(hover: hover) and (pointer: fine)").matches) {
+  addEventListener("pointermove", (e) => {
+    if (e.pointerType === "mouse") room.setLook(e.clientX / innerWidth * 2 - 1, e.clientY / innerHeight * 2 - 1);
+  }, { passive: true });
+  addEventListener("mouseout", (e) => { if (!e.relatedTarget) room.setLook(0, 0); });
+  addEventListener("blur", () => room.setLook(0, 0));
 }
 
 window.__coziumLanding = window.__animatic = { get navState() { return topNav?.dataset.state; }, seek: (v) => jump(v), step, holdEnter: (u) => { enter = u == null ? null : { t0: performance.now() - u * 1e9, dur: 1e9, href: "" }; }, get progress() { return prog; }, get moving() { return !!tween; }, objects, folders, camera, canvas, hand, room, get gateOpen() { return gateOpen; }, get floorR() { return floorR; } };
