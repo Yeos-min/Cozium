@@ -2,7 +2,7 @@
 @font-face{font-family:Room;src:url("../assets/landing/fonts/Fraunces.ttf") format("truetype");font-weight:600;font-display:swap}
 :root{
   /* One fixed full-bleed stage. A wheel / swipe / key plays the next finished scene; one hands-on stop in the middle. */
-  --ink:#254c43; --paper:#eae3ce; --cream:#f3edd3; --cta-ink:#faf4e3; --mark:#d9b768;
+  --ink:#254c43; --cta:#2f231a; --paper:#eae3ce; --cream:#f3edd3; --cta-ink:#faf4e3; --mark:#d9b768;
   --display:Room,Georgia,"Times New Roman",serif;
   --ui:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
   color-scheme:light;
@@ -14,16 +14,26 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);ove
 .world{position:absolute;left:0;top:0;width:1672px;height:941px;transform-origin:0 0;pointer-events:none}
 .plate{position:absolute;left:0;top:0;width:1672px;height:941px;transform-origin:0 0;will-change:transform,opacity;pointer-events:none}
 .plate>img{position:absolute;left:0;top:0;width:1672px;height:941px;display:block}
-.plate>img[src*="taskbar"]{filter:drop-shadow(0 2px 5px rgba(58,43,33,.18))}
+/* taskbar: the import desktop's (css/onboarding.css .taskbar), in CSS px, scaled by du from its top-left (story.js fitChrome) */
+.plate>.taskbar{position:absolute;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transform-origin:0 0;
+  border:solid transparent;border-width:0 28px;border-image:url("../assets/app/desk/taskbar-bar.webp") 0 60 fill / 0 28px stretch;
+  filter:drop-shadow(0 2px 5px #3a2b212e)}
+.taskbar .tb-apps{display:flex;gap:10px}
+.taskbar .tb-apps img{display:block;width:44px;height:46px;object-fit:cover;border-radius:10px}
+.taskbar .tb-tray{position:absolute;right:4px;top:0;bottom:0;display:flex;align-items:center;gap:12px}
+.taskbar .tb-tray img{height:30px}
+.taskbar .tb-clock{min-width:62px;color:#3f3c30;font:600 12px/1.25 var(--ui);text-align:right;white-space:pre}
 .plate>.frame{position:absolute;left:0;top:0;width:1672px;height:941px;box-sizing:border-box;border:30px solid transparent;border-image-slice:30;border-image-width:30px;border-image-repeat:stretch}
-.desk>.icons{position:absolute;inset:0}
+.desk>.icons{position:absolute;inset:0;transform-origin:0 0}
 /* The vector desktop sits on a painted screen: feather its edge a few screen pixels so it melts into the soft bezel. --fe is set per frame in the plate's own units. */
 .desk{--fe:6px;mask-image:linear-gradient(to right,transparent,#000 var(--fe),#000 calc(100% - var(--fe)),transparent),linear-gradient(to bottom,transparent,#000 var(--fe),#000 calc(100% - var(--fe)),transparent);mask-composite:intersect}
-.desk .item{position:absolute;width:68px;height:68px;transform-origin:34px 34px}
-.desk .item img{width:68px;height:68px;display:block}
-.desk .name{position:absolute;left:-13px;top:66px;width:94px;font:500 10.5px/1.25 var(--ui);color:#3f3c30;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 0 #fff8e6}
-.desk .badge{position:absolute;left:46px;top:-4px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--ink);color:var(--cta-ink);font:700 12px/22px var(--ui);text-align:center;box-shadow:0 2px 6px #254c4330}
-.desk:not(.named) .name{display:none}
+/* 10-18: the import desktop's sizes in CSS px (app.html, css/onboarding.css): icon 60, name 12 px in two lines under
+   it. #deskIcons is scaled by 1/cover (story.js du) so they come out at these sizes on screen; the 3D floor draws the
+   same names on its text layer (nameLabel) */
+.desk .item{position:absolute;width:60px;height:60px;transform-origin:30px 30px}
+.desk .item img{width:60px;height:60px;display:block;filter:drop-shadow(0 3px 4px #5a463024)}
+.desk .name{position:absolute;left:-18px;top:64px;width:96px;font:500 12px/1.3 var(--ui);color:#3f3c30;text-align:center;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all;text-shadow:0 1px 0 #fff8e6}
+.desk .badge{position:absolute;left:42px;top:-6px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--ink);color:var(--cta-ink);font:700 12px/22px var(--ui);text-align:center;box-shadow:0 2px 6px #254c4330}
 .desk.tidy .name,.desk.tidy .badge{animation:arrive .6s ease .15s both}
 @keyframes arrive{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 canvas.gl{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -34,9 +44,9 @@ canvas.gl{position:absolute;inset:0;width:100%;height:100%;display:block}
 .title p{margin:22px 0 0;font-size:15px;line-height:1.9;letter-spacing:.05em}
 .cta{display:flex;justify-content:center;gap:12px;margin-top:26px;pointer-events:auto}
 .cta a{display:inline-flex;align-items:center;text-decoration:none;min-height:46px;padding:0 20px;border:1px solid #254c4333;border-radius:5px;font:13px/1.4 var(--ui);letter-spacing:.025em;cursor:pointer}
-.cta .primary{gap:10px;background:var(--ink);color:var(--cta-ink);box-shadow:0 4px 12px #254c4321}
+.cta .primary{gap:10px;background:var(--cta);border-color:#2f231a33;color:var(--cta-ink);box-shadow:0 4px 12px #2f231a33} /* 10-18 사용자: CTA는 칩(--ink)과 분리, #2f231a */
 .cta .secondary{background:#faf4e3e8;color:var(--ink)}
-.cta a:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+.cta a:focus-visible{outline:2px solid var(--cta);outline-offset:4px}
 .cue{position:absolute;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));width:22px;height:36px;margin-left:-11px;border:1.5px solid #254c4366;border-radius:12px;pointer-events:none;transition:opacity .5s}
 .cue i{position:absolute;left:9px;top:7px;width:2px;height:7px;border-radius:1px;background:#254c43aa;animation:breath 2.4s ease-in-out infinite}
 @keyframes breath{0%,100%{transform:translateY(0);opacity:.35}60%{transform:translateY(9px);opacity:.95}}

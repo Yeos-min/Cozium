@@ -6,6 +6,7 @@
  *
  * Helper 설치는 진입 조건이 아니다. 기본은 웹이다.
  */
+import { MAX_BOXES } from "../state/session-store.js";
 
 export class Onboarding {
   #root;
@@ -18,11 +19,21 @@ export class Onboarding {
   #webProvider = null;
   #helperProvider = null;
   #busy = false;
+  #onRefresh;
+  #beforeStart;
+  #afterStart;
 
-  constructor({ root, status, onStart, createWebProvider, createHelperProvider, memoryProvider = null, capacity = 16 }) {
+  /**
+   * onRefresh(state): 화면(바탕화면 아이콘·트레이)이 따라 그릴 상태. beforeStart(provider): 방으로 떠나는 연출(Promise).
+   * afterStart(): 시작이 끝난 뒤(실패해서 아직 이 화면이면 연출을 되돌린다). 셋 다 없어도 된다(테스트).
+   */
+  constructor({ root, status, onStart, createWebProvider, createHelperProvider, memoryProvider = null, capacity = 16, onRefresh = null, beforeStart = null, afterStart = null }) {
     this.#root = root;
     this.#status = status;
     this.#onStart = onStart;
+    this.#onRefresh = onRefresh;
+    this.#beforeStart = beforeStart;
+    this.#afterStart = afterStart;
     this.#createWebProvider = createWebProvider;
     this.#createHelperProvider = createHelperProvider;
     this.#memoryProvider = memoryProvider;
@@ -76,7 +87,7 @@ export class Onboarding {
     });
 
     startWeb.addEventListener("click", () => {
-      if (this.#webProvider) this.#onStart(this.#webProvider);
+      if (this.#webProvider) this.#start(this.#webProvider);
     });
 
     helperForm.addEventListener("submit", (event) => {
@@ -85,16 +96,31 @@ export class Onboarding {
     });
 
     startHelper.addEventListener("click", () => {
-      if (this.#helperProvider) this.#onStart(this.#helperProvider);
+      if (this.#helperProvider) this.#start(this.#helperProvider);
     });
 
     loadSample.addEventListener("click", () => this.startSample());
   }
 
+  /** 연결된 Helper(없으면 null). 저장한 정리 계획을 적용할 때 쓴다(10-18). */
+  get helperProvider() {
+    return this.#helperProvider;
+  }
+
   /** 랜딩 CTA와 기존 체험 버튼이 같은 시작 경로를 쓴다. */
   async startSample() {
     if (!this.#memoryProvider) return false;
-    return this.#guard(() => this.#onStart(this.#memoryProvider), "가상 파일을 열지 못했습니다");
+    return this.#guard(() => this.#start(this.#memoryProvider), "가상 파일을 열지 못했습니다");
+  }
+
+  /** 떠나는 연출 → 시작 → (아직 이 화면이면) 연출 되돌리기. */
+  async #start(provider) {
+    if (this.#beforeStart) await this.#beforeStart(provider);
+    try {
+      return await this.#onStart(provider);
+    } finally {
+      this.#afterStart?.();
+    }
   }
 
   /** 파일은 사용자가 직접 드롭할 때만 읽는다. */
@@ -156,18 +182,20 @@ export class Onboarding {
     if (!web || (files.length === 0 && folders.length === 0)) {
       webSummary.textContent = "";
     } else {
-      const shown = files.slice(0, 4).map((file) => file.name);
+      // 이름은 바탕화면 아이콘으로 보인다(import-desk.js). 여기는 개수와 20개 규칙만.
       webSummary.textContent =
-        `파일 ${files.length}개 · 폴더 ${folders.length}개` +
-        (shown.length ? ` — ${shown.join(" · ")}${files.length > 4 ? ` 외 ${files.length - 4}개` : ""}` : "");
+        `파일 ${files.length}개 · 폴더 ${folders.length}개를 가져왔어요.` +
+        (folders.length > MAX_BOXES ? ` 상자는 한 번에 ${MAX_BOXES}개까지라 폴더 ${folders.length - MAX_BOXES}개는 이번엔 빠져요.` : "") +
+        (files.length === 0 ? " 옮길 파일이 없어요 — 파일도 같이 골라 놓아 주세요." : "");
     }
     startWeb.disabled = this.#busy || files.length === 0;
-    startWeb.textContent = folders.length === 0 && files.length > 0 ? "책상 열기 · 체험 (폴더 없음 — 새 폴더를 만들어 정리)" : "책상 열기 · 체험";
+    startWeb.textContent = folders.length === 0 && files.length > 0 ? "방으로 가기 → (폴더 없음 · 방에서 새 상자를 만들어요)" : "방으로 가기 →";
     webCard.dataset.ready = files.length > 0;
 
     startHelper.disabled = this.#busy || !this.#helperProvider;
     helperCard.dataset.ready = Boolean(this.#helperProvider);
     for (const control of helperForm.querySelectorAll("input, button")) control.disabled = this.#busy;
+    this.#onRefresh?.({ files, folders, helper: Boolean(this.#helperProvider), busy: this.#busy, maxBoxes: MAX_BOXES });
   }
 
   showUnsupported(message) {

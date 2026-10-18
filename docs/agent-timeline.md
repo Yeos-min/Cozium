@@ -447,3 +447,167 @@ room-layer.js: LOOK { yaw 2.4°, pitch 1.4°, slide 6 cm, rise 3 cm, ease 0.35 s
 2) 사용자: C를 다 지우고 D를 다 복붙해서 올리는데 올라가면 안 되는 파일이 있다 → tools/sync-to-c.ps1 + sync-to-c.bat(신규, 더블클릭). robocopy /MIR D → C, C의 .git 보존, _archive·Cozium·Claude outputs·output·.claude·.codex·.agents·node_modules와 10-11 정리 대상 옛 파일(archive-unused.ps1 목록) + inside-floor.webp는 복사 안 함(C에 있으면 지워져 삭제도 커밋됨). 첫 실행 때 C 경로 묻고 tools/sync-target.txt에 기억(기본 C:\dev\Desktop Clean UP, AGENTS.md 기준), 실행 전 확인, -DryRun, 끝나면 C의 git status 40줄. D는 아무것도 안 지움. .gitignore에 inside-floor.webp·sync-target.txt, AGENTS.md에 올리기 방법 한 줄.
 백업: _archive/claude-sync-20261013/(.gitignore, AGENTS.md).
 검증: pwsh 구문 검사 0 오류, 가짜 D/C 폴더 + robocopy 대역으로 인자(제외 목록, preload.test.mjs는 남김) 확인. 실제 Windows robocopy 실행은 미확인 → 처음엔 -DryRun 권장.
+2026-10-13 16:07–19:35 KST — Claude (Cowork, claude-opus-5-5) — 완료: 역할 변경 기록 + 손을 떠난 카드 포물선(던지기)
+1) 사용자 결정(16:07): 이제부터 개발은 Claude 전부, Codex는 이미지 소스 제작만. AGENTS.md ‘현재 범위’ 맨 위에 기록.
+2) 사용자: 우클릭으로 내려놓으면 바닥에 바로 붙는 느낌, 던지는 재미, "무거운 파일은 좁은 포물선 가벼운 파일은 넓은 포물선". 원인: 손을 떠난 카드가 스프링으로 겨눈 곳까지 일직선으로 빨려 감(물리 엔진 문제 아님). 고침: 신규 js/three/toss.js(tossPlan·tossPose·tossLanding, 순수 계산), card-object.js weight(두께 배율 로그 0…1)·launch()·#fly — 날아가는 동안 스프링 대신 포물선, 착지 때 무거울수록 튀고 눌림, 가벼우면 좌우 팔랑·기울기. board-3d.js: 1인칭 손에 있던 카드(inHand)가 선택에서 빠지는 순간 launch, 여러 장은 장당 0.035 s(최대 0.45 s) 시간차 — 내려놓기·상자에 넣기·핀보드 모두. tuning.js TUNING.card.toss { light, heavy, stagger }. 도착점은 늘 겨눈 자리, 물리 엔진 없음(모든 기기 같음). 사용자에게 기기별로 켜고 끄기는 반대 의견 냄(조작·저장 위치가 기기마다 달라짐) → 카드는 공통 포물선, 소품 물리는 나중에 [미결정]. CLAUDE.md §12에 규칙 한 줄. 신규 tests/toss.test.js 3개.
+백업: _archive/claude-toss-20261013/.
+검증: 리포 사본 npm test 168/169(+3, 실패 1은 원래부터의 Linux 전용). 헤드리스로 무거운·가벼운 파일 우클릭 내려놓기 → 바닥 착지·쌓임 확인. SwiftShader 2 fps라 날아가는 손맛은 미확인(사용자 확인 필요). 16:25에 컴퓨터 연결이 끊겨 19:35 반영.
+
+2026-10-13 19:45 KST — Claude (Cowork, claude-opus-5-5) — 완료: 머그잔 김 + 커피 면 (랜딩·게임)
+사용자 아이디어 "커피에 김 모락모락"(10-13 16:03), "쉬운 것부터 적용"의 두 번째.
+신규: js/three/steam.js(Steam — 스프라이트 5장, steamFromMug — room.glb `Mug`의 입구 테두리 꼭짓점으로 잔 중심·안쪽 반지름을 잡아 김을 세우고 커피 면 원판을 채움), js/three/steam-path.js(puffPose 순수 계산, STEAM 수치), tests/steam.test.js 2개.
+수정: js/three/scene-kit.js(다락방 로드 뒤 김, 매 프레임 update, dispose), js/landing-story/room-layer.js(로드 뒤 김, render마다 update, 밤 빛에서 setTint 푸르고 옅게). docs/design-system.md 한 줄.
+처음 값(높이 머그 너비 3.2배)은 책상 위 처마 경사에 묻혀 안 보여서 1.6배로 낮춤.
+백업: _archive/claude-steam-20261013/ (scene-kit.js, room-layer.js, design-system.md, agent-timeline.md).
+검증: 리포 사본 npm test 170/171(+2, 실패 1은 원래부터의 Linux 전용 Helper 경로 테스트). 헤드리스로 랜딩 밤 방·게임 책상 앞 캡처에서 김·커피 면 보임 확인. 실제 GPU에서 진하기·움직임 느낌은 미확인.
+다음: 침대 누르면 시간 흐름(낮↔밤).
+
+2026-10-13 19:48–19:58 KST — Claude (Cowork, claude-opus-5-5) — 완료: 게임 침대를 누르면 낮 ↔ 밤
+사용자 아이디어 "침대 상호작용 시 시간이 흐름", "쉬운 것부터 적용"의 세 번째.
+수정: js/three/scene-kit.js — 반구·주변광 참조, 밤용 점광원 둘(스탠드 `Lantern` 갓 아래, 노트북 화면 앞; 낮에도 세기 0으로 있어 셰이더 재컴파일 없음, 그림자 없음), toggleNight()/isNight, #stepNight(1.8초 smoothstep)·#applyNight(빛 색·세기, 배경, 햇살 줄기·먼지 세기, 커피 김 색), 침대 `Bed001`(GLTFLoader가 "." 뺌) 상자를 bedBox로. js/three/board-3d.js — 빈손 좌클릭이 침대를 겨누면 toggleNight, #aimsAtBed(상자와 광선, 5 m 안), 손 안내에 "좌클릭 한숨 자기 · 밤으로/아침으로"(카드·상자·더미를 겨눌 땐 안 뜸). js/three/tuning.js TUNING.night(랜딩 lamp 빛과 같은 색, 거리 ×2, 점광원 세기 ×2^decay). CLAUDE.md §10 조준선 조작에 한 줄, docs/design-system.md 절 하나.
+백업: _archive/claude-night-20261013/ (scene-kit.js, board-3d.js, tuning.js, CLAUDE.md, design-system.md, agent-timeline.md).
+검증: 리포 사본 npm test 170/171(실패 1은 원래부터의 Linux 전용). 헤드리스(포인터 락 걸림): 벽 겨눠 클릭 → 그대로, 침대 겨누면 안내 "밤으로", 클릭 → night, 안내 "아침으로", 다시 클릭 → 낮. 낮·밤·밤 책상 캡처. 실제 GPU에서 밤 밝기·전환 느낌은 미확인.
+
+2026-10-13 21:07–21:15 KST — Claude (Cowork, claude-opus-5-5) — 완료: 숫자 키 제거 + 상자 20개 제한
+사용자(21:07): "숫자키 지우고 20개 제한 하고 한번에 20개만 가능하다는 문구도". 숫자 키는 사용자가 폐기한 줄 알았으나 코드에 남아 있었음.
+숫자 키: js/app.js 1–9 처리 삭제, board-3d.js folderAt 삭제, session-store.js folderAt 삭제, 상자 이름표 번호 동그라미 → 겨눔 색 띠(card-face.js makeBoxLabelTexture; index는 상자 색 고르기에만 남음), app.html 조작 목록에서 1~9 줄 삭제(침대 줄 추가), README 조작 표, CLAUDE.md §10 [폐기 2026-10-13], docs/attic-room.md.
+20개 제한: session-store.js MAX_BOXES = 20(처마 벽 20칸). addFolders가 21번째부터의 맨 위 폴더를 상자로 안 넣고 overflowFolders에 둠(그 하위 폴더도 안 들어옴), visibleTargets 최대 20, canAddBox. app.js — 시작할 때 넘으면 "상자는 한 번에 20개까지예요. 폴더 N개 중 20개만 가져왔어요 — 빠진 폴더: … 파일은 전부 왔어요" 알림, 꽉 차면 새 폴더 만들기 막음(Helper가 디스크에 폴더를 만들고 상자는 없는 상황 방지). 가져오기 화면 드롭 영역 아래 문구 "상자는 한 번에 20개까지 — 넘으면 앞의 20개만 가져오고, 파일은 전부 옵니다", 웹 드롭 요약에 넘는 개수. 어느 20개를 고를지는 가져오기 화면 새로 만들 때(지금은 이름순 앞 20개). tests/session-store.test.js 20개 제한 테스트 1개 추가, 숫자 키 검사 빼고 줄 순서 검사로.
+백업: _archive/claude-nokeys-cap-20261013/.
+검증: 리포 사본 npm test 171/172(+1, 실패 1은 원래부터의 Linux 전용). 헤드리스 샘플에 폴더 25개 → 상자 20(겹침 없음), 빠짐 5, 새 폴더 막힘, 이름표 번호 없음 캡처, 가져오기 화면 문구 확인. 실제 Helper·드롭 21개 이상은 미확인.
+사용자 피드백(21:09, 던지기): "휴지 던지는 것 같음, 위로는 못 던지고 정해진 포물선으로만 던져져서 별로" → 다음 작업, 방향 확인 중.
+
+2026-10-13 21:16–21:32 KST — Claude (Cowork, claude-opus-5-5) — 완료: 우클릭 = 보는 방향으로 진짜 던지기
+사용자(21:09): "휴지 던지는 것 같음, 위로는 못 던지고 정해진 포물선으로만 던져지니까 별로". 물어본 것: 힘 → "우클릭 꾹 눌러 모으기", 상자에 들어가면 → "안 침, 상자 앞에 떨어짐".
+신규 js/three/throw.js(chargePower·throwSpeed·throwPath·sampleThrow, 순수 계산): 손을 떠나는 순간 궤적 전체를 미리 계산(물리 엔진 없음, 모든 기기 같음). 벽 튕김(0.35), 경사 천장(atticCeilingAt)에 막힘, 가구 옆면 튕김, 가구·상자 위에 떨어지면 앞으로 밀려 바닥으로(상자는 방 안쪽으로 — 던져서는 안 들어감).
+board-3d.js: 든 채 우클릭 누르는 동안 힘(0.9초면 가득) — 조준선 둘레 금색 고리(css/styles.css data-charging), 궤적 점 22개 + 떨어질 자리 고리 미리보기, 떼면 시선 방향(+손목 0.12)으로 던짐, 여러 장은 해바라기 무늬로 살짝 흩고 장당 0.035초 시간차. 떨어진 자리가 store 바닥 자리(setPositions), 카드는 launchPath로 그 길을 탐. 핀보드를 겨누고 누르면 던지지 않고 바로 꽂기. 락 풀림·손 빔·배치 모드면 취소. 손 안내 "우클릭 꾹 눌러 던지기". card-object.js launchPath/#followPath(진행 방향으로 코 들고 숙임, 팔랑임 없음, 쌓일 높이에서 멈춤, 착지 튀기). tuning.js TUNING.card.throw(최소 3.5·최대 17 단위/초, 중력 22, 무거우면 ×0.8), 좌클릭 내려놓기 포물선(toss.light)도 팔랑임·흔들림 0, 0.78→0.5초, 꼭대기 1.05→0.62. attic-room.js 가구에 throwTop(침대 1.2·책상 1.7·수납장/화분 1.6, 눈대중). 예전 "우클릭 = 겨눈 자리에 내려놓기"는 바닥 좌클릭(원래 있던 동작)으로. app.html 조작 목록, README, CLAUDE.md §10·§12, docs/design-system.md.
+테스트: 신규 tests/throw.test.js 4개(힘, 위로 던지면 높고 멀리, 벽·천장, 상자 위 → 앞으로), toss.test.js 팔랑임 검사를 "팔랑임 없음"으로.
+백업: _archive/claude-throw-20261013/.
+검증: 리포 사본 npm test 175/176(+4, 실패 1은 원래부터의 Linux 전용). 헤드리스: 포인터 락 상태로 우클릭 누름 → 고리·안내 "던지기 · 놓으면 날아감", 떼면 궤적대로 날아가 바닥 자리 갱신(위로 던진 것 벽 4번 튕김). 커서 모드 캡처로 궤적 점·떨어질 자리 고리, 4장 던져 상자 앞에 떨어짐 확인. SwiftShader 2 fps라 힘 모으는 시간·날아가는 손맛은 미확인 — 실제 PC에서 사용자 확인 필요.
+
+2026-10-13 22:17–22:24 KST — Claude (Cowork, claude-opus-5-5) — 완료: 던져서 상자에 넣기 + 좌클릭이 던지던 것 고침
+사용자(22:17): "이런 방식이면 피드백을 줄 수 있지. 던지는 걸로 넣을 수 있게, 착지 경로 끝이 상자에 겹치면 그 상자가 하이라이팅되고 이때 던지면 그 상자로. 버그: 던지는 건 우클릭인데 좌클릭으로도 던져짐".
+throw.js: solid에 catch(폴더 id)가 있으면 입구(윗면)로 떨어질 때 들어감 — 궤적이 입구에서 끝나고 caught 반환. 옆면에 맞으면 튕김. board-3d.js: #throwWorld가 상자를 장애물 목록 대신 실제 상자 자리(회전 반영 AABB, 높이 TUNING.box.height)에서 잼(옮긴 상자의 원래 칸이 받지 않게). 힘 모으는 동안 궤적 끝 상자만 setTargeted(겨눔 빛·"N장 넣기" 이름표), 점·고리 초록, 안내 "던지면 ○○에 넣기", 떼면 든 것 전부 #onDropToFolder(좌클릭 넣기와 같은 배치·되돌리기). 상자를 못 맞히면 예전처럼 바닥.
+좌클릭 버그: 원인은 든 채 바닥 좌클릭 = #placeHeldAt(겨눈 자리로 포물선) — 사용자에겐 던지기로 보임. 좌클릭은 이제 상자 넣기만, 상자 아닌 곳은 아무것도 안 날리고 "바닥에 두려면 우클릭으로 던지세요 · 짧게 누르면 발 앞에" 1.8초 안내.
+문서: CLAUDE.md §10·§12, app.html 조작 목록, README, docs/design-system.md. tests/throw.test.js 상자 들어가기·옆면 튕김 1개 추가(가구 위 테스트는 catch 없음으로).
+백업: _archive/claude-throw-box-20261013/.
+검증: 리포 사본 npm test 176/177(+1, 실패 1은 원래부터의 Linux 전용). 헤드리스 커서 모드: 하늘 좌클릭 → 손에 그대로·안내 뜸, 우클릭 누름 → "던지면 과제에 넣기"·상자 1개 빛남, 떼면 2장 모두 placed(과제 폴더). 실제 손맛은 사용자 확인.
+
+2026-10-18 01:42–01:58 KST — Claude (Cowork, claude-opus-5-5) — 완료: 가져오기 화면 = 노트북 바탕화면으로 새로 만들기
+사용자(01:42, 지금 화면 캡처): "이제 진짜 이 페이지 리디자인 해야 해". 세 안(노트북 바탕화면 그대로 / 게임 타이틀 메뉴 / 구조 유지·색만) 물어봄 → "노트북 바탕화면 그대로".
+이유: 랜딩이 노트북 화면으로 들어가 끝나는데 app.html 첫 화면(10-08 '밤의 방')이 그것과 이어지지 않았음.
+app.html #onboarding: 화면 전체가 바탕화면(.desk, data-drop="desktop" — 화면 어디에 놓아도 됨). 바탕화면 아이콘(샘플 바탕화면 → 샘플 시작, 이용 안내.txt → help.html, Desktop Helper.zip → Helper 창), 가져오기 창 「Cozium으로 옮기기」(제목·한 문장·두 단계·작은 글씨 규칙·「방으로 가기 →」·「파일 없이 샘플로 둘러보기 →」), Desktop Helper 창(기존 내용 그대로, ×로 닫기), 작업표시줄(타일 5: 처음으로·가져오기 창·샘플·이용 안내·Helper / 트레이: Helper 불·실제 시계), 모니터 테두리. 요소 id는 전부 유지. onboarding-room.js 스크립트 빼고 위 사이트 바·꼬리말은 이 화면에서 숨김.
+신규 js/ui/import-desk.js(보이는 것만): 창 제목줄 끌기·앞으로, 시계, Helper 트레이 불·연결되면/?helper=면 Helper 창 열기, 놓은 항목을 바탕화면 아이콘으로(폴더 먼저, 줄 채우기, 점점 빠르게 등장, 21번째부터 폴더 흐리게 + 「이번엔 빠짐」, 넘치면 「+N」), 처음 놓으면 가져오기 창이 그림 쪽으로 비켜섬, 떠날 때 아이콘이 떨어지고 창 접히고 어두워짐(0.8초, 동작 줄이기면 없음), 실패해 남으면 되돌림. onboarding.js: onRefresh·beforeStart·afterStart 고리(없어도 동작, 테스트 그대로), 요약 문구 「파일 N개 · 폴더 M개를 가져왔어요」, 버튼 「방으로 가기 →」. app.js: mountImportDesk 연결, window.__app.desk(읽기용).
+css/onboarding.css 전부 새로(랜딩 색: 잉크 #254c43·종이 #faf4e3·겨자 #d9b768·테두리 나무 #463529). 신규 assets/app/desk/(taskbar.webp를 잘라 만든 막대 taskbar-bar·앱 타일 tile-1~5·트레이 tray, webp 합 약 21 KB).
+더 안 씀: js/ui/onboarding-room.js, assets/landing/parts/room-v3, parts/desktop-v2 → tools/sync-to-c.ps1 제외 목록에 추가(D에는 그대로 둠). 문서: docs/design-system.md 가져오기 화면 절 교체, README, AGENTS.md, CLAUDE.md 머리말·§10.
+백업: _archive/claude-import-desk-20261018/ (app.html, css/onboarding.css, js/ui/onboarding.js, js/app.js, tools/sync-to-c.ps1, docs/design-system.md, README.md, AGENTS.md, CLAUDE.md, docs/agent-timeline.md).
+검증: 리포 사본 npm test 176/177(실패 1은 원래부터의 Linux 전용). 헤드리스 1920×1080·1366×768·1024×640 빈 화면 / 가짜 항목 60개 + 폴더 6개 깐 화면 / Helper 창 캡처, 샘플 아이콘 클릭 → 떠나는 연출 → is-playing·정리방 열림, ?entry=files는 바탕화면에 포커스, 작업표시줄 폴더 타일 → 창 앞으로. 실제 드롭(진짜 파일 핸들)·실제 GPU·사용자 눈으로는 미확인.
+
+2026-10-18 02:03–02:11 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 노트북 안 바탕화면을 가져오기 화면처럼 정리
+사용자(02:03, 랜딩 바탕화면과 새 가져오기 화면 캡처): "랜딩에 나오는 예시 화면도 파일 들고 오는 화면처럼 깔끔하게 구성해주면 안 되나? 구조가 달라서 안 되는 건가?" → 구조상 가능(바탕화면은 DOM, 넘어간 뒤는 3D 바닥 판). 다른 점은 아이콘 크기·이름 유무·폴더 자리였음.
+js/landing-story/story.js: ICON 56(68에서)·CELL 92 × 96(94 × 100)·GRID0 [44, 34], 10 × 6 그대로. 폴더 4개를 첫 열 위에서부터(예전 흩어진 자리). toWorld·바닥 아이콘 판 크기(.68 → ICON/100)·정리된 바탕화면 자리를 같은 상수로. 3D 넘어간 뒤에도 이름이 보이게 nameLabel(이름 캔버스 판, TEXT_LAYER, DOM .name과 같은 11.5 px 두 줄·크림 그림자) — 파일이 들려 오르면 사라짐, 폴더는 상자로 떠오를 때 사라짐. css/landing-story.css: .item 56 px, .name 두 줄(넘치면 …)·항상 보임(예전 .desk:not(.named) 숨김 삭제), 배지 자리. docs/design-system.md '파일 아이콘과 상자'에 바뀐 것(이전 규칙 "이름 없는 연출용 아이콘"은 기록으로 남김).
+백업: _archive/claude-landing-names-20261018/.
+검증: 리포 사본 npm test 176/177. 헤드리스 1600×900 진행 0.215(DOM)·0.22(3D 넘어감, 이름 위치 일치)·0.31(떨어지는 중 이름 사라짐)·0.575(직접 담기 장면 그대로) 캡처. 실제 GPU·실제 스크롤 느낌 미확인.
+
+2026-10-18 02:12–02:20 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 노트북 안 바탕화면을 가져오기 화면과 같은 크기로
+사용자(02:12): "스케일이 다르잖아. 랜딩에서는 왜 다들 확대돼 있는 느낌이냐고 — 아이콘이랑 모니터 화면 하단바, 베젤 모두". 원인: 랜딩 바탕화면은 1672 × 941 판에 판 px로 그려지고 판이 화면을 덮게 ×cover(보통 1.15–1.2)로 커짐. 가져오기 화면은 CSS px 그대로.
+js/landing-story/story.js: 크기를 CSS px로(ICON 60, CELL 100 × 104, GRID0 [44, 44], CHROME 테두리 26·작업표시줄 56/아래 30/양옆 34 — css/onboarding.css와 같은 숫자), du = 1/cover. #deskIcons는 translate(safe) scale(du), 테두리 두께 26·du, 작업표시줄은 통 그림 대신 가져오기 화면 조각(assets/app/desk 막대·타일 5·트레이 + 시계)을 CSS px로 만들어 scale(du). toWorld·바닥 아이콘 판·폴더 판·이름 판을 du로, 창 크기가 바뀌면 relayoutDesk3D가 3D 바닥 자리·이름을 다시 맞춤. 안전 영역 계산도 같은 숫자로(옛 GRID·TASKBAR 상수 삭제). css/landing-story.css: .item 60 px·.name 12 px, .taskbar 규칙(가져오기 화면과 같음). index.html은 그대로(옛 작업표시줄 img를 JS가 바꿔 끼움). docs/design-system.md.
+백업: _archive/claude-landing-scale-20261018/ (02:11 반영본).
+검증: 리포 사본 npm test 176/177. 헤드리스 1600×900·2000×950에서 랜딩 진행 0.22 화면과 app.html 첫 화면을 위아래로 놓고 비교 — 아이콘·이름·테두리·작업표시줄 크기 같음, 0.215(DOM)↔0.22(3D) 자리 일치, 걸어 들어가는 중(0.16) 정상. 실제 GPU·실제 스크롤 미확인.
+
+2026-10-18 11:30–11:45 KST — Claude (Cowork, claude-opus-5-5) — 완료: 정리 시작 화면(로딩 → 조작 안내)
+사용자(11:30, 지금 정리방 첫 화면과 그래피코 오피스 시작 화면 캡처): "정리 시작 처음 화면에서 2번째 이미지처럼 조작 방법에 관한 간단한 설명, 그리고 로딩 화면도 필요해".
+신규 js/ui/room-intro.js·css/room-intro.css, app.html #room-intro(로딩: 폴더에 문서 떨어지는 아이콘·워드마크·막대·단계·퍼센트·팁 / 안내: 워드마크·모드·파일 수·조작 9줄·「방에 들어가기 →」·⚙ 안내). 로딩은 가져오기 화면이 어두워진 색(#2b2a21)에서 이어지고, 다 되면 막이 걷혀 방이 비네트 아래 비침. 안내 동안 HUD·3D 이름표 숨김.
+js/three/board-3d.js: whenReady(onStep) — 다락방 받기(roomprogress) → 상자 모델 → renderer.compileAsync(셰이더 미리) → 두 프레임. enter() — 입력 풀고 포인터 락(단추 클릭 안에서). js/three/scene-kit.js: GLTFLoader 진행을 roomprogress 이벤트로. js/app.js: startWith에서 안내 띄우고 보드 setSuspended(true) 뒤 track, 안내 동안 Tab 등 키 막음, ?intro=0 건너뛰기.
+문서: CLAUDE.md §10, README 정리방 조작, docs/design-system.md 새 절.
+백업: _archive/claude-room-intro-20261018/.
+검증: 리포 사본 npm test 176/177(실패 1은 원래부터의 Linux 전용). 헤드리스 1600×900·1280×620 샘플 시작 → 로딩(단계 바뀜·0→100 %) → 안내 → 단추 → 안내 사라지고 HUD 돌아옴 캡처(포인터 락은 헤드리스라 강제로 거부시켜 커서 모드). 실제 PC의 로딩 시간·포인터 락 걸리는 느낌 미확인.
+
+2026-10-18 11:43–11:50 KST — Claude (Cowork, claude-opus-5-5) — 완료: 정리 시작 화면 크기 키움
+사용자(11:43, 큰 화면 캡처): "너무 작다". css/room-intro.css: 워드마크 48, 조작 글 14.5/13, 키캡 23, 카드 폭 440, 단추 15 px. js/ui/room-intro.js: 화면 크기에 맞춰 --intro-scale(1280 × 720 = 1, 1–2.6배)을 걸어 로딩·안내 전체를 zoom. docs/design-system.md 한 줄.
+백업: _archive/claude-room-intro-size-20261018/.
+검증: npm test 176/177. 헤드리스 1600×900·2000×953·1280×620 캡처. 사용자 실제 모니터 크기에서 미확인.
+
+2026-10-18 11:48–12:10 KST — Claude (Cowork, claude-opus-5-5) — 완료: 정리 끝내기 + 결과 화면(정리된 바탕화면) + 체험 모드 정리 계획 적용
+사용자(11:48): "정리 끝내기(모든 파일이 정리될 필요는 없다. 이 정도면 됐다 했을 때 중단시켜 그 상태로 바탕화면을 적용시킬 수 있어야 함), 정리 다 끝났을 때 뜰 화면 — 2개 필요". 물어봄 → 체험 모드 적용은 "Helper로 적용(지금 또는 계획 저장 후 나중에)", 끝 화면은 "정리된 바탕화면".
+신규 js/state/cleanup-plan.js(buildPlan·parsePlan·planGroups·splitPlan·applyPlan·undoApplied·localStorage 보관·파일 이름), js/ui/finish-desk.js, css/finish.css, tests/cleanup-plan.test.js(4). app.html: 방 HUD #finish-button, #finish 결과 화면(가져오기 화면의 바탕화면 모양 재사용), Helper 창 #helper-plan(저장한 계획 적용·파일 불러오기). js/app.js: buildFinishReport·openFinish(다 치우면 1.6초 뒤 자동 한 번)·방으로 돌아가기·Helper 연결·가져오기 화면에서 계획 열기, session(시작 시각·만든 폴더), __app.moveTo/finish(점검용). providers: VirtualMoveProvider _origin·moves(처음 자리 ≠ 지금 자리), web-drop·memory는 _placeInitially. onboarding.js helperProvider 게터. scene-kit paused·board setPaused(결과 화면 동안 안 그림).
+규칙: Helper 이동 규칙 그대로, 이름+크기 대조, 없는 폴더는 mkdir, 바탕화면 바로 위 파일만(폴더 안에서 꺼낸 것 등은 "직접 옮길 것"), 되돌리기는 화면 닫기 전까지·새 폴더는 남음. CLAUDE.md §6-1, README, docs/design-system.md.
+백업: _archive/claude-finish-20261018/.
+검증: 리포 사본 npm test 180/181(+4, 실패 1은 원래부터의 Linux 전용). 헤드리스 1600×900·1280×620: 샘플로 5개 옮김 → 정리 끝내기 → 날아 들어감 캡처 → (가짜 체험) 진짜 Helper를 임시 더미 바탕화면(/tmp, 샘플 이름·크기 같은 빈 파일 45개)에 띄워 ① Helper가 연 새 탭의 Helper 창 → 저장한 계획 적용 → 디스크에서 5개 이동 확인 → 되돌리기로 원위치 ② 결과 창에서 포트·토큰 연결 → 적용 → 되돌리기, 방으로 돌아가기 후 그리기 재개. 실제 드롭(WebDropProvider)·실제 바탕화면·Windows Helper로는 미확인.
+
+2026-10-18 17:23–17:45 KST — Claude (Cowork, claude-opus-5-5) — 완료: 결과 화면 이펙트 + 창 늘리기
+사용자(17:23, 150개·폴더 12개를 다 치운 결과 창 캡처): "이펙트가 심심하더라. 무엇보다 슬라이더가 생김, 요약 창이 작아서. 모서리 끝을 잡고 늘리려 했는데 그런 기능이 없더라".
+창: 신규 js/ui/win-frame.js(enableResize 네 변·네 모서리 손잡이, enableDrag 제목줄, 바탕화면 테두리·작업표시줄 안), 결과 창 폭 540·최소 400·내용만큼(화면 안), 넘치면 폴더 목록만 줄어 얇은 스크롤·가로 스크롤 없앰(li min-width 0), 폴더 목록 여러 열(200 px 칸). 끌거나 늘린 뒤 아이콘 다시 깔기. 가져오기 화면 두 창(import-desk.js)도 늘리기.
+이펙트: 포물선 비행(WAAPI)·폴더 출렁·배지 톡·반짝이·치운 파일 숫자 하나씩·제목 글자 통통, 다 치웠을 때 「참 잘했어요」 도장 쿵 + 창 흔들 + 폴더 깡충 + 신규 js/ui/confetti.js 종이 조각 폭죽(캔버스, 390장). app.html: 캔버스·도장 자리. css/finish.css. docs/design-system.md.
+백업: _archive/claude-finish-fx-20261018/.
+검증: npm test 180/181(실패 1은 원래부터의 Linux 전용). 헤드리스 1600×900 폴더 12개 다 치움(가짜 결과): 2열 목록 스크롤 없음, 도장·폭죽 캡처, 왼쪽 아래 모서리 끌어 540→746 폭(3열), 제목줄 끌기, 비행 중간 프레임(애니메이션 멈춰서 캡처), 가져오기 창 오른쪽 아래 늘리기. 헤드리스는 2 fps라 폭죽·비행의 실제 속도감은 사용자 PC에서 확인 필요.
+
+2026-10-18 17:33–17:38 KST — Claude (Cowork, claude-opus-5-5) — 완료: 결과 화면 도장·폭죽·반짝이 뺌
+사용자(17:33): "참 잘했어요 없애. 이런 촌스러운 건 왜 넣은 거야? 무슨 이펙트를 넣을지 물어봤어야지. 폭죽 같은 파티클 흩날리는 게 우리 사이트에 어울려?" — 맞는 지적. 17:23 작업에서 이펙트 방향을 묻지 않고 정했음.
+뺌: 「참 잘했어요」 도장·창 흔들, 종이 조각 폭죽(캔버스), 폴더 깡충, 들어갈 때 반짝이. 남김: 포물선 비행·폴더 출렁·배지·치운 파일 숫자·제목 글자, 창 늘리기·끌기. js/ui/finish-desk.js, css/finish.css, app.html(캔버스·도장 자리 삭제), docs/design-system.md(마무리 연출 [미결정]). js/ui/confetti.js는 더 안 씀 — D에 파일은 남아 있음(지우기는 사용자가).
+백업: _archive/claude-finish-nofx-20261018/.
+검증: npm test 180/181. 헤드리스 결과 화면 캡처, 콘솔 오류 없음.
+
+2026-10-18 17:38–17:50 KST — Claude (Cowork, claude-opus-5-5) — 완료: 결과 화면 마무리 = 아이콘 자동 정렬
+물어봄(17:38) → 사용자: 마무리 "아이콘 자동 정렬", 소리 "안 넣음".
+js/ui/finish-desk.js: 파일이 들어갈 때마다 그 폴더가 조금씩 비뚤어짐(CSS translate·rotate, 최대 14 px·12°) → 다 들어가면 왼쪽 위부터 차례로 「탁」 격자 정렬(WAAPI 0.28초, 0.045초 간격). 다 치웠을 때만 이어서 아이콘이 한 번 숨 쉬듯 1.07배. 중간에 끝낸 경우도 비뚤어진 건 정렬로 바로잡음(숨 쉬기 없음). docs/design-system.md.
+백업: _archive/claude-finish-arrange-20261018/.
+검증: npm test 180/181. 헤드리스로 정렬 전(비뚤어짐)·후 캡처 비교. 실제 속도감은 사용자 PC.
+
+2026-10-18 18:04–18:12 KST — Claude (Cowork, claude-opus-5-5) — 완료: 폴더 아이콘 한 색(갈색)으로 통일
+사용자(17:49): "폴더의 초록색이랑 갈색 차이는?" → 뜻 없음, 게다가 화면마다 규칙이 달라(가져오기 = 순서 번갈아, 결과 = 이름 계산, 랜딩 = 고정) 같은 폴더 색이 바뀜. 세 안 중 "한 색 통일"(18:04), 색은 "갈색(샌드)".
+js/landing-story/story.js(FOLDERS tone 전부 sand → 바탕화면 아이콘·3D 상자 색도, iconKinds에서 folder-sage 뺌), js/ui/import-desk.js, js/ui/finish-desk.js, app.html(로딩 아이콘), docs/design-system.md.
+백업: _archive/claude-folder-one-color-20261018/.
+검증: npm test 180/181. 헤드리스 랜딩 0.215 바탕화면 폴더 4개 갈색 확인.
+
+2026-10-18 18:33–18:40 KST — Claude (Cowork, claude-opus-5-5) — 완료: 사이트 내비 바를 갈색으로
+사용자(18:33): "색은 #463529를 베이스로 잡고 필요한 곳에만 지금처럼 그린. 사실상 랜딩 상단 내비만 브라운으로 바꾸면 해결될 듯, 너도 생각해봐". 동의 — 초록이 넓게 깔린 건 내비 바뿐이고 나머지 초록은 진행 버튼이라 남기는 게 맞음.
+css/site-nav.css: 바 #182c24f7 → #463529f7, 「정리방 들어가기」 글자 #182c24 → #463529(랜딩·이용 안내 공통). docs/design-system.md.
+백업: _archive/claude-nav-brown-20261018/.
+검증: 헤드리스 랜딩 첫 방·노트북 바탕화면에서 내비 캡처. 같은 메시지의 주아체·랜딩 파일명·휑함 질문은 사용자 확인 대기.
+
+2026-10-18 18:47–19:00 KST — Claude (Cowork, claude-opus-5-5) — 완료: 바탕화면 큰 화면 배율 + 주아체
+사용자(18:47, 42인치 4K 랜딩 바탕화면 캡처): "저게 안 휑하다고..? 내가 42인치 4K 모니터여서 더 부각되겠지만 그것도 반영했어야지" — 맞음. 02:20에 크기를 CSS px로 고정하면서 큰 화면을 안 봤음. 같은 메시지: 색은 직접 바꾸겠으니 파일·줄 알려 달라, Cozium 로고는 그림 글자로 바꿀 예정, 주아체는 "다 치웠어요!" 크기의 글자.
+신규 js/ui/desk-scale.js(1600 × 900 = 1, 큰 화면은 min(가로/1600, 세로/900)배, 1–2.6). js/landing-story/story.js du = 배율 / cover. js/ui/import-desk.js·finish-desk.js: .desk에 CSS zoom(+ 가져오기 알림), 위치 계산을 바탕화면 단위로(clientWidth·offset, 끌기 거리 ÷ zoom). js/ui/win-frame.js 같은 단위. css/onboarding.css·finish.css 바탕화면 안 vw·vh → %, 제목 글자 크기 고정.
+주아체: 신규 assets/fonts/jua/(Jua-ks.woff2 196 KB = npm @fontsource/jua 5.3.0 나뉜 파일 88개를 fontTools로 합쳐 KS X 1001 2,350자 + 영문만, OFL.txt, README.md). css/onboarding.css·finish.css(--desk-heading: 가져오기·결과 창 제목), css/help.css(h1·h2). docs/design-system.md.
+백업: _archive/claude-desk-scale-jua-20261018/.
+검증: npm test 180/181. 헤드리스 3840 × 2160: 랜딩 0.215·가져오기·결과 화면 구도가 1600 × 900과 같음(zoom 2.4), 1600 × 900은 예전과 같음, 창 끌기 거리 맞음. 실제 4K 모니터·GPU에서는 미확인.
+
+2026-10-18 19:06–19:10 KST — Claude (Cowork, claude-opus-5-5) — 완료: 큰 화면 배율을 랜딩만 남기고 가져오기·결과 화면은 되돌림
+사용자(19:06, 4K 가져오기 화면 캡처): "이건 전에 좋았는데 랜딩 부분만 수정하라 했지 이거 또 왜 바꿈?? 가져오기·결과 화면은 롤백" — 맞음, 요청 범위를 넘겨 셋 다 바꿨음.
+js/ui/import-desk.js·finish-desk.js에서 applyDeskScale(zoom) 호출 뺌(알림 포함). 위치 계산을 바탕화면 단위로 바꾼 것·vw→%·주아체는 그대로(zoom 없이는 예전과 같은 결과). js/ui/desk-scale.js 주석: 랜딩만. docs/design-system.md.
+결과: 4K에서 랜딩 노트북 안 바탕화면은 1600 × 900 구도로 커지고, 가져오기·결과 화면은 18:47 전처럼 화면 그대로(아이콘이 더 많이 깔림). 그래서 큰 화면에서는 랜딩 → 가져오기로 넘어갈 때 아이콘 크기가 달라짐(사용자가 고른 쪽).
+백업: _archive/claude-desk-scale-rollback-20261018/.
+검증: npm test 180/181. 헤드리스 3840 × 2160 가져오기·결과 화면 zoom 없음(창 폭 440 px).
+
+2026-10-18 19:07–19:14 KST — Claude (Cowork, claude-opus-5-5) — 완료: 결과 창 숫자도 주아체(세리프 정리)
+사용자(19:07): "주아체 저것만 들어가는 게 말이 안 됨, 세리프 글씨체가 너무 많음, 날카로운 세리프가 필요함?" → 사이트 전체 조사: 세리프(Fraunces·Georgia)는 Cozium 로고 다섯 곳 + 결과 창 숫자 칸뿐. 숫자 칸을 주아 24 px로(css/finish.css). 로고는 사용자의 그림 글자를 기다림(임시로 주아로 바꿀지는 사용자 확인 대기). docs/design-system.md.
+백업: _archive/claude-serif-out-20261018/.
+검증: npm test 180/181.
+
+2026-10-18 19:11–19:16 KST — Claude (Cowork, claude-opus-5-5) — 완료: 「처음으로」가 Not Found 뜨던 것 고침
+사용자(19:11, 결과 창 + 127.0.0.1:57033/preview/app/index.html "Not Found" 캡처): "처음으로 누르면 not found 뜨고 흰 화면". 원인: 링크가 "./"(폴더 주소)라 서버가 폴더를 어떻게 푸느냐에 따라 …/app/index.html 같은 없는 주소로 감(로컬 serve.mjs에서는 됐음).
+app.html: href="./" 4곳(상단 로고·가져오기 작업표시줄·결과 화면 작업표시줄·결과 창 「처음으로」) → "./index.html". js/app.js: 페이지의 "./…" 링크를 전부 js/app.js 자리 한 칸 위(사이트 뿌리) 기준으로 다시 검(SITE_ROOT).
+백업: _archive/claude-home-link-20261018/.
+검증: npm test 180/181. 헤드리스 링크 9개가 사이트 뿌리 기준 절대 주소, 결과 창 「처음으로」 → index.html. 사용자의 미리보기 서버(/preview/)에서는 미확인.
+
+2026-10-18 20:39–20:44 KST — Claude (Cowork, claude-opus-5-5) — 완료: 제목 강조 글자(「쓸어 담으세요.」·「정리했어요」)도 주아체로
+사용자(20:39, 가져오기 창 캡처): "쓸어 담으세요 같은 애들은 왜 주아체가 아님?" 원인: 강조 <em>에 css/styles.css 104줄의 옛 규칙 `.onboarding h1 em { font-family: Georgia }`가 걸려 있었음(18:47 작업에서 놓침). css/onboarding.css·finish.css의 h1 em에 font-family·font-weight inherit.
+백업: _archive/claude-em-jua-20261018/.
+검증: 헤드리스 계산된 글꼴 둘 다 Jua.
+
+2026-10-18 20:38–21:00 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 마지막 CTA를 「파일이 빨려 드는 상자」로
+사용자(20:38): "랜딩 맨 마지막 방으로 들어가기 CTA 리디자인, 코지움 그림 글자로 바꾸기 하자" → 물어봄: CTA는 "그림 글자 또는 재밌는 반응형" → 네 안 중 "파일이 빨려 드는 상자". 로고 그림 파일은 아직 없음 → 프롬프트만 드림(코드 변경 없음).
+index.html: .cta 안 링크를 종이상자 버튼으로(파일 아이콘 8개, 뚜껑, 앞면 이름표), cta-box.js 스크립트 추가. css/landing-story.css: Jua @font-face, 상자·뚜껑·파일·열림/누름/닫힘 상태. 신규 js/landing-story/cta-box.js: 올리면 뚜껑 열고 파일 포물선(WAAPI), 떠나면 되감기, 누르면 꾹·닫힘(이동은 story.js 그대로). docs/design-system.md.
+백업: _archive/claude-cta-box-20261018/.
+검증: npm test 180/181. 헤드리스 1600×900: 닫힘·비행 중간·열림·되돌아옴 캡처, 누르면 is-closing + 걸어 들어가기 시작(#end). 실제 마우스 손맛은 사용자 확인.
+
+2026-10-18 20:58–21:03 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 CTA 상자 버튼 되돌림
+사용자(20:58): "상자 버튼 별로다, 안 예쁘고 노트북 화면으로 연결되는 걸 생각하니 부자연스럽다, 일단은 그냥 버튼으로. 주아체 남발하지 마, 랜딩은 가급적 주아체 안 쓰고 싶음(배민 특유의 인상이 너무 강함)".
+index.html·css/landing-story.css를 20:38 이전(_archive/claude-cta-box-20261018/)으로 되돌림 — 예전 버튼, 랜딩에서 주아 @font-face도 빠짐. js/landing-story/cta-box.js는 더 안 씀(D에 남아 있음, 지우기는 사용자). docs/design-system.md.
+검증: npm test 180/181. 랜딩 두 파일에 cta-box·Jua 없음.
+
+2026-10-18 21:06–21:09 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 CTA 색을 폴더 칩 색과 분리
+사용자(21:06, 포토샵 로고 시안 두 장 — 본인 평 "별로"): "CTA 버튼 컬러가 랜딩 폴더 칩 색이랑 같이 쓰고 있어서 분리, 칩 색은 그대로, CTA는 #2f231a".
+css/landing-story.css: 새 변수 --cta:#2f231a. .cta .primary 배경·테두리·그림자, CTA 초점 테두리만 --cta로. --ink(#254c43, 바탕화면 폴더 칩 등)는 그대로.
+백업: _archive/claude-cta-color-20261018/.
+검증: npm test 180/181.

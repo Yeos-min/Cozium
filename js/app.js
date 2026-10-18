@@ -17,15 +17,25 @@ import { MemoryProvider } from "./providers/memory-provider.js";
 import { SAMPLE_FOLDERS } from "./providers/sample-desktop.js";
 import { NativeHelperProvider } from "./providers/native-helper-provider.js";
 import { WebDropProvider } from "./providers/web-drop-provider.js";
-import { SessionStore } from "./state/session-store.js";
+import { MAX_BOXES, SessionStore } from "./state/session-store.js";
 import { Board3D } from "./three/board-3d.js";
 import { ATTIC_CARD, ATTIC_FLOOR_LAYOUT, ATTIC_HOME_CAPACITY, atticSlotArea } from "./three/attic-room.js";
 import { fileHome } from "./three/file-homes.js";
 import { playBoundsFor } from "./ui/board-layout.js";
 import { Onboarding } from "./ui/onboarding.js";
+import { mountImportDesk } from "./ui/import-desk.js";
+import { mountRoomIntro } from "./ui/room-intro.js";
+import { mountFinishDesk } from "./ui/finish-desk.js";
+import { buildPlan, loadPendingPlan, parsePlan, pathLabel, planGroups, splitPlan } from "./state/cleanup-plan.js";
 import { StatusPanel } from "./ui/status.js";
 import { FolderInterior } from "./ui/folder-interior.js";
 import { TUNING, UNIT } from "./three/tuning.js";
+
+// 페이지 안 링크(처음으로·이용 안내)는 사이트 뿌리 기준으로 다시 건다(10-18 사용자: 미리보기 서버에서 「처음으로」가
+// Not Found). "./"는 서버가 폴더 주소를 어떻게 푸느냐에 따라 엉뚱한 곳(…/app/index.html)으로 갈 수 있다.
+// 이 스크립트(js/app.js)의 자리는 늘 맞으니 거기서 한 칸 위가 사이트 뿌리다.
+const SITE_ROOT = new URL("../", import.meta.url);
+for (const link of document.querySelectorAll('a[href^="./"]')) link.href = new URL(link.getAttribute("href"), SITE_ROOT).href;
 
 const params = new URLSearchParams(location.search);
 const memoryMode = params.get("storage") === "memory";
@@ -54,6 +64,8 @@ const elements = {
   plan: $("#plan"),
   panelToggle: $("#panel-toggle"),
   arrangeToggle: $("#arrange-toggle"),
+  finishButton: $("#finish-button"),
+  finish: $("#finish"),
   stageSide: $(".stage-side"),
   progressHud: $("#progress-hud"),
   progressDone: $("#progress-done"),
@@ -86,6 +98,10 @@ if (typeof window !== "undefined") {
     get board() {
       return board;
     },
+    get desk() {
+      return desk;
+    },
+    moveTo: (fileIds, folderId) => moveTo(fileIds, folderId), // 자동 점검용(손 대신 상자에 넣기)
   };
 }
 
@@ -93,6 +109,8 @@ if (typeof window !== "undefined") {
 let provider = null;
 let board = null;
 let labels = { verb: "옮김", mode: "체험" };
+/** 이번 정리의 시작 시각(방에 들어간 순간)과 방에서 만든 폴더. 결과 화면이 쓴다. */
+const session = { startedAt: 0, createdFolders: new Set(), autoFinished: false };
 
 // ───────────────────────── Provider 작업은 한 번에 하나씩 ─────────────────────────
 
@@ -163,11 +181,17 @@ async function undoLastBatch() {
 
 async function createFolder(name) {
   if (!provider?.capabilities.canCreateFolder) return;
+  // 상자가 꽉 차면 만들지 않는다. Helper는 디스크에 진짜 폴더를 만드는데 상자가 안 생기면 안 된다.
+  if (!store.canAddBox) {
+    status.notice(`상자는 한 번에 ${MAX_BOXES}개까지예요. 새 폴더는 정리를 마치고 다음에 만드세요.`, "warn");
+    return;
+  }
   const parentId = store.level;
   await run(async () => {
     try {
       const folder = await provider.createFolder(parentId, name);
       store.addFolders([folder]);
+      session.createdFolders.add(folder.id);
       status.logFolderCreated(folder, { real: provider.capabilities.realFiles });
     } catch (error) {
       status.logError("폴더를 만들지 못했습니다", error?.message);
@@ -252,12 +276,23 @@ function updateBar() {
   } else if (!cleared) {
     clearedNoticeShown = false;
   }
-  if (total > 0 && done === total && !completedNoticeShown) {
+  const complete = total > 0 && done === total;
+  if (complete && !completedNoticeShown) {
     completedNoticeShown = true;
     status.notice(`${total}개를 전부 치웠습니다.`, "success");
-  } else if (done !== total) {
+    // 다 치웠으면 잠깐 뒤 결과 화면(10-18). 마지막 카드가 상자에 들어가는 걸 보고 나서. 한 번만.
+    if (!session.autoFinished) {
+      session.autoFinished = true;
+      setTimeout(() => {
+        const now = store.progress;
+        if (pending === 0 && now.total > 0 && now.done === now.total && !finishDesk.open && !interior.active) openFinish();
+      }, 1600);
+    }
+  } else if (!complete) {
     completedNoticeShown = false;
   }
+  elements.finishButton.dataset.done = String(complete);
+  elements.finishButton.textContent = complete ? "다 치웠어요 · 결과 보기" : "정리 끝내기";
   const last = store.lastBatch;
   const arranging = board?.arranging;
   elements.arrangeToggle.hidden = !board?.setArranging;
@@ -309,8 +344,16 @@ async function startWith(nextProvider) {
   }
 
   store.setFolders(provider.folders);
+  const skipped = store.overflowFolders;
+  if (skipped.length) {
+    const names = skipped.slice(0, 3).map((folder) => `'${folder.name}'`).join(", ");
+    status.notice(`상자는 한 번에 ${MAX_BOXES}개까지예요. 폴더 ${MAX_BOXES + skipped.length}개 중 ${MAX_BOXES}개만 가져왔어요 — 빠진 폴더: ${names}${skipped.length > 3 ? ` 외 ${skipped.length - 3}개` : ""}. 파일은 전부 왔어요.`, "warn");
+  }
   elements.onboarding.hidden = true;
   elements.stage.hidden = false;
+  // 정리 시작 화면(10-18): 방이 차려지는 동안 로딩, 다 되면 조작 안내. ?intro=0이면 건너뛴다(자동 점검용).
+  const showIntro = params.get("intro") !== "0";
+  if (showIntro) roomIntro.show({ modeText: elements.modePill.textContent, fileCount: provider.files.length });
   elements.newFolderForm.hidden = !canCreateFolder;
   // 게임 화면은 뷰포트를 채운다. 온보딩(나중에는 랜딩 페이지)은 평소 레이아웃 그대로다.
   document.body.classList.add("is-playing");
@@ -329,6 +372,13 @@ async function startWith(nextProvider) {
     onLeaveFolder: () => store.leaveFolder(),
     loadThumbnail: (item) => provider.readThumbnail(item.id),
   });
+  session.startedAt = performance.now();
+  session.createdFolders.clear();
+  session.autoFinished = false;
+  if (showIntro) {
+    board.setSuspended(true); // 안내가 떠 있는 동안은 걷기·집기를 막는다. 「방에 들어가기」가 푼다
+    roomIntro.track(board);
+  }
   if (board.renderQuality) updateRenderQuality(board.renderQuality);
   if (board.placement) elements.placement.value = board.placement;
   store.addFiles(provider.files); // 보드가 붙은 뒤에 넣어야 쏟아지는 연출이 보인다
@@ -341,9 +391,17 @@ async function startWith(nextProvider) {
   );
 }
 
+const roomIntro = mountRoomIntro({ root: $("#room-intro"), onEnter: () => { session.startedAt = performance.now(); board?.enter(); } });
+
+// 가져오기 화면 = 노트북 바탕화면(2026-10-18). 보이는 것만 맡고 파일은 Onboarding이 읽는다.
+const desk = mountImportDesk({ root: elements.onboarding, startSample: () => onboarding.startSample() });
 const onboarding = new Onboarding({
   root: elements.onboarding,
   status,
+  // 정리 계획 안내는 모듈이 다 읽힌 뒤에(처음 refresh는 Onboarding을 만드는 도중에 온다)
+  onRefresh: (state) => { desk.refresh(state); queueMicrotask(() => refreshPlanOffer(state)); },
+  beforeStart: () => desk.leave(),
+  afterStart: () => desk.restore(),
   capacity: store.capacity,
   onStart: startWith,
   createWebProvider: () => new WebDropProvider(),
@@ -409,6 +467,8 @@ window.addEventListener("keydown", (event) => {
     target instanceof HTMLElement &&
     (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
   if (isEditing || elements.stage.hidden || interior.active) return;
+  if (roomIntro.active) { if (event.key === "Tab") event.preventDefault(); return; } // 정리 시작 화면에서는 Enter만
+  if (finishDesk.open) return; // 결과 화면은 방 조작을 받지 않는다
   const modifier = event.ctrlKey || event.metaKey;
   if (event.key === "Tab") {
     event.preventDefault();
@@ -444,14 +504,7 @@ window.addEventListener("keydown", (event) => {
     store.leaveFolder();
     return;
   }
-  // 숫자 키 = 지금 보이는 상자 줄의 번호. 선택한 카드를 N번에 넣는다. 어느 상자인지는 사용자가 누른다. (§11)
-  if (!modifier && /^[1-9]$/.test(event.key) && !board?.tilted) {
-    const folder = board?.folderAt ? board.folderAt(Number(event.key)) : store.folderAt(Number(event.key));
-    const selection = store.selection;
-    if (!folder || selection.length === 0) return;
-    event.preventDefault();
-    moveTo(selection, folder.id);
-  }
+  // 숫자 키(N번 상자에 넣기)는 2026-10-13 사용자 결정으로 뺐다. 상자는 보고 클릭해서 넣는다.
 });
 
 window.addEventListener("pagehide", () => {
@@ -485,3 +538,148 @@ async function initialize() {
 }
 
 initialize();
+
+// ───────────────────────── 정리 끝내기 · 결과 화면 (2026-10-18) ─────────────────────────
+// 다 치울 필요는 없다. "이 정도면 됐다"에서 끝내면 그 상태가 결과다. 체험 모드는 결과 화면에서 Helper로 적용하거나 계획을 저장한다.
+
+/** 지금 방의 상태 → 결과 화면이 보여 줄 것 */
+function buildFinishReport() {
+  const kind = provider?.capabilities.kind ?? "memory";
+  const { done, total } = store.progress;
+  const rootOf = (folderId) => {
+    const folder = store.folder(folderId);
+    return folder?.path?.[0] ?? folder?.name ?? null;
+  };
+  const isNewFolder = (folder) => Boolean(folder?.virtual) || session.createdFolders.has(folder?.id);
+  const tracked = store.files.filter((entry) => entry.tracked !== false);
+  const groups = new Map();
+  for (const entry of tracked) {
+    if (entry.status !== "placed") continue;
+    const label = store.folderLabel(entry.folderId);
+    if (!groups.has(label)) groups.set(label, { label, names: [], isNew: isNewFolder(store.folder(entry.folderId)) });
+    groups.get(label).names.push(entry.item.name);
+  }
+  const roots = (provider?.folders ?? []).filter((folder) => !folder.parentId);
+  const counts = new Map();
+  for (const entry of tracked) if (entry.status === "placed") counts.set(rootOf(entry.folderId), (counts.get(rootOf(entry.folderId)) ?? 0) + 1);
+  return {
+    variant: total > 0 && done === total ? "done" : "partial",
+    modeKind: kind,
+    modeText: elements.modePill.textContent,
+    done,
+    total,
+    remaining: tracked.filter((entry) => entry.status !== "placed").length,
+    elapsedMs: session.startedAt ? performance.now() - session.startedAt : 0,
+    newFolders: [...roots, ...(provider?.folders ?? [])].filter((folder, i, all) => all.indexOf(folder) === i && isNewFolder(folder)).length,
+    folders: [...groups.values()],
+    desktop: {
+      folders: roots.map((folder) => ({ name: folder.name, count: counts.get(folder.name) ?? 0, isNew: isNewFolder(folder) })),
+      files: tracked.map((entry) => ({ name: entry.item.name, to: entry.status === "placed" ? rootOf(entry.folderId) : null })),
+    },
+    plan: kind === "web" && provider.moves ? buildPlan({ moves: provider.moves, desktopName: provider.desktopName }) : null,
+  };
+}
+
+function openFinish() {
+  if (!board || finishDesk.open || pending > 0) return;
+  if (interior.active) return;
+  if (board.arranging) toggleArrangement();
+  toggleSidePanel(false);
+  board.setSuspended(true);
+  finishDesk.show(buildFinishReport());
+  setTimeout(() => { if (finishDesk.open) board?.setPaused(true); }, 1000); // 막이 다 덮은 뒤
+}
+
+async function connectHelperForFinish(port, token) {
+  if (!port || !token) {
+    status.notice("포트와 토큰을 모두 넣어 주세요. Helper 창에 나옵니다.", "warn");
+    return null;
+  }
+  try {
+    const helper = new NativeHelperProvider({ port, token });
+    const info = await helper.connect();
+    status.logConnect(info);
+    return helper;
+  } catch (error) {
+    status.logError("Desktop Helper에 연결하지 못했습니다", error?.message);
+    return null;
+  }
+}
+
+const finishDesk = mountFinishDesk({
+  root: elements.finish,
+  connectHelper: connectHelperForFinish,
+  notice: (text, tone) => status.notice(text, tone),
+  onBack: (report) => {
+    if (report.variant === "plan") return; // 가져오기 화면에서 연 계획: 그 화면으로 돌아간다
+    board?.setPaused(false);
+    board?.setSuspended(false); // 「게임으로 돌아가기」 알약이 뜬다
+  },
+});
+elements.finishButton.addEventListener("click", () => openFinish());
+if (typeof window !== "undefined") window.__app.finish = { open: openFinish, report: buildFinishReport, show: (report) => finishDesk.show(report) }; // 자동 점검용
+
+// ── 가져오기 화면의 Helper 창: 저장해 둔 정리 계획을 연결된 Helper로 적용 ──
+const planOffer = {
+  box: $("#helper-plan"), text: $("#helper-plan-text"), apply: $("#helper-plan-apply"), file: $("#helper-plan-file"),
+  loaded: null,
+};
+function refreshPlanOffer(state) {
+  const plan = planOffer.loaded ?? loadPendingPlan();
+  const connected = state.helper && onboarding?.helperProvider;
+  planOffer.box.hidden = !connected;
+  planOffer.apply.hidden = !plan;
+  if (!connected) return;
+  if (plan) {
+    const { auto } = splitPlan(plan);
+    const when = new Date(plan.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" });
+    planOffer.text.textContent = `${planOffer.loaded ? "불러온" : "저장해 둔"} 정리 계획이 있어요 · ${when} · 파일 ${auto.length}개를 폴더 ${planGroups(plan).length}개로.`;
+  } else {
+    planOffer.text.textContent = "체험 모드에서 저장한 정리 계획이 있으면 불러와 한 번에 적용할 수 있어요.";
+  }
+}
+planOffer.file.addEventListener("change", async () => {
+  const file = planOffer.file.files?.[0];
+  planOffer.file.value = "";
+  if (!file) return;
+  try {
+    planOffer.loaded = parsePlan(await file.text());
+    status.notice(`정리 계획을 불러왔어요 · 옮길 파일 ${planOffer.loaded.moves.length}개`, "success");
+  } catch (error) {
+    status.notice(error.message, "error");
+  }
+  onboarding.refresh();
+});
+planOffer.apply.addEventListener("click", async () => {
+  const helper = onboarding.helperProvider;
+  const plan = planOffer.loaded ?? loadPendingPlan();
+  if (!helper || !plan) return;
+  planOffer.apply.disabled = true;
+  try {
+    await helper.scan();
+    const { auto } = splitPlan(plan);
+    const target = new Map(auto.map((move) => [move.name.toLocaleLowerCase(), move.to[0]]));
+    const when = new Date(plan.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" });
+    finishDesk.show({
+      variant: "plan",
+      modeKind: "web",
+      modeText: `Desktop Helper 연결됨 · ${helper.desktopName}`,
+      planDate: when,
+      done: auto.length,
+      total: plan.moves.length,
+      remaining: 0,
+      elapsedMs: 0,
+      newFolders: 0,
+      folders: planGroups(plan).map((group) => ({ label: pathLabel(group.to), names: group.names, isNew: false })),
+      desktop: {
+        folders: helper.folders.filter((folder) => !folder.parentId).map((folder) => ({ name: folder.name, count: 0, isNew: false })),
+        files: helper.files.map((file) => ({ name: file.name, to: null, plannedTo: target.get(file.name.toLocaleLowerCase()) ?? null })),
+      },
+      plan,
+    }, { connected: helper });
+  } catch (error) {
+    status.logError("바탕화면을 읽지 못했습니다", error?.message);
+  } finally {
+    planOffer.apply.disabled = false;
+  }
+});

@@ -17,11 +17,13 @@ import {
   playBoundsFor,
 } from "../ui/board-layout.js";
 import { BoxObject } from "./box-object.js";
+import { loadModel } from "./assets.js";
 import { CardObject, disposeSharedCardGeometry } from "./card-object.js";
 import { reservePileShape, stackHeights, thicknessOf } from "./stacking.js";
 import { CSS2DObject, SceneKit, THREE, toLogical, toWorld, toWorldSize } from "./scene-kit.js";
 import { TUNING, UNIT } from "./tuning.js";
-import { ATTIC_BOOKS, ATTIC_PILE, ATTIC_PINBOARD, atticFloorBounds, bookSlot, pinboardPose } from "./attic-room.js";
+import { ATTIC_BOOKS, ATTIC_HALF, ATTIC_PILE, ATTIC_PINBOARD, atticCeilingAt, atticFloorBounds, bookSlot, pinboardPose } from "./attic-room.js";
+import { chargePower, throwPath, throwSpeed } from "./throw.js";
 import { HomeSlots, fileHome } from "./file-homes.js";
 import { BoxPlacementState, rotateBox, supportsBox, validateBoxPlacement } from "./box-placement.js";
 import { FolderShelfAssignments } from "./folder-shelves.js";
@@ -74,6 +76,21 @@ function boxSlots(placement, count) {
     })),
     pile: { cx: zone.x + 182, cy: zone.y + zone.height / 2 },
   };
+}
+
+const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+/** 궤적 미리보기 점(동그라미). 한 번만 만든다. */
+let dotTexture = null;
+function roundDot() {
+  if (dotTexture) return dotTexture;
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const g = c.getContext("2d");
+  g.fillStyle = "#fff";
+  g.beginPath(); g.arc(16, 16, 13, 0, Math.PI * 2); g.fill();
+  dotTexture = new THREE.CanvasTexture(c);
+  return dotTexture;
 }
 
 export class Board3D {
@@ -129,6 +146,15 @@ export class Board3D {
   #boxCandidate = null;
   #boxPointer = null;
   #shelfSlots = [];
+  #launchCount = 0; // 한 번에 손을 떠나는 카드들의 차례(시간차)
+  #launchReset = 0;
+  /** 우클릭을 누르고 있는 동안: { start(ms) }. 떼면 던진다(10-13 21시). */
+  #charge = null;
+  #lastClient = null;
+  #hintFlash = 0;
+  /** 던진 카드의 궤적. 선택에서 빠지는 순간(#applyCardTarget) 카드가 이 길을 탄다. */
+  #throwPaths = new Map();
+  #throwPreview = null;
   #shelfObstacles = [];
   #shelfAssignments = new FolderShelfAssignments();
   #shelfPage = 0;
@@ -233,6 +259,41 @@ export class Board3D {
     return this.#locked;
   }
 
+  /**
+   * 방이 다 차려질 때까지(정리 시작 로딩 화면, 10-18). onStep(단계, 0…1)로 진행을 알린다.
+   * 단계: room(다락방 모델 받기·풀기) → boxes(상자 모델) → shaders(첫 화면 셰이더 미리 굽기) → floor(첫 프레임).
+   * 실패해도 멈추지 않는다 — 방이 안 오면 빈 방, 상자가 안 오면 나무 상자로 간다.
+   */
+  async whenReady(onStep = () => {}) {
+    const kit = this.#kit;
+    const onProgress = (event) => {
+      const { loaded, total } = event.detail;
+      onStep("room", total ? loaded / total : Math.min(0.9, loaded / 3.2e6));
+    };
+    kit.root.addEventListener("roomprogress", onProgress);
+    onStep("room", 0);
+    try { await kit.roomReady; } finally { kit.root.removeEventListener("roomprogress", onProgress); }
+    if (kit.disposed) return;
+    onStep("boxes", 0);
+    await loadModel(THREE, "box").catch(() => null);
+    onStep("shaders", 0);
+    // 첫 화면에 보이는 재질을 미리 컴파일해 둔다. 안 하면 들어가자마자 첫 프레임들이 끊긴다.
+    try { await kit.renderer.compileAsync?.(kit.scene, kit.camera); } catch { /* 그 자리에서 컴파일된다 */ }
+    onStep("floor", 0);
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+
+  /** 방을 덮는 화면(정리 결과)이 떠 있는 동안 그리기를 멈춘다. */
+  setPaused(value) {
+    this.#kit.paused = Boolean(value);
+  }
+
+  /** 로딩·조작 안내 화면에서 「방에 들어가기」: 입력을 풀고 마우스를 잡는다(사용자 제스처 안에서 불러야 한다). */
+  enter() {
+    this.setSuspended(false);
+    this.#requestLock();
+  }
+
   setSuspended(value) {
     this.#suspended = value;
     this.#kit.clearLook();
@@ -250,7 +311,6 @@ export class Board3D {
 
   get arranging() { return this.#arranging; }
   get canUndoArrangement() { return !!this.#boxPlacement.lastMove; }
-  folderAt(number) { return this.#shownTargets[number - 1] ?? null; }
 
   setArranging(value) {
     if (this.#drag || this.#marqueeState || this.#suspended) return false;
@@ -741,6 +801,19 @@ export class Board3D {
 
     if (this.#drag?.ids.has(entry.id)) return; // 손에 들려 있다
 
+    // 1인칭 손을 막 떠났다(내려놓기·상자에 넣기·핀보드): 스프링으로 빨려 들지 않고 포물선으로 날아간다(10-13).
+    if (card.inHand && !store.isSelected(entry.id)) {
+      card.inHand = false;
+      const thrown = this.#throwPaths.get(entry.id);
+      this.#throwPaths.delete(entry.id);
+      const { stagger, staggerMax } = TUNING.card.toss;
+      const delay = Math.min(staggerMax, (this.#launchCount++) * stagger);
+      if (thrown) card.launchPath(thrown, delay);
+      else card.launch(delay);
+      clearTimeout(this.#launchReset);
+      this.#launchReset = setTimeout(() => { this.#launchCount = 0; }, 60);
+    }
+
     if (entry.status === "moving" || entry.status === "placed") {
       const box = this.#visibleBoxFor(entry.folderId);
       if (!box || this.#heldBox?.id === box.id) { card.group.visible = false; return; }
@@ -851,6 +924,7 @@ export class Board3D {
         for (const box of this.#boxes.values()) box.setTargeted(pick.kind === "box" && box.id === pick.id, this.#arranging ? 0 : this.#store.selection.length);
       }
       this.#updateHandTargets();
+      this.#updateCharge();
       this.#updateHandHint();
     }
     for (const card of this.#cards.values()) card.update(dt);
@@ -921,6 +995,7 @@ export class Board3D {
       this.#pointerLock.changed(document.pointerLockElement === canvas);
       if (this.#locked && this.#suspended) { document.exitPointerLock(); return; }
       if (!this.#locked) {
+        this.#cancelCharge();
         this.#gathering = false;
         this.#keys.clear();
         this.#pushMoveInput();
@@ -979,7 +1054,7 @@ export class Board3D {
    *
    * 커서가 없으므로 끌어다 놓기가 성립하지 않는다. 대신 두 박자로 나눈다.
    *   담기 — 카드를 보고 클릭. 누른 채 훑으면 닿는 대로 손에 담긴다 (§12의 "한 번에 집는 제스처")
-   *   넣기 — 폴더를 보고 클릭. 숫자 키도 같다
+   *   넣기 — 폴더를 보고 클릭
    * 빈손으로 폴더를 클릭하면 폴더가 열린다. 오른쪽 버튼은 겨누는 자리에 그대로 내려놓는다.
    */
   #walkPointerDown(event) {
@@ -998,8 +1073,11 @@ export class Board3D {
 
     const held = this.#store.selection;
     if (event.button === 2) {
-      // 겨눈 자리에 그대로 떨어뜨린다. 원래 자리로 돌려보내면 옮긴 보람이 없다.
-      if (held.length) this.#placeHeldAt(event);
+      // 핀보드를 겨누면 바로 꽂는다. 아니면 누르는 동안 힘을 모았다가 떼는 순간 보는 방향으로 던진다(10-13 21시).
+      if (held.length) {
+        if (this.#aimsAtPinboard(this.#aim(event))) this.#placeHeldAt(event);
+        else this.#charge = { start: performance.now() };
+      }
       event.preventDefault();
       return;
     }
@@ -1021,10 +1099,14 @@ export class Board3D {
       this.#gathering = TUNING.firstPerson.gather.sweep;
       return;
     }
-    if (held.length) this.#placeHeldAt(event); // 빈 바닥에 내려놓기
+    // 좌클릭은 상자에 넣기만 한다(10-13 22시 사용자: 좌클릭으로도 던져지는 건 버그). 바닥에 두는 건 우클릭 던지기.
+    if (held.length) { this.#hintFlash = performance.now() + 1800; return; }
+    // 빈손으로 침대를 누르면 시간이 흐른다(낮 ↔ 밤, 10-13 사용자 아이디어)
+    if (this.#aimsAtBed(this.#aim(event))) this.#kit.toggleNight();
   }
 
   #walkPointerUp(event) {
+    if (this.#charge && event.button === 2) { this.#releaseThrow(); return; }
     if (this.#look && event.pointerId === this.#look.pointerId) {
       this.#look = null;
       this.#release(event);
@@ -1093,6 +1175,8 @@ export class Board3D {
     held.forEach((id, index) => {
       const card = this.#cards.get(id);
       if (!card) return;
+      card.inHand = true;
+      card.flight = null;
       card.group.visible = index < hand.maxVisible;
       if (!card.group.visible) return;
       const depth = Math.min(index, hand.maxVisible);
@@ -1111,6 +1195,167 @@ export class Board3D {
     });
   }
 
+  // ───────────────────────── 던지기 (10-13 21시) ─────────────────────────
+
+  /** 던질 방향(겨눈 곳으로 가는 광선)과 손 자리. 커서 모드면 커서 쪽으로. */
+  #throwAim() {
+    const kit = this.#kit;
+    const aim = this.#locked || !this.#lastClient ? this.#aim(null) : { x: this.#lastClient.clientX, y: this.#lastClient.clientY };
+    kit.raycaster.setFromCamera(kit.ndcFrom(aim.x, aim.y), kit.camera);
+    const dir = kit.raycaster.ray.direction.clone();
+    const { hand } = TUNING.firstPerson;
+    const handPos = new THREE.Vector3(hand.side, hand.height, -hand.distance).applyQuaternion(kit.camera.quaternion).add(kit.camera.position);
+    return { dir, handPos };
+  }
+
+  /** 벽·천장·가구·상자. 상자는 앞(방 가운데 쪽)으로 밀어낸다 — 던져서는 안 들어간다(사용자 결정). */
+  /**
+   * 벽·천장·가구, 그리고 지금 보이는 상자. 상자는 입구로 떨어지면 그 폴더에 들어간다(catch = 폴더 id, 10-13 22시).
+   * 상자는 장애물 목록이 아니라 실제 상자 자리에서 잰다(옮겨 둔 상자의 원래 칸이 유령처럼 받지 않게).
+   */
+  #throwWorld() {
+    const half = this.walking ? ATTIC_HALF : { x: 50, z: 50 };
+    const solids = [];
+    for (const o of this.#kit.roomObstacles ?? []) {
+      if (Number.isFinite(o.throwTop)) solids.push({ x: o.x, z: o.z, width: o.width, depth: o.depth, top: o.throwTop });
+    }
+    for (const box of this.#boxes.values()) {
+      if (!box.group.visible || box.id === this.#heldBox?.id) continue;
+      const w = box.width * box.group.scale.x, d = box.depth, yaw = box.group.rotation.y;
+      const c = Math.abs(Math.cos(yaw)), sn = Math.abs(Math.sin(yaw));
+      solids.push({
+        x: box.group.position.x, z: box.group.position.z,
+        width: w * c + d * sn, depth: w * sn + d * c,
+        top: box.group.position.y + TUNING.box.height,
+        catch: box.id,
+      });
+    }
+    return { half, ceilingAt: this.walking ? atticCeilingAt : null, solids, radius: 0.18 };
+  }
+
+  #throwVelocity(dir, power, weight, index = 0) {
+    const cfg = TUNING.card.throw;
+    let speed = throwSpeed(power, weight, cfg);
+    const v = dir.clone();
+    if (index > 0) {
+      // 여러 장: 해바라기 무늬로 살짝 흩는다(같은 자리에 탑처럼 쌓이지 않게)
+      const angle = index * 2.399963, radius = cfg.spread * Math.sqrt(index);
+      const right = new THREE.Vector3().crossVectors(v, new THREE.Vector3(0, 1, 0)).normalize();
+      const up = new THREE.Vector3().crossVectors(right, v).normalize();
+      v.addScaledVector(right, Math.cos(angle) * radius).addScaledVector(up, Math.sin(angle) * radius).normalize();
+      speed *= 1 + Math.sin(index * 12.9898) * cfg.speedJitter;
+    }
+    v.y += cfg.upBias; // 손목을 살짝 올려 던진다(바로 보면 발밑에 꽂히지 않게)
+    return v.normalize().multiplyScalar(speed);
+  }
+
+  #updateCharge() {
+    const charge = this.#charge;
+    const held = this.#store.selection;
+    if (!charge) return;
+    if (!held.length || this.#arranging || !this.walking) { this.#cancelCharge(); return; }
+    const cfg = TUNING.card.throw;
+    const power = chargePower((performance.now() - charge.start) / 1000, cfg);
+    charge.power = power;
+    this.#crosshair.dataset.charging = "true";
+    this.#crosshair.style.setProperty("--charge", power.toFixed(3));
+    // 궤적 미리보기: 첫 장 기준 점 몇 개 + 떨어질 자리
+    const { dir, handPos } = this.#throwAim();
+    const first = this.#cards.get(held[0]);
+    const path = throwPath(handPos, this.#throwVelocity(dir, power, first?.weight ?? 0.5), this.#throwWorld(), cfg);
+    const preview = this.#ensurePreview();
+    const pos = preview.dots.geometry.attributes.position;
+    const n = pos.count;
+    for (let i = 0; i < n; i++) {
+      const k = (i + 1) / n, t = path.duration * k;
+      let j = 0;
+      while (j < path.points.length - 1 && path.points[j].t < t) j++;
+      const p = path.points[j];
+      pos.setXYZ(i, p.x, p.y + 0.02, p.z);
+    }
+    pos.needsUpdate = true;
+    preview.dots.geometry.computeBoundingSphere();
+    // 궤적 끝이 상자 입구면: 그 상자만 빛나고 고리도 상자 입구 위에 초록으로. 아니면 아무 상자도 안 빛난다(조준선이 상자를 봐도).
+    charge.caught = path.caught;
+    for (const box of this.#boxes.values()) box.setTargeted(box.id === path.caught, path.caught ? held.length : 0);
+    preview.ring.position.set(path.landing.x, path.caught ? path.points.at(-1).y + 0.03 : 0.03, path.landing.z);
+    preview.ring.material.color.set(path.caught ? "#9fe08f" : "#fff6dc");
+    preview.dots.material.color.set(path.caught ? "#cdf2c2" : "#fff6dc");
+    preview.group.visible = true;
+  }
+
+  #ensurePreview() {
+    if (this.#throwPreview) return this.#throwPreview;
+    const cfg = TUNING.card.throw;
+    const group = new THREE.Group();
+    group.userData.noSnap = true;
+    const dots = new THREE.Points(
+      new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(cfg.previewDots * 3), 3)),
+      new THREE.PointsMaterial({ color: "#fff6dc", size: 0.1, map: roundDot(), alphaTest: 0.5, transparent: true, opacity: 0.9, depthWrite: false }),
+    );
+    dots.frustumCulled = false;
+    dots.raycast = () => {};
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.22, 0.3, 28).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: "#fff6dc", transparent: true, opacity: 0.8, depthWrite: false }),
+    );
+    ring.raycast = () => {};
+    ring.userData.noSnap = true;
+    ring.material.userData.outlineParameters = { visible: false };
+    group.add(dots, ring);
+    group.visible = false;
+    this.#kit.world.add(group);
+    this.#throwPreview = { group, dots, ring };
+    return this.#throwPreview;
+  }
+
+  #cancelCharge() {
+    if (!this.#charge) return;
+    this.#charge = null;
+    delete this.#crosshair.dataset.charging;
+    this.#crosshair.style.removeProperty("--charge");
+    if (this.#throwPreview) this.#throwPreview.group.visible = false;
+    for (const box of this.#boxes.values()) box.setTargeted(false);
+  }
+
+  /** 우클릭을 뗐다: 든 것을 모은 힘으로, 보는 방향으로 던진다. 떨어진 자리가 그 파일의 새 바닥 자리다. */
+  #releaseThrow() {
+    const charge = this.#charge;
+    this.#cancelCharge();
+    const store = this.#store;
+    const held = store.selection;
+    if (!charge || !held.length) return;
+    const cfg = TUNING.card.throw;
+    const power = chargePower((performance.now() - charge.start) / 1000, cfg);
+    const { dir, handPos } = this.#throwAim();
+    const world = this.#throwWorld();
+    // 첫 장의 궤적이 상자로 들어가면 든 것 전부 그 상자에 넣는다(좌클릭으로 넣는 것과 같은 배치·되돌리기)
+    const firstCard = this.#cards.get(held[0]);
+    const firstFrom = firstCard?.group.visible ? new THREE.Vector3(firstCard.state.x, firstCard.state.y, firstCard.state.z) : handPos;
+    const aimPath = throwPath(firstFrom, this.#throwVelocity(dir, power, firstCard?.weight ?? 0.5), world, cfg);
+    if (aimPath.caught != null) {
+      const velocity = this.#throwVelocity(dir, power, firstCard?.weight ?? 0.5);
+      held.forEach((id, index) => {
+        const card = this.#cards.get(id);
+        const from = card?.group.visible ? new THREE.Vector3(card.state.x, card.state.y, card.state.z) : handPos;
+        this.#throwPaths.set(id, index === 0 ? aimPath : throwPath(from, velocity, world, cfg));
+      });
+      for (const box of this.#boxes.values()) box.setTargeted(false);
+      this.#onDropToFolder?.([...held], aimPath.caught);
+      return;
+    }
+    const positions = held.map((id, index) => {
+      const card = this.#cards.get(id);
+      const from = card?.group.visible ? new THREE.Vector3(card.state.x, card.state.y, card.state.z) : handPos;
+      const path = throwPath(from, this.#throwVelocity(dir, power, card?.weight ?? 0.5, index), world, cfg);
+      this.#throwPaths.set(id, path);
+      const spot = toLogical(path.landing.x, path.landing.z);
+      return { id, x: spot.cx - store.card.width / 2, y: spot.cy - store.card.height / 2 };
+    });
+    store.setPositions(positions);
+    store.clearSelection();
+  }
+
   /** 겨눈 곳이 다락방 벽 핀보드(코르크)인지. 판 둘레 25 cm까지 봐준다. */
   #aimsAtPinboard(aim) {
     if (!this.walking || this.#arranging) return false;
@@ -1125,13 +1370,34 @@ export class Board3D {
     return x > board.minX - pad && x < board.maxX + pad && y > board.minY - pad && y < board.maxY + pad;
   }
 
+  /** 겨눈 곳이 침대인지. 침대 모델의 상자로 본다(삼각형 4천 개를 매 프레임 쏘지 않는다). 손 닿는 5 m까지. */
+  #aimsAtBed(aim) {
+    const box = this.#kit.bedBox;
+    if (!box || !this.walking || this.#arranging) return false;
+    const kit = this.#kit;
+    kit.raycaster.setFromCamera(kit.ndcFrom(aim.x, aim.y), kit.camera);
+    const hit = kit.raycaster.ray.intersectBox(box, new THREE.Vector3());
+    return !!hit && hit.distanceTo(kit.raycaster.ray.origin) < 10;
+  }
+
   #updateHandHint() {
     const held = this.#store.selection.length;
     const walking = this.#kit.isWalking;
-    this.#handHint.hidden = this.#arranging || !walking || held === 0;
+    const bed = held === 0 && walking && this.#locked && !["card", "box", "pile"].includes(this.#crosshair.dataset.over) && this.#aimsAtBed(this.#aim(null));
+    this.#handHint.hidden = this.#arranging || !walking || (held === 0 && !bed);
+    if (bed) {
+      const message = `<kbd>좌클릭</kbd> 한숨 자기 <span>· ${this.#kit.isNight ? "아침으로" : "밤으로"}</span>`;
+      if (this.#handHint.innerHTML !== message) this.#handHint.innerHTML = message;
+      return;
+    }
     if (held > 0 && walking) {
       const pin = this.#locked && this.#aimsAtPinboard(this.#aim(null));
-      const message = `<kbd>좌클릭</kbd> 상자에 넣기 <span>· ${held}장</span> <kbd>우클릭</kbd> ${pin ? "핀보드에 꽂기" : "내려놓기"}`;
+      const caughtName = this.#charge?.caught != null ? this.#store.folder(this.#charge.caught)?.name : null;
+      const message = this.#charge
+        ? caughtName ? `던지면 <strong>${escapeHtml(caughtName)}</strong>에 넣기 <span>· ${held}장</span>` : `던지기 <span>· 놓으면 날아감</span>`
+        : this.#hintFlash > performance.now()
+          ? `바닥에 두려면 <kbd>우클릭</kbd>으로 던지세요 <span>· 짧게 누르면 발 앞에</span>`
+          : `<kbd>좌클릭</kbd> 상자에 넣기 <span>· ${held}장</span> <kbd>우클릭</kbd> ${pin ? "핀보드에 꽂기" : "꾹 눌러 던지기"}`;
       if (this.#handHint.innerHTML !== message) this.#handHint.innerHTML = message;
     }
   }
@@ -1254,6 +1520,7 @@ export class Board3D {
   #onPointerMove(event) {
     if (this.#suspended) return;
     this.#boxPointer = { clientX: event.clientX, clientY: event.clientY };
+    this.#lastClient = { clientX: event.clientX, clientY: event.clientY };
     this.#kit.setPointer(event.clientX, event.clientY);
 
     if (this.#look && event.pointerId === this.#look.pointerId) {

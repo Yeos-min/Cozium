@@ -39,11 +39,12 @@ $skipNames = @(".git", "node_modules")
 $skipDirs = @(
   "_archive", "Cozium", "Claude outputs", "output", ".claude", ".codex", ".agents",
   "js\landing", "assets\landing\box", "assets\landing\parts\desktop-v3",
-  "tools\attic-icons", "tools\attic-blockout", "tools\intro-video", "docs\prototypes"
+  "tools\attic-icons", "tools\attic-blockout", "tools\intro-video", "docs\prototypes",
+  "assets\landing\parts\desktop-v2", "assets\landing\parts\room-v3"  # 10-18: the old import screen's art (the import screen is now the laptop desktop)
 )
 # files skipped at these exact places
 $skipFiles = @(
-  "tools\sync-target.txt",
+  "tools\sync-target.txt", "js\ui\onboarding-room.js",
   "landing-classic.html", "css\landing.css", "js\landing-story\godrays.js",
   "js\three\cozy-room.js", "js\three\shelf-frame.js", "tests\shelf-frame.test.js",
   "models\Bed.glb", "tools\bed-preview.html", "tools\optimize-landing-assets.py", "tools\landing-assets-report.json",

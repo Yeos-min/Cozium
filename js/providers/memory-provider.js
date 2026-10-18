@@ -75,7 +75,7 @@ export class MemoryProvider extends VirtualMoveProvider {
       for (const name of folder.source?.existing ?? []) {
         const item = this._addFile({ id: crypto.randomUUID(), name, size: 0,
           type: "", extension: getExtension(name), file: null, lastModified: 0 });
-        this._placement.set(item.id, folderId);
+        this._placeInitially(item.id, folderId);
       }
       this.#contentsLoaded.add(folderId);
     }

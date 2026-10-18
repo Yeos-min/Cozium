@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="./css/styles.css" />
     <link rel="stylesheet" href="./css/folder-interior.css" />
     <link rel="stylesheet" href="./css/onboarding.css" />
+    <link rel="stylesheet" href="./css/room-intro.css" />
+    <link rel="stylesheet" href="./css/finish.css" />
     <!-- 다락방(models/room.glb, 4.4 MB)을 가져오기 화면에 있는 동안 미리 받는다. GLTFLoader의 fetch와 같은 요청(crossorigin). -->
     <link rel="preload" href="./models/room.glb" as="fetch" type="model/gltf-binary" crossorigin />
     <!-- three.js는 vendor/에 넣어 두었다. 발표 중 네트워크가 끊겨도 돌아간다. -->
@@ -24,7 +26,7 @@
   <body>
     <header class="topbar">
       <div class="topbar-left">
-        <a class="brand" href="./" aria-label="Cozium 처음으로">cozium<span aria-hidden="true">⌁</span></a>
+        <a class="brand" href="./index.html" aria-label="Cozium 처음으로">cozium<span aria-hidden="true">⌁</span></a>
         <a class="help-link" href="./help.html">이용 안내</a>
       </div>
       <div class="topbar-right">
@@ -34,71 +36,97 @@
     </header>
 
     <main class="app-shell">
-      <!-- ───────── 온보딩: 밤의 방 (2026-10-08). 배경 배치는 js/ui/onboarding-room.js ───────── -->
+      <!-- ───────── 가져오기: 노트북 바탕화면 (2026-10-18). 랜딩이 노트북 화면으로 들어가 끝나는 그 바탕화면이 곧 이 화면이다.
+           창 끌기·시계·내 파일 아이콘·떠나는 연출은 js/ui/import-desk.js, 모양은 css/onboarding.css ───────── -->
       <section id="onboarding" class="onboarding" aria-labelledby="page-title">
-        <div class="ob-room" aria-hidden="true">
-          <div class="ob-plate" id="ob-plate">
-            <img class="ob-paint" src="./assets/landing/parts/room-v3/room-background.webp" alt="" />
-            <div class="ob-night"></div>
-            <div class="ob-screen" id="ob-screen">
-              <img src="./assets/landing/parts/desktop-v2/wallpaper.svg" alt="" />
-              <img class="ob-screen-files" src="./assets/landing/parts/desktop-v2/desktop-composition.svg" alt="" />
+        <div class="desk" data-drop="desktop" tabindex="-1" aria-label="바탕화면. 파일을 여기에 끌어다 놓을 수 있습니다">
+          <ul class="desk-icons" aria-label="바탕화면 아이콘">
+            <li><button class="desk-icon" type="button" data-desk="sample"><img src="./assets/landing/parts/desktop-v4/icons/folder-sand.webp" alt="" /><span>샘플 바탕화면</span></button></li>
+            <li><a class="desk-icon" href="./help.html"><img src="./assets/landing/parts/desktop-v4/icons/document.webp" alt="" /><span>이용 안내.txt</span></a></li>
+            <li><button class="desk-icon" type="button" data-desk="helper"><img src="./assets/landing/parts/desktop-v4/icons/archive.webp" alt="" /><span>Desktop Helper.zip</span></button></li>
+          </ul>
+          <ol class="desk-files" id="desk-files" aria-label="가져온 바탕화면 항목"></ol>
+          <div class="desk-dropping" aria-hidden="true"><span>여기 놓으세요</span></div>
+
+          <div class="win win-import" id="win-import">
+            <div class="win-bar" data-drag="win-import">
+              <img src="./assets/app/desk/tile-2.webp" alt="" />
+              <span class="win-title">Cozium으로 옮기기</span>
             </div>
-            <div class="ob-glow"></div>
-            <img class="ob-paint ob-fg" src="./assets/landing/parts/room-v3/foreground-left.webp" alt="" />
-            <img class="ob-paint ob-fg" src="./assets/landing/parts/room-v3/foreground-files-right.webp" alt="" />
-            <img class="ob-paint ob-fg" src="./assets/landing/parts/room-v3/foreground-door-right.webp" alt="" />
+            <div class="win-body">
+              <h1 id="page-title">내 바탕화면을<br /><em>쓸어 담으세요.</em></h1>
+              <p class="win-lede">바탕화면의 파일이 다락방 바닥의 물건이 되고, 폴더는 벽의 상자가 됩니다.</p>
+
+              <div id="support-state" class="support-state" role="alert" hidden></div>
+
+              <div class="win-web" id="mode-web" data-mode="web">
+                <ol class="win-steps" aria-label="가져오는 법">
+                  <li><span>1</span>진짜 바탕화면에서 <kbd>Ctrl</kbd><kbd>A</kbd>로 전부 고르기</li>
+                  <li><span>2</span>이 화면 아무 데나 끌어다 놓기</li>
+                </ol>
+                <p class="win-summary file-preview" id="web-summary" aria-live="polite"></p>
+                <button class="win-go" id="start-web" type="button" disabled>방으로 가기 <span aria-hidden="true">→</span></button>
+                <p class="win-fine">상자는 <strong>한 번에 20개까지</strong> — 폴더가 더 많으면 앞의 20개만 상자가 되고, 파일은 전부 옵니다.
+                  바닥에는 한 번에 <strong id="capacity-label">16</strong>장씩 나오고 나머지는 더미에서 이어 나옵니다.</p>
+                <p class="win-fine">파일은 읽기만 하고 디스크는 바꾸지 않습니다. 어디로도 보내지 않습니다. <a href="./help.html#privacy">파일과 개인정보</a> · Chromium 데스크톱 전용</p>
+              </div>
+
+              <div class="win-sample" id="memory-tools">
+                <button class="win-link" id="load-sample" type="button">파일 없이 샘플로 둘러보기 <span aria-hidden="true">→</span></button>
+              </div>
+            </div>
           </div>
+
+          <div class="win win-helper" id="mode-helper" data-mode="helper" hidden>
+            <div class="win-bar" data-drag="mode-helper">
+              <img src="./assets/app/desk/tile-5.webp" alt="" />
+              <span class="win-title">Desktop Helper — 실제로 옮기기</span>
+              <button class="win-close" type="button" data-desk="helper-close" aria-label="Desktop Helper 창 닫기">×</button>
+            </div>
+            <div class="win-body">
+              <p>
+                내 컴퓨터에서 작은 Helper를 실행하면 바탕화면을 직접 읽고, 상자에 넣는 순간 실제 폴더로 옮깁니다.
+                되돌리기도 실제로 됩니다. 이동과 새 폴더만 하고, 지우기는 없습니다.
+              </p>
+              <ol class="howto">
+                <li><a id="helper-download" href="https://github.com/min20011009/desktop-cleanup-prototype/releases" target="_blank" rel="noopener">Desktop Helper</a>를 받아 실행합니다. Node 20 이상이 있으면 <code>node desktop-helper.mjs</code>.</li>
+                <li>실행되면 브라우저가 이 페이지를 연결 주소로 엽니다. Chrome이 "로컬 네트워크 접근"을 물으면 허용하세요.</li>
+                <li>자동으로 안 열리면 Helper 창의 포트와 토큰을 넣고 연결하세요.</li>
+              </ol>
+              <form id="helper-form" class="helper-form" autocomplete="off">
+                <input id="helper-port" inputmode="numeric" placeholder="포트" aria-label="Helper 포트" />
+                <input id="helper-token" placeholder="토큰" aria-label="Helper 토큰" />
+                <button class="win-button" type="submit">연결</button>
+              </form>
+              <p class="file-preview" id="helper-state"></p>
+              <button class="win-go" id="start-helper" type="button" disabled>바탕화면 읽고 방으로 가기 <span aria-hidden="true">→</span></button>
+              <!-- 체험 모드에서 저장한 정리 계획(10-18): 연결되면 여기서 한 번에 적용. app.js refreshPlanOffer -->
+              <div class="helper-plan" id="helper-plan" hidden>
+                <p id="helper-plan-text"></p>
+                <button class="win-button" id="helper-plan-apply" type="button" hidden>저장한 정리 계획 적용하기</button>
+                <label class="win-link helper-plan-file">정리 계획 파일 불러오기 (.json)<input id="helper-plan-file" type="file" accept=".json,application/json" hidden /></label>
+              </div>
+            </div>
+          </div>
+
+          <nav class="taskbar" aria-label="작업표시줄">
+            <div class="taskbar-apps">
+              <a class="tb-app" href="./index.html" title="Cozium 처음으로 (다락방)"><img src="./assets/app/desk/tile-1.webp" alt="Cozium 처음으로" /></a>
+              <button class="tb-app" type="button" data-desk="import" title="Cozium으로 옮기기"><img src="./assets/app/desk/tile-2.webp" alt="Cozium으로 옮기기 창" /></button>
+              <button class="tb-app" type="button" data-desk="sample" title="샘플로 둘러보기"><img src="./assets/app/desk/tile-3.webp" alt="샘플로 둘러보기" /></button>
+              <a class="tb-app" href="./help.html" title="이용 안내"><img src="./assets/app/desk/tile-4.webp" alt="이용 안내" /></a>
+              <button class="tb-app" type="button" data-desk="helper" title="Desktop Helper"><img src="./assets/app/desk/tile-5.webp" alt="Desktop Helper 창" /></button>
+            </div>
+            <div class="taskbar-tray">
+              <span class="tray-helper" id="tray-helper" data-on="false" title="Desktop Helper 연결 상태">Helper</span>
+              <img src="./assets/app/desk/tray.webp" alt="" />
+              <time class="tray-clock" id="tray-clock"></time>
+            </div>
+          </nav>
+          <div class="desk-frame" aria-hidden="true"></div>
         </div>
 
-        <div class="ob-panel">
-          <h1 id="page-title">내 바탕화면을<br /><em>쓸어 담으세요.</em></h1>
-          <p class="ob-lede">바탕화면의 파일이 방바닥의 물건이 됩니다. 같은 종류끼리 한 번에 집어 상자에 넣으세요.</p>
-
-          <div id="support-state" class="support-state" role="alert" hidden></div>
-
-          <div class="ob-web" id="mode-web" data-mode="web">
-            <div class="drop-target ob-drop" data-drop="desktop" tabindex="0" aria-label="바탕화면 항목 드롭 영역">
-              <strong>바탕화면 항목을 전부 여기에 놓으세요</strong>
-              <span>바탕화면에서 <kbd>Ctrl</kbd><kbd>A</kbd>로 고른 뒤 끌어다 놓기</span>
-            </div>
-            <p class="ob-fine">파일은 읽기만 하고 디스크는 바꾸지 않습니다. 어디로도 보내지 않습니다. <a href="./help.html#privacy">파일과 개인정보</a></p>
-            <p class="file-preview" id="web-summary"></p>
-            <button class="button button-commit ob-start" id="start-web" type="button" disabled>책상 열기 · 체험</button>
-          </div>
-
-          <div class="ob-sample" id="memory-tools">
-            <button class="ob-link" id="load-sample" type="button">파일 없이 먼저 둘러보기 <span aria-hidden="true">→</span></button>
-            <span>준비된 가상 파일로 시작합니다.</span>
-          </div>
-
-          <details class="ob-helper" id="mode-helper" data-mode="helper">
-            <summary>실제로 옮기려면: Desktop Helper 연결</summary>
-            <p>
-              내 컴퓨터에서 작은 Helper를 실행하면 바탕화면을 직접 읽고, 상자에 넣는 순간 실제 폴더로 옮깁니다.
-              되돌리기도 실제로 됩니다. 이동과 새 폴더만 하고, 지우기는 없습니다.
-            </p>
-            <ol class="howto">
-              <li><a id="helper-download" href="https://github.com/min20011009/desktop-cleanup-prototype/releases" target="_blank" rel="noopener">Desktop Helper</a>를 받아 실행합니다. Node 20 이상이 있으면 <code>node desktop-helper.mjs</code>.</li>
-              <li>실행되면 브라우저가 이 페이지를 연결 주소로 엽니다. Chrome이 "로컬 네트워크 접근"을 물으면 허용하세요.</li>
-              <li>자동으로 안 열리면 Helper 창의 포트와 토큰을 넣고 연결하세요.</li>
-            </ol>
-            <form id="helper-form" class="helper-form" autocomplete="off">
-              <input id="helper-port" inputmode="numeric" placeholder="포트" aria-label="Helper 포트" />
-              <input id="helper-token" placeholder="토큰" aria-label="Helper 토큰" />
-              <button class="button button-secondary" type="submit">연결</button>
-            </form>
-            <p class="file-preview" id="helper-state"></p>
-            <button class="button button-commit" id="start-helper" type="button" disabled>바탕화면 읽기 · 시작</button>
-          </details>
-
-          <p class="step-help">
-            보드에는 한 번에 <strong id="capacity-label">16</strong>장씩 올라오고, 나머지는 더미에서 이어서 나옵니다.
-            어떤 파일을 어디에 넣을지는 전부 당신이 정합니다. 자동 추천은 없습니다.
-          </p>
-
-          <div id="onboarding-notice" class="notice" role="status" aria-live="polite" hidden></div>
-        </div>
+        <div id="onboarding-notice" class="notice desk-toast" role="status" aria-live="polite" hidden></div>
       </section>
 
       <!-- ───────── 보드 ───────── -->
@@ -109,6 +137,7 @@
             <button class="button button-undo button-small" id="undo-button" type="button" disabled>
               <span class="undo-label">마지막 더미 되돌리기</span> <kbd>Ctrl</kbd><kbd>Z</kbd>
             </button>
+            <button class="button button-secondary button-small" id="finish-button" type="button">정리 끝내기</button>
             <button class="button button-secondary button-small" id="arrange-toggle" type="button" aria-pressed="false">파일 정리 모드 · Tab</button>
             <button class="button button-secondary button-small" id="panel-toggle" type="button" aria-pressed="false" aria-label="설정 및 기록 열기" title="설정 및 기록">
               <span aria-hidden="true">⚙</span>
@@ -187,9 +216,9 @@
                 <li>카드를 보고 클릭 · 손에 담기. 누른 채 훑으면 닿는 대로 담긴다</li>
                 <li>폴더를 보고 클릭 · 든 것을 전부 넣기. 빈손이면 폴더가 열린다</li>
                 <li>샘플 상자 내부 · 클릭으로 선택, Shift+클릭으로 여러 개 선택, Esc로 들고 돌아오기</li>
-                <li><kbd>1</kbd>~<kbd>9</kbd> · 든 것을 보이는 줄의 N번 폴더에 넣기</li>
-                <li>오른쪽 버튼 · 겨누는 그 자리에 내려놓기</li>
+                <li>오른쪽 버튼 꾹 · 보는 방향으로 던지기 (오래 누를수록 멀리, 위를 보면 높이). 궤적 끝이 상자에 닿아 상자가 빛나면 그 상자에 들어간다. 짧게 누르면 발 앞에 내려놓기. 핀보드를 보고 누르면 다시 꽂기</li>
                 <li>더미를 보고 클릭 · 다음 무더기 꺼내기</li>
+                <li>빈손으로 침대를 보고 클릭 · 한숨 자기 (낮 ↔ 밤)</li>
                 <li><kbd>Ctrl</kbd><kbd>A</kbd> 전부 담기 · <kbd>Backspace</kbd> 칸 닫기</li>
                 <li><kbd>Ctrl</kbd><kbd>Z</kbd> · 마지막 더미 되돌리기</li>
                 <li><kbd>Tab</kbd> · 파일 정리 / 상자 배치 모드 전환</li>
@@ -203,6 +232,83 @@
             </div>
             <ol id="log" class="log" aria-live="polite"></ol>
           </aside>
+        </div>
+        <!-- 정리 시작 화면(10-18): 로딩 → 조작 안내 → 「방에 들어가기」. js/ui/room-intro.js, css/room-intro.css -->
+        <div class="room-intro" id="room-intro" data-phase="idle" hidden>
+          <div class="intro-loading" aria-live="polite">
+            <div class="intro-drop" aria-hidden="true">
+              <img class="intro-drop-file" src="./assets/landing/parts/desktop-v4/icons/document.webp" alt="" />
+              <img class="intro-drop-folder" src="./assets/landing/parts/desktop-v4/icons/folder-sand.webp" alt="" />
+            </div>
+            <strong class="intro-mark">Cozium</strong>
+            <small class="intro-kicker">방을 꾸리는 중</small>
+            <div class="intro-bar" role="progressbar" aria-label="방 불러오기" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+            <p class="intro-step"><span id="intro-step">다락방 불러오는 중</span><output id="intro-percent">0%</output></p>
+            <p class="intro-tip" id="intro-tip"></p>
+          </div>
+          <div class="intro-ready" role="dialog" aria-modal="true" aria-labelledby="intro-title">
+            <h2 class="intro-mark" id="intro-title">Cozium</h2>
+            <small class="intro-kicker" id="intro-mode">나의 작은 정리방</small>
+            <section class="intro-controls" aria-label="조작">
+              <h3>조작</h3>
+              <dl>
+                <div><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>걷기 <span>· Shift 빠르게</span></dd></div>
+                <div><dt><i class="mouse" data-btn="none"></i><b>마우스</b></dt><dd>둘러보기 <span>· 가운데 점이 손이 닿는 곳</span></dd></div>
+                <div><dt><i class="mouse" data-btn="left"></i><b>좌클릭</b></dt><dd>파일 담기 <span>· 누른 채 훑으면 여러 장</span></dd></div>
+                <div><dt><i class="mouse" data-btn="left"></i><b>좌클릭</b></dt><dd>상자에 넣기 <span>· 든 채로 상자를 보고</span></dd></div>
+                <div><dt><i class="mouse" data-btn="right"></i><b>우클릭 꾹</b></dt><dd>던지기 <span>· 상자가 빛나면 그 안으로</span></dd></div>
+                <div><dt><kbd>Space</kbd></dt><dd>점프</dd></div>
+                <div><dt><kbd>Tab</kbd></dt><dd>상자 배치 모드</dd></div>
+                <div><dt><kbd>Ctrl</kbd><kbd>Z</kbd></dt><dd>되돌리기</dd></div>
+                <div><dt><kbd>Esc</kbd></dt><dd>커서 놓기 <span>· 다시 클릭하면 돌아와요</span></dd></div>
+              </dl>
+            </section>
+            <button class="intro-enter" id="intro-enter" type="button">방에 들어가기 <span aria-hidden="true">→</span></button>
+            <p class="intro-foot">전체 조작은 언제든 오른쪽 위 <span aria-hidden="true">⚙</span> 설정에서</p>
+          </div>
+        </div>
+      </section>
+      <!-- ───────── 정리 결과: 정리된 노트북 바탕화면 (2026-10-18). 「정리 끝내기」나 다 치웠을 때.
+           옮긴 파일이 폴더로 날아 들어가고 남은 것만 남는다. js/ui/finish-desk.js, css/finish.css ───────── -->
+      <section id="finish" class="onboarding finish" aria-labelledby="finish-title" hidden>
+        <div class="desk">
+          <ol class="desk-files" id="finish-icons" aria-label="정리된 바탕화면"></ol>
+          <div class="win win-finish is-front" id="win-finish" role="dialog" aria-modal="true" aria-labelledby="finish-title">
+            <div class="win-bar">
+              <img src="./assets/app/desk/tile-2.webp" alt="" />
+              <span class="win-title">정리 결과</span>
+            </div>
+            <div class="win-body">
+              <p class="finish-kicker" id="finish-kicker"></p>
+              <h1 id="finish-title"></h1>
+              <p class="finish-lede" id="finish-lede"></p>
+              <dl class="finish-stats" id="finish-stats"></dl>
+              <ul class="finish-folders" id="finish-folders" aria-label="폴더별로 옮긴 파일"></ul>
+              <p class="finish-left" id="finish-left"></p>
+              <div class="finish-apply" id="finish-apply" aria-live="polite"></div>
+              <div class="finish-actions">
+                <button class="win-go" id="finish-back" type="button">방으로 돌아가기</button>
+                <div class="finish-links">
+                  <button class="win-link" id="finish-replay" type="button">정리 전부터 다시 보기</button>
+                  <a class="win-link" href="./index.html">처음으로</a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <nav class="taskbar" aria-label="작업표시줄">
+            <div class="taskbar-apps">
+              <a class="tb-app" href="./index.html" title="Cozium 처음으로 (다락방)"><img src="./assets/app/desk/tile-1.webp" alt="Cozium 처음으로" /></a>
+              <span class="tb-app" aria-hidden="true"><img src="./assets/app/desk/tile-2.webp" alt="" /></span>
+              <span class="tb-app" aria-hidden="true"><img src="./assets/app/desk/tile-3.webp" alt="" /></span>
+              <a class="tb-app" href="./help.html" title="이용 안내"><img src="./assets/app/desk/tile-4.webp" alt="이용 안내" /></a>
+              <span class="tb-app" aria-hidden="true"><img src="./assets/app/desk/tile-5.webp" alt="" /></span>
+            </div>
+            <div class="taskbar-tray">
+              <img src="./assets/app/desk/tray.webp" alt="" />
+              <time class="tray-clock" id="finish-clock"></time>
+            </div>
+          </nav>
+          <div class="desk-frame" aria-hidden="true"></div>
         </div>
       </section>
     </main>
@@ -239,6 +345,5 @@
     </template>
 
     <script type="module" src="./js/app.js"></script>
-    <script type="module" src="./js/ui/onboarding-room.js"></script>
   </body>
 </html>

@@ -116,7 +116,7 @@ export class WebDropProvider extends VirtualMoveProvider {
           if (await this.#hasHandle(this._files.values(), handle)) continue;
           const described = await describeFileHandle(handle);
           const item = this._addFile({ ...described, extension: getExtension(described.name) }, handle);
-          this._placement.set(item.id, folderId);
+          this._placeInitially(item.id, folderId);
         }
       }
       this.#contentsLoaded.add(folderId);

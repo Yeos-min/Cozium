@@ -15,6 +15,7 @@ import { GodRays, findSkylight } from "../three/godrays.js";
 import { toonGradient } from "../three/materials.js";
 import { setInk } from "./outline-ink.js";
 import { TEXT_LAYER } from "../three/text-overlay.js";
+import { steamFromMug } from "../three/steam.js";
 export { TEXT_LAYER };
 
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
@@ -115,6 +116,7 @@ export class RoomLayer {
     this.#readScreen();
     this.#buildLights();
     this.#buildRays();
+    this.steam = steamFromMug(this.room, this.scene); // 10-13: 책상 머그잔의 김
     this.#buildFiles();
     if (box) this.#buildBoxes(box.scene); // the tidied room shows a clear floor now; boxes only on request (10-11)
     this.room.traverse((o) => { if (o.isMesh) this.meshes.push(o); });
@@ -307,6 +309,7 @@ export class RoomLayer {
     if (this.rays) this.rays.on = key === "sun" && s.rays !== false && this.quality.profile.rays;
     const sm = [].concat(this.screenMesh.material).find((mm) => mm.name === SCREEN);
     if (sm?.emissive) sm.emissive.set(L.screenGlow ? "#1b2440" : "#000000");
+    this.steam?.setTint(L.screenGlow ? "#dbe3ff" : undefined, L.screenGlow ? .8 : 1); // 밤에는 화면빛에 푸르게, 옅게
   }
 
   setStyle(patch) {
@@ -447,6 +450,7 @@ export class RoomLayer {
     if (this._last && this.quality.observe(dt, !document.hidden)) this.#applyQuality();
     this._last = now;
     this.#applyPose(this.#lookPose(this.poseAt(t), t, dt), plateW, plateH);
+    this.steam?.update(now / 1000);
     this.snap.prepare(this.scene);
     this.outline.render(this.scene, this.camera);
     this.rays?.render(this.renderer, this.camera, performance.now() / 1000, this.renderer.getPixelRatio());

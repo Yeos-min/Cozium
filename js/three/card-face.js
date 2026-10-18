@@ -348,7 +348,7 @@ export function makeBoxTexture(THREE, { index, name, subtitle, accent, bodyColor
 
 /**
  * 다락방 상자(`models/box.glb`) 앞면 손잡이 구멍 아래에 붙이는 이름표. (10-11)
- * 모델 앞면 UV가 아틀라스 조각이라 앞면 전체 대신 작은 판에 그린다. 번호는 숫자 키다.
+ * 모델 앞면 UV가 아틀라스 조각이라 앞면 전체 대신 작은 판에 그린다. 번호 동그라미는 숫자 키와 함께 뺐다(10-13).
  */
 export function makeBoxLabelTexture(THREE, { index, name, subtitle, accent }) {
   const key = `boxlabel|${index}|${name}|${subtitle}|${accent}`;
@@ -368,23 +368,20 @@ export function makeBoxLabelTexture(THREE, { index, name, subtitle, accent }) {
   ctx.strokeStyle = "#6b5a3e";
   ctx.lineWidth = 5;
   ctx.stroke();
-  // 번호 동그라미: 숫자 키
+  // 겨눔 색 띠(예전 번호 동그라미 자리)
   ctx.fillStyle = accent ?? "#ffdb68";
-  ctx.beginPath(); ctx.arc(52, 58, 30, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = "#6b5a3e"; ctx.lineWidth = 4; ctx.stroke();
-  ctx.fillStyle = "#3d3426";
-  ctx.font = "800 34px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
-  ctx.textAlign = "center";
+  roundRect(ctx, 30, 40, 10, 38, 5);
+  ctx.fill();
   ctx.textBaseline = "middle";
-  drawText(ctx, ink, String(index), 52, 60);
   ctx.textAlign = "left";
+  ctx.fillStyle = "#3d3426";
   ctx.font = "700 40px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   const lines = wrap(ctx, name, width - 60, 2);
   const top = lines.length > 1 ? 122 : 140;
   lines.forEach((line, i) => drawText(ctx, ink, line, 30, top + i * 46));
   ctx.fillStyle = "#7d6f55";
   ctx.font = "500 24px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
-  drawText(ctx, ink, subtitle, 104, 58);
+  drawText(ctx, ink, subtitle, 54, 59);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;

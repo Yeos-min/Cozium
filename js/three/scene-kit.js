@@ -16,6 +16,7 @@ import { ATTIC_BOX, ATTIC_FLOOR, ATTIC_HALF, ATTIC_OBSTACLES, ATTIC_SCALE, ATTIC
 import { wallShelfSlots } from "./folder-shelves.js";
 import { surfaceMaterial, toonFrom } from "./materials.js";
 import { GodRays, findSkylight } from "./godrays.js";
+import { STEAM, steamFromMug } from "./steam.js";
 import { groundAt, moveWalker, safeWalkPosition, stepVertical } from "./walk-collision.js";
 import { LookInput } from "./look-input.js";
 import { updatePickMatrices } from "./pick-matrices.js";
@@ -119,8 +120,18 @@ export class SceneKit {
   #buildLights() {
     const { key, fill, hemi, shadow } = TUNING.light;
 
-    this.scene.add(new THREE.HemisphereLight(hemi.sky, hemi.ground, hemi.intensity));
-    this.scene.add(new THREE.AmbientLight(TUNING.light.ambient.color, TUNING.light.ambient.intensity));
+    this.hemiLight = new THREE.HemisphereLight(hemi.sky, hemi.ground, hemi.intensity);
+    this.ambientLight = new THREE.AmbientLight(TUNING.light.ambient.color, TUNING.light.ambient.intensity);
+    this.scene.add(this.hemiLight, this.ambientLight);
+    // 밤의 스탠드와 노트북 화면빛. 낮에는 세기 0(빛 개수가 그대로라 밤이 될 때 셰이더를 다시 안 만든다). 자리는 방이 오면 잡는다.
+    const { lamp, glow } = TUNING.night;
+    this.lampLight = new THREE.PointLight(lamp.color, 0, lamp.distance, lamp.decay);
+    this.screenGlow = new THREE.PointLight(glow.color, 0, glow.distance, glow.decay);
+    this.lampLight.position.set(7.3, 2, 4.9);
+    this.screenGlow.position.set(6.6, 2.2, 1.9);
+    this.scene.add(this.lampLight, this.screenGlow);
+    this.night = 0;       // 0 = 낮, 1 = 밤
+    this.nightTarget = 0;
 
     this.keyLight = new THREE.DirectionalLight(key.color, key.intensity);
     const keyDir = directionFromAngles(key.elevation, key.azimuth);
@@ -214,7 +225,10 @@ export class SceneKit {
   async #loadAttic() {
     try {
       const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
-      const gltf = await new GLTFLoader().loadAsync(ATTIC_URL);
+      // 받는 만큼 알린다(정리 시작 로딩 화면, 10-18). total을 모르면 0으로 온다.
+      const gltf = await new GLTFLoader().loadAsync(ATTIC_URL, (event) => {
+        this.root.dispatchEvent(new CustomEvent("roomprogress", { detail: { loaded: event.loaded, total: event.lengthComputable ? event.total : 0 } }));
+      });
       if (this.disposed) return false;
       const room = gltf.scene;
       room.name = "attic-room";
@@ -236,7 +250,9 @@ export class SceneKit {
       });
       this.roomGroup.add(room);
       this.attic = room;
+      this.steam = steamFromMug(room, this.roomGroup, { opacity: 0.6 }); // 10-13: 책상 머그잔의 김(밝은 낮 벽이라 조금 진하게)
       if (this.laptopScreen) this.#lightLaptop(this.laptopScreen);
+      this.#placeNightLights(room);
       this.fallbackRoom.visible = false;
       this.desk.visible = false;
       if (shell && TUNING.render.rays) this.#buildRays(shell);
@@ -258,6 +274,63 @@ export class SceneKit {
       texture.colorSpace = THREE.SRGBColorSpace;
       mesh.material = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false });
     }, undefined, () => { /* 화면은 검은 채로 둔다 */ });
+  }
+
+  /** 밤 조명 자리: 버섯 스탠드(`Lantern`) 갓 아래, 노트북 화면 앞. 침대(`Bed.001`)는 누르는 범위로 상자 하나를 기억한다. */
+  #placeNightLights(room) {
+    const center = (object) => new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3());
+    const lantern = room.getObjectByName("Lantern");
+    if (lantern) this.lampLight.position.copy(center(lantern)).add(new THREE.Vector3(-0.1, 0.1, 0));
+    if (this.laptopScreen) {
+      const screen = center(this.laptopScreen), toRoom = new THREE.Vector3(-screen.x, 0, -screen.z).normalize();
+      this.screenGlow.position.copy(screen).addScaledVector(toRoom, 0.7);
+    }
+    const bed = room.getObjectByName("Bed001") ?? room.getObjectByName("Bed.001"); // GLTFLoader가 이름의 "."을 뺀다
+    if (bed) this.bedBox = new THREE.Box3().setFromObject(bed);
+  }
+
+  /** 낮 ↔ 밤. 바로 바뀌지 않고 TUNING.night.duration 동안 해가 진다(뜬다). */
+  toggleNight() {
+    this.nightTarget = this.nightTarget > 0.5 ? 0 : 1;
+    this.root.dataset.time = this.nightTarget ? "night" : "day";
+    return this.nightTarget === 1;
+  }
+
+  get isNight() {
+    return this.nightTarget === 1;
+  }
+
+  #stepNight(dt) {
+    if (this.night === this.nightTarget) return;
+    const step = dt / TUNING.night.duration;
+    this.night = this.nightTarget > this.night ? Math.min(1, this.night + step) : Math.max(0, this.night - step);
+    this.#applyNight(this.night * this.night * (3 - 2 * this.night)); // 부드럽게 시작하고 멈춤
+  }
+
+  #applyNight(k) {
+    const day = TUNING.light, N = TUNING.night;
+    const mix = (target, a, b) => target.set(a).lerp(new THREE.Color(b), k);
+    const lerp = (a, b) => a + (b - a) * k;
+    mix(this.hemiLight.color, day.hemi.sky, N.hemi.sky);
+    mix(this.hemiLight.groundColor, day.hemi.ground, N.hemi.ground);
+    this.hemiLight.intensity = lerp(day.hemi.intensity, N.hemi.intensity);
+    mix(this.ambientLight.color, day.ambient.color, N.ambient.color);
+    this.ambientLight.intensity = lerp(day.ambient.intensity, N.ambient.intensity);
+    mix(this.keyLight.color, day.key.color, N.key.color);
+    this.keyLight.intensity = lerp(day.key.intensity, N.key.intensity);
+    mix(this.scene.background, day.background ?? TUNING.desk.background, N.background);
+    // 스탠드는 해가 반쯤 졌을 때부터 켜진다
+    const lit = Math.min(1, Math.max(0, (k - 0.35) / 0.65));
+    this.lampLight.intensity = N.lamp.intensity * lit;
+    this.screenGlow.intensity = N.glow.intensity * lit;
+    if (this.rays) {
+      this.rays.base ??= { rays: this.rays.uniforms.strength.value, dust: this.rays.dustUniforms.strength.value };
+      this.rays.uniforms.strength.value = this.rays.base.rays * (1 - k);
+      this.rays.dustUniforms.strength.value = this.rays.base.dust * (1 - k);
+      this.rays.on = k < 0.98;
+    }
+    this.steam?.setTint(new THREE.Color(STEAM.color).lerp(new THREE.Color(N.steam.color), k), lerp(1, N.steam.strength));
+    this.renderer.shadowMap.needsUpdate = true;
   }
 
   /** 천창으로 드는 햇살 줄기(랜딩과 같은 효과). 천창은 방 껍질에 위로 쏜 광선이 빠져나가는 곳으로 찾는다. */
@@ -553,11 +626,12 @@ export class SceneKit {
     }
     this.renderer.setAnimationLoop(() => {
       const elapsed = this.clock.getDelta();
-      if (document.hidden) {
+      if (document.hidden || this.paused) { // paused: 결과 화면이 방을 덮고 있는 동안(10-18) 그리지 않는다
         if (this.profiler?.active) this.profiler.startFrame(elapsed);
         this.clearLook(); this.renderQuality.resetSamples(); return;
       }
       if (this.renderQuality.observe(elapsed)) this.#applyRenderQuality();
+      this.#stepNight(Math.min(elapsed, 0.1));
       if (this.profiler?.active) this.profiler.startFrame(elapsed);
       const dt = Math.min(elapsed, 0.05);
       if (this.profiler?.active) {
@@ -585,6 +659,7 @@ export class SceneKit {
   #renderWebGL() {
     const profile = this.renderQuality.profile;
     if (this.frameIndex++ % profile.shadowEvery === 0) this.renderer.shadowMap.needsUpdate = true;
+    this.steam?.update(this.clock.elapsedTime);
     this.vertexSnap.prepare(this.scene);
     this.outlineEffect.render(this.scene, this.camera);
     if (this.rays && TUNING.render.rays && profile.rays) {
@@ -594,6 +669,7 @@ export class SceneKit {
 
   dispose() {
     this.disposed = true;
+    this.steam?.dispose();
     if (this.roomGroup) this.roomGroup.userData.disposed = true;
     this.renderer.setAnimationLoop(null);
     this.pickBenchmark?.dispose();
