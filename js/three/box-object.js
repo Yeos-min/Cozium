@@ -175,7 +175,7 @@ export class BoxObject {
 
   /**
    * @param {object} info
-   * @param {number} info.index      숫자 키 번호
+   * @param {number} info.index      줄 순서(1부터). 상자 색을 고르는 데만 쓴다
    * @param {string} info.name
    * @param {string} info.subtitle
    * @param {boolean} info.isSelf    "← 여기에" 칸인가

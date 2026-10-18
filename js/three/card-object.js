@@ -11,6 +11,8 @@ import { makeCardTexture } from "./card-face.js";
 import { makeTextOverlay } from "./text-overlay.js";
 import { fileFootprint, formStyle } from "./file-form.js";
 import { thicknessMultiplier } from "./stacking.js";
+import { tossLanding, tossPlan, tossPose } from "./toss.js";
+import { sampleThrow } from "./throw.js";
 import { TUNING, springStep } from "./tuning.js";
 import { surfaceMaterial } from "./materials.js";
 
@@ -129,6 +131,13 @@ export class CardObject {
     this.mesh.userData.cardId = id;
     // 파일 크기만큼 두꺼워지고, 책상 위에 얹힌다 (지오메트리는 y=0을 중심으로 만들어져 있다)
     this.thicknessScale = thicknessMultiplier(item.size);
+    // 던질 때의 무게 0(가벼움)…1(무거움): 두께 배율을 로그로 편다
+    {
+      const { min, max } = TUNING.card.thicknessRange;
+      this.weight = Math.min(1, Math.max(0, Math.log(this.thicknessScale / min) / Math.log(max / min)));
+    }
+    this.flight = null;
+    this.inHand = false;
     this.thickness = baseThickness * this.thicknessScale;
     this.mesh.scale.y = this.thicknessScale;
     this.mesh.position.y = this.thickness / 2;
@@ -190,6 +199,61 @@ export class CardObject {
     this.target.facePitch = facePitch;
   }
 
+  /**
+   * 손을 떠났다: 지금 자리에서 target까지 포물선으로 날아간다(TUNING.card.toss). target이 날아가는 동안 바뀌면
+   * (쌓이는 높이가 정해지는 등) 그 새 자리로 간다. delay초 동안은 손 자리에 머문다(여러 장일 때 시간차).
+   */
+  launch(delay = 0) {
+    const s = this.state;
+    this.flight = { t: -delay, from: { x: s.x, y: s.y, z: s.z, spin: s.spin }, plan: null };
+  }
+
+  /** 우클릭으로 던졌다: 미리 계산한 궤적(throw.js)을 그대로 따라간다. 착지 뒤 겨눈 바닥 칸까지는 스프링으로 미끄러진다. */
+  launchPath(path, delay = 0) {
+    const s = this.state;
+    this.flight = { t: -delay, path, spin0: s.spin };
+  }
+
+  /** 날아가는 중이면 자리·기울기를 정하고 true. 다 날았으면 착지(튀기)하고 false. 계산은 toss.js / throw.js. */
+  #fly(dt) {
+    const f = this.flight, s = this.state, tg = this.target, toss = TUNING.card.toss;
+    f.t += dt;
+    if (f.t < 0) return true; // 차례 기다리는 중: 손 자리 그대로
+    if (f.path) return this.#followPath(f, s, tg, toss);
+    if (!f.plan) { f.plan = tossPlan(f.from, tg, this.weight, toss); f.side = Math.random() > 0.5 ? 1 : -1; }
+    const u = Math.min(1, f.t / f.plan.dur);
+    if (u >= 1) {
+      const land = tossLanding(this.weight, toss);
+      Object.assign(s, { x: tg.x, y: tg.y, z: tg.z, vx: 0, vz: 0, vy: land.vy, spinV: 0 });
+      s.scaleV += land.scaleV;
+      this.flight = null;
+      return false;
+    }
+    Object.assign(s, tossPose(f.from, tg, this.weight, u, f.plan, toss, f.side));
+    s.vx = s.vy = s.vz = s.tiltZV = s.tiltXV = 0;
+    return true;
+  }
+
+  #followPath(f, s, tg, toss) {
+    const p = sampleThrow(f.path, f.t), u = Math.min(1, f.t / Math.max(0.01, f.path.duration));
+    // 쌓일 자리(target.y)가 바닥보다 높으면 내려오다 거기서 멈춘다
+    if (p.done || (p.vy < 0 && p.y <= tg.y && u > 0.5)) {
+      const land = tossLanding(this.weight, toss);
+      Object.assign(s, { x: p.x, y: Math.max(p.y, tg.y), z: p.z, vx: p.vx * 0.15, vz: p.vz * 0.15, vy: land.vy, spinV: 0 });
+      s.scaleV += land.scaleV;
+      this.flight = null;
+      return false;
+    }
+    const tumble = TUNING.card.throw.tumble, speed = Math.hypot(p.vx, p.vz) || 1;
+    s.x = p.x; s.y = p.y; s.z = p.z;
+    s.spin = f.spin0 + (tg.spin - f.spin0) * u;
+    // 진행 방향으로 코를 숙이고 든다(올라갈 때 들리고 내려올 때 숙임). 팔랑임은 없다.
+    s.tiltX = Math.max(-0.6, Math.min(0.6, -Math.atan2(p.vy, speed) * tumble));
+    s.tiltZ = 0;
+    s.vx = s.vy = s.vz = s.tiltZV = s.tiltXV = 0;
+    return true;
+  }
+
   setStatus(status) {
     this.status = status;
   }
@@ -230,18 +294,23 @@ export class CardObject {
     const spring = this.spring;
     const scaled = { freq: spring.freq * this.follow, damping: spring.damping };
 
-    [s.x, s.vx] = springStep(s.x, s.vx, this.target.x, dt, scaled);
-    [s.z, s.vz] = springStep(s.z, s.vz, this.target.z, dt, scaled);
-    [s.y, s.vy] = springStep(s.y, s.vy, this.target.y, dt, { freq: scaled.freq * 1.15, damping: spring.damping });
-    [s.spin, s.spinV] = springStep(s.spin, s.spinV, this.target.spin, dt, scaled);
+    const flying = this.flight ? this.#fly(dt) : false;
+    if (!flying) {
+      [s.x, s.vx] = springStep(s.x, s.vx, this.target.x, dt, scaled);
+      [s.z, s.vz] = springStep(s.z, s.vz, this.target.z, dt, scaled);
+      [s.y, s.vy] = springStep(s.y, s.vy, this.target.y, dt, { freq: scaled.freq * 1.15, damping: spring.damping });
+      [s.spin, s.spinV] = springStep(s.spin, s.spinV, this.target.spin, dt, scaled);
+    }
     [s.scale, s.scaleV] = springStep(s.scale, s.scaleV, this.target.scale, dt, { freq: 7, damping: 0.85 });
     [s.facePitch, s.facePitchV] = springStep(s.facePitch, s.facePitchV, this.target.facePitch, dt, { freq: 7, damping: 1 });
 
     // 움직이는 방향으로 기운다. 속도가 곧 손의 관성이다.
-    const tiltZTarget = Math.max(-TUNING.card.tiltMax, Math.min(TUNING.card.tiltMax, -s.vx * TUNING.card.tiltPerSpeed));
-    const tiltXTarget = Math.max(-TUNING.card.tiltMax, Math.min(TUNING.card.tiltMax, s.vz * TUNING.card.tiltPerSpeed));
-    [s.tiltZ, s.tiltZV] = springStep(s.tiltZ, s.tiltZV, tiltZTarget, dt, { freq: 6, damping: 0.7 });
-    [s.tiltX, s.tiltXV] = springStep(s.tiltX, s.tiltXV, tiltXTarget, dt, { freq: 6, damping: 0.7 });
+    if (!flying) {
+      const tiltZTarget = Math.max(-TUNING.card.tiltMax, Math.min(TUNING.card.tiltMax, -s.vx * TUNING.card.tiltPerSpeed));
+      const tiltXTarget = Math.max(-TUNING.card.tiltMax, Math.min(TUNING.card.tiltMax, s.vz * TUNING.card.tiltPerSpeed));
+      [s.tiltZ, s.tiltZV] = springStep(s.tiltZ, s.tiltZV, tiltZTarget, dt, { freq: 6, damping: 0.7 });
+      [s.tiltX, s.tiltXV] = springStep(s.tiltX, s.tiltXV, tiltXTarget, dt, { freq: 6, damping: 0.7 });
+    }
 
     const glowTarget = this.selected ? TUNING.card.selectGlow : this.hovered ? TUNING.card.selectGlow * 0.4 : 0;
     this.glow += (glowTarget - this.glow) * Math.min(1, dt * 14);

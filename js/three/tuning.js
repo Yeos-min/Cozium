@@ -155,6 +155,22 @@ export const TUNING = {
     shadow: { mapSize: 2048, radius: 0, bias: -0.0004, normalBias: 0.04, intensity: 1, extent: 13, type: "pcf" },
   },
 
+  /**
+   * 밤(10-13 사용자 아이디어 "침대 상호작용 시 시간이 흐름"). 빈손으로 침대를 누르면 낮 ↔ 밤.
+   * 색·세기는 랜딩의 저녁 스탠드 빛(room-layer.js lamp)과 같다. 거리는 게임 단위(1 = 0.5 m)라 랜딩의 2배,
+   * 점광원 세기는 같은 자리가 같은 밝기가 되게 2^decay배. 점광원 둘은 낮에도 세기 0으로 켜 둬서 바꿀 때 셰이더를 다시 만들지 않는다.
+   */
+  night: {
+    duration: 1.8, // 초. 해가 지는/뜨는 동안
+    hemi: { sky: "#3a4a78", ground: "#24180f", intensity: 0.55 },
+    ambient: { color: "#28304f", intensity: 0.5 },
+    key: { color: "#9fb2e6", intensity: 0.3 }, // 천창으로 드는 달빛
+    background: "#1d2440",
+    lamp: { color: "#ffbe6a", intensity: 18, distance: 14, decay: 1.6 },
+    glow: { color: "#bfd4ff", intensity: 4.8, distance: 6, decay: 2 },
+    steam: { color: "#dbe3ff", strength: 0.8 },
+  },
+
   wallWash: { amount: 0, scale: 1.25 },
 
   card: {
@@ -191,6 +207,32 @@ export const TUNING = {
     /** 스프링: freq가 클수록 빠르고, damping 1이면 오버슛 없음 */
     spring: { freq: 4.4, damping: 0.78 },
     dragSpring: { freq: 9.5, damping: 0.9 },
+    /**
+     * 손을 떠나는 카드(내려놓기·상자에 넣기)의 포물선 (2026-10-13 사용자). 무게 = 두께 배율(파일 크기).
+     * 가벼운 파일(heavy 0): 높고 느리게, 팔랑이며 사뿐히. 무거운 파일(heavy 1): 낮고 빠르게 툭, 작게 튄다.
+     * time 초(거리 3 기준), apex 꼭대기 높이(거리 3 기준), bounce 착지 뒤 위로 튀는 속도, flutter 좌우 흔들림 폭,
+     * stagger 여러 장일 때 장당 시간차(초). 도착점은 무게와 상관없이 늘 겨눈 자리다.
+     */
+    toss: {
+      // 좌클릭으로 바닥에 놓을 때. 10-13 21시 "휴지 같다" → 팔랑임·흔들림 빼고 덜 뜨게
+      light: { time: 0.5, apex: 0.62, bounce: 0.2, flutter: 0, tilt: 0 },
+      heavy: { time: 0.34, apex: 0.28, bounce: 1.25, flutter: 0, tilt: 0 },
+      stagger: 0.035, staggerMax: 0.45,
+    },
+    /**
+     * 우클릭 던지기(10-13 21시 사용자: 보는 방향으로, 위로도). 누른 만큼 세게(chargeTime초면 가득), 시선 방향으로.
+     * 속도는 게임 단위/초(1 = 0.5 m), 중력도 게임 단위(실제 19.6보다 조금 세게 — 둥실 뜨는 '휴지' 느낌을 빼려고).
+     * 같은 힘이면 무거운 파일이 덜 날아간다(heavyFactor). 여러 장은 spread(라디안)·speedJitter로 살짝 흩어진다.
+     */
+    throw: {
+      chargeTime: 0.9, minSpeed: 3.5, maxSpeed: 17,
+      lightFactor: 1.08, heavyFactor: 0.8,
+      gravity: 22, upBias: 0.12,
+      wallBounce: 0.35, slideOff: 2.2,
+      spread: 0.05, speedJitter: 0.06,
+      tumble: 0.35, // 날아가는 동안 진행 방향으로 기우는 정도
+      previewDots: 22,
+    },
     /** 더미로 집을 때 뒤 카드가 따라오는 지연 (장당 초) */
     pileLag: 0.028,
     pileLagMax: 0.34,

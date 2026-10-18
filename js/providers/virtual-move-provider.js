@@ -21,6 +21,8 @@ export class VirtualMoveProvider extends FileSystemProvider {
   _folderOrder = [];
   /** fileId → folderId|null  (가상 현재 위치. null = 바탕화면) */
   _placement = new Map();
+  /** fileId → folderId|null  (처음 있던 자리. 정리 계획 = 처음 자리 ≠ 지금 자리인 파일들) */
+  _origin = new Map();
   /** batchId → [{ fileId, from, to }] */
   _undoLog = new Map();
   _desktopName = "바탕화면";
@@ -50,12 +52,41 @@ export class VirtualMoveProvider extends FileSystemProvider {
       .map(([fileId, folderId]) => ({ fileId, folderId }));
   }
 
+  /**
+   * 정리 계획(10-18): 처음 자리와 지금 자리가 다른 파일. 자리는 폴더 경로(이름 배열, [] = 바탕화면).
+   * 체험 모드에서는 이것을 나중에 Helper가 실제로 옮긴다(js/state/cleanup-plan.js).
+   */
+  get moves() {
+    const pathOf = (folderId) => (folderId ? this._folders.get(folderId)?.item.path ?? null : []);
+    const result = [];
+    for (const [fileId, folderId] of this._placement) {
+      const origin = this._origin.get(fileId) ?? null;
+      if (origin === folderId) continue;
+      const item = this._files.get(fileId)?.item;
+      const from = pathOf(origin), to = pathOf(folderId);
+      if (!item || !from || !to) continue;
+      const newFolders = [];
+      for (let id = folderId; id; id = this._folders.get(id)?.item.parentId ?? null) {
+        if (this._folders.get(id)?.item.virtual) newFolders.unshift(this._folders.get(id).item.path);
+      }
+      result.push({ fileId, name: item.name, size: item.size ?? 0, lastModified: item.lastModified ?? 0, from, to, newFolders });
+    }
+    return result;
+  }
+
   // ───────────────────────── 등록 (하위 클래스가 부른다) ─────────────────────────
 
   _addFile(item, source = null) {
     this._files.set(item.id, { item, source });
     this._placement.set(item.id, null);
+    this._origin.set(item.id, null);
     return item;
+  }
+
+  /** 폴더 안에서 읽어 온 파일: 처음 자리도 그 폴더다. */
+  _placeInitially(fileId, folderId) {
+    this._placement.set(fileId, folderId);
+    this._origin.set(fileId, folderId);
   }
 
   _addFolder({ name, parentId = null, virtual = false }, source = null) {
@@ -78,6 +109,7 @@ export class VirtualMoveProvider extends FileSystemProvider {
     this._folders.clear();
     this._folderOrder = [];
     this._placement.clear();
+    this._origin.clear();
     this._undoLog.clear();
   }
 

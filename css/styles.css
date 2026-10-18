@@ -598,6 +598,13 @@ body.is-playing kbd { color: #fff6e5; background: #37362966; border-color: #d7cb
 .lock-prompt:hover { background: #665b42ee; }
 .crosshair { width: 6px; height: 6px; margin: -3px 0 0 -3px; border: 0; background: #fff8e8; box-shadow: 0 0 4px #55442b80; }
 .crosshair[data-over="box"], .crosshair[data-over="card"] { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #f8edc1; }
+/* 우클릭 던지기 힘 모으기(10-13): 조준선 둘레 고리가 차오른다 */
+.crosshair[data-charging="true"] {
+  width: 30px; height: 30px; margin: -15px 0 0 -15px; box-shadow: none; transition: none;
+  background: conic-gradient(#ffe39a calc(var(--charge, 0) * 360deg), #fff8e840 0);
+  -webkit-mask: radial-gradient(circle, transparent 10px, #000 11px);
+  mask: radial-gradient(circle, transparent 10px, #000 11px);
+}
 .hand-hint { bottom: 21px; border-radius: 9px; background: #514734c9; color: #fff5df; border-color: #fff2cd26; font-size: 12px; }
 .hand-hint span { padding-right: 12px; color: #e1d5b9; }
 .box-label-3d { padding: 7px 12px; background: #514734c9; color: #fff5df; border: 0; text-shadow: none; }

@@ -11,6 +11,7 @@ import { RoomLayer, StyledPass, TEXT_LAYER } from "./room-layer.js";
 import { GLTFLoader } from "../../vendor/three/addons/loaders/GLTFLoader.js";
 import { toonGradient } from "../three/materials.js";
 import { initLab } from "./render-lab.js";
+import { deskScale } from "../ui/desk-scale.js";
 
 // ───────────── helpers ─────────────
 const $ = (s) => document.querySelector(s);
@@ -20,6 +21,13 @@ const smooth = (a, b, t) => { const x = clamp((t - a) / (b - a)); return x * x *
 const inOut = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const outBack = (t) => { const c = 1.6; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
 const W0 = 1672, H0 = 941;
+// The desktop inside the laptop, in CSS px — the same sizes as app.html's import desktop (css/onboarding.css), so the
+// landing's screen and the page it leads to look alike (10-18 user: names under the icons, folders first; then "the
+// landing looks zoomed in: icons, taskbar, bezel"). The plate is cover-fitted (×1.15–1.2 on a usual window), so all of
+// it is drawn at du = 1 / cover plate px per CSS px (layoutWorld) and comes out at these sizes on screen.
+const ICON = 60, CELL = { w: 100, h: 104 }, GRID0 = { x: 44, y: 44 }, COLS = 10, ROWS = 6;
+const CHROME = { frame: 26, bar: 56, barBottom: 30, barSide: 34 };
+let du = 1;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function rng(seed) { return () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const R = rng(20261006);
@@ -46,8 +54,9 @@ const NAMES = {
   archive: ["사진_백업.zip", "자료모음.zip", "카톡_받은파일.zip", "다운로드_정리.zip", "백업_0412.zip", "백업_0503.zip", "폰트팩.zip", "설치파일.zip", "새 압축 파일.zip", "문서_백업.7z"],
 };
 const FOLDERS = [
-  { name: "사진", tone: "sage", at: [0, 3] }, { name: "문서", tone: "sand", at: [2, 7] },
-  { name: "음악·영상", tone: "sage", at: [3, 1] }, { name: "압축파일", tone: "sand", at: [5, 5] },
+  // 폴더는 한 색(갈색·샌드, 10-18 사용자: 초록·갈색 차이에 뜻이 없어 헷갈림 → 통일). 상자 색도 같이.
+  { name: "사진", tone: "sand", at: [0, 0] }, { name: "문서", tone: "sand", at: [1, 0] },
+  { name: "음악·영상", tone: "sand", at: [2, 0] }, { name: "압축파일", tone: "sand", at: [3, 0] },
 ];
 // Cluster on the floor by kind; where each cluster ends up when the floor clears by itself.
 const CLUSTERS = [
@@ -60,13 +69,13 @@ const KIND_CLUSTER = { photo: 0, document: 1, video: 2, audio: 2, archive: 3 };
 const PILE_RANK = CLUSTERS.map((c) => CLUSTERS.filter((d) => d.center[0] < c.center[0]).length); // left → right
 
 const cells = [];
-for (let r = 0; r < 6; r++) for (let c = 0; c < 10; c++) cells.push([r, c]);
+for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([r, c]);
 const folderCells = new Set(FOLDERS.map((f) => f.at.join(",")));
 const kindPool = Object.entries(NAMES).flatMap(([kind, list]) => list.map((name) => ({ kind, name })));
 for (let i = kindPool.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [kindPool[i], kindPool[j]] = [kindPool[j], kindPool[i]]; }
 const items = [];
 for (const [r, c] of cells) {
-  const px = 54 + c * 94, py = 45 + r * 100;
+  const px = GRID0.x + c * CELL.w, py = GRID0.y + r * CELL.h;
   const folderIndex = FOLDERS.findIndex((f) => f.at[0] === r && f.at[1] === c);
   if (folderIndex >= 0) items.push({ folder: folderIndex, kind: "folder", name: FOLDERS[folderIndex].name, px, py });
   else items.push({ ...kindPool.pop(), px, py });
@@ -103,7 +112,7 @@ function buildDesk(mode, counts = []) {
   deskMode = mode;
   desk.classList.toggle("tidy", mode === "tidy");
   deskIcons.replaceChildren();
-  const list = mode === "messy" ? items : FOLDERS.map((f, i) => ({ folder: i, kind: "folder", name: f.name, px: 54, py: 45 + i * 100, count: counts[i] }));
+  const list = mode === "messy" ? items : FOLDERS.map((f, i) => ({ folder: i, kind: "folder", name: f.name, px: GRID0.x, py: GRID0.y + i * CELL.h, count: counts[i] }));
   for (const it of list) {
     const el = document.createElement("div");
     el.className = "item";
@@ -183,13 +192,26 @@ let vw = innerWidth, vh = innerHeight, cover = 1;
 //  · the monitor frame and the taskbar sit on the visible part of the window (fitChrome). The frame is the same SVG
 //    drawn as a 9-slice border (corners kept, edges stretched), so a new monitor-frame.svg still just drops in.
 //    During the walk-in they stay on the plate's edges (the laptop's screen edges) and move in as the screen fills.
-const GRID = { right: 984, bottom: 640 };
-const TASKBAR = { below: 95 }; // its top sits 95 plate px above the bottom edge (846 on the 941 plate, 60 tall — index.html)
+const DESK_APP = "./assets/app/desk"; // the import desktop's taskbar parts: bar, five app tiles, tray (app.html)
 let safe = { x: 0, y: 0 }, crop = { x: 0, y: 0 }, chromeK = -1;
 // The chrome's pictures come from DESK here, not from index.html: a browser holding an older index.html next to a
-// newer story.js showed the old taskbar and frame on the new wallpaper (user, 10-13).
-const taskbar = deskChrome.querySelector('img[src*="taskbar"]');
-if (taskbar) { taskbar.src = `${DESK}/taskbar.webp`; taskbar.style.height = "60px"; }
+// newer story.js showed the old taskbar and frame on the new wallpaper (user, 10-13). The taskbar is now the import
+// desktop's (bar stretched from its caps, tiles and tray on it), drawn in CSS px and scaled by du like the icons.
+const taskbar = document.createElement("div");
+{
+  taskbar.className = "taskbar";
+  const apps = document.createElement("div"); apps.className = "tb-apps";
+  for (let i = 1; i <= 5; i++) { const t = document.createElement("img"); t.src = `${DESK_APP}/tile-${i}.webp`; t.alt = ""; apps.append(t); }
+  const tray = document.createElement("div"); tray.className = "tb-tray";
+  const icons = document.createElement("img"); icons.src = `${DESK_APP}/tray.webp`; icons.alt = "";
+  const clock = document.createElement("span"); clock.className = "tb-clock";
+  const tick = () => { const d = new Date(); clock.textContent = `${d.toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" })}\n${d.getMonth() + 1}. ${d.getDate()}.`; };
+  tick(); setInterval(tick, 15000);
+  tray.append(icons, clock);
+  taskbar.append(apps, tray);
+  const old = deskChrome.querySelector('img[src*="taskbar"]');
+  if (old) old.replaceWith(taskbar); else deskChrome.append(taskbar);
+}
 const frame = document.createElement("div");
 {
   const img = deskChrome.querySelector('img[src*="monitor-frame"]');
@@ -202,18 +224,26 @@ function fitChrome(k) { // 0 = on the plate's edges, 1 = on the visible part of 
   k = Math.round(clamp(k) * 200) / 200;
   if (k === chromeK) return;
   chromeK = k;
-  const x = crop.x * k, y = crop.y * k, w = W0 - 2 * x, h = H0 - 2 * y;
-  Object.assign(frame.style, { left: `${x.toFixed(1)}px`, top: `${y.toFixed(1)}px`, width: `${w.toFixed(1)}px`, height: `${h.toFixed(1)}px` });
-  if (taskbar) Object.assign(taskbar.style, { left: `${(x + 19).toFixed(1)}px`, top: `${(H0 - y - TASKBAR.below).toFixed(1)}px`, width: `${(w - 38).toFixed(1)}px` });
+  const x = crop.x * k, y = crop.y * k, w = W0 - 2 * x, h = H0 - 2 * y, f = CHROME.frame * du;
+  Object.assign(frame.style, { left: `${x.toFixed(1)}px`, top: `${y.toFixed(1)}px`, width: `${w.toFixed(1)}px`, height: `${h.toFixed(1)}px`,
+    borderWidth: `${f.toFixed(2)}px`, borderImageWidth: `${f.toFixed(2)}px` });
+  Object.assign(taskbar.style, {
+    left: `${(x + CHROME.barSide * du).toFixed(1)}px`, top: `${(H0 - y - (CHROME.barBottom + CHROME.bar) * du).toFixed(1)}px`,
+    width: `${((w - 2 * CHROME.barSide * du) / du).toFixed(1)}px`, height: `${CHROME.bar}px`, transform: `scale(${du.toFixed(4)})`,
+  });
 }
 function layoutWorld() {
   vw = stage.clientWidth; vh = stage.clientHeight;
   cover = Math.max(vw / W0, vh / H0);
+  du = deskScale(vw, vh) / cover; // 큰 화면(4K)에서는 바탕화면 UI도 같은 비율로 커진다(js/ui/desk-scale.js, 가져오기·결과 화면과 같은 숫자)
   world.style.transform = `translate(${(vw - W0 * cover) / 2}px,${(vh - H0 * cover) / 2}px) scale(${cover})`;
   crop = { x: Math.max(0, (W0 - vw / cover) / 2), y: Math.max(0, (H0 - vh / cover) / 2) };
-  safe = { x: Math.min(crop.x, Math.max(0, W0 - crop.x - 20 - GRID.right)), y: Math.min(crop.y, Math.max(0, H0 - TASKBAR.below - crop.y - 10 - GRID.bottom)) };
-  deskIcons.style.transform = safe.x || safe.y ? `translate(${safe.x.toFixed(1)}px,${safe.y.toFixed(1)}px)` : "";
+  // the grid moves in by the crop, but no further than its far edge allows (a phone: it simply doesn't fit)
+  const gridR = (GRID0.x + COLS * CELL.w) * du, gridB = (GRID0.y + ROWS * CELL.h) * du, below = (CHROME.barBottom + CHROME.bar + 10) * du;
+  safe = { x: Math.min(crop.x, Math.max(0, W0 - crop.x - gridR)), y: Math.min(crop.y, Math.max(0, H0 - below - crop.y - gridB)) };
+  deskIcons.style.transform = `translate(${safe.x.toFixed(1)}px,${safe.y.toFixed(1)}px) scale(${du.toFixed(4)})`;
   const k = chromeK; chromeK = -1; fitChrome(Math.max(0, k));
+  relayoutDesk3D();
 }
 
 // ───────────── WebGL world: the desktop becomes the floor ─────────────
@@ -230,7 +260,24 @@ const scene = new THREE.Scene();
 const FOV = 35;
 const camera = new THREE.PerspectiveCamera(FOV, 16 / 9, 0.05, 120);
 camera.rotation.order = "YXZ";
-const toWorld = (px, py) => [(px + 34 - W0 / 2) / 100, (py + 34 - H0 / 2) / 100];
+// a desktop icon's centre on the floor (world units = plate px / 100). px, py are the icon's CSS px on the desktop.
+const toWorld = (px, py) => [((px + ICON / 2) * du - W0 / 2) / 100, ((py + ICON / 2) * du - H0 / 2) / 100];
+// The window changed size: du changed, so do the icons' places on the floor and their names (the DOM desktop follows
+// by itself through deskIcons' transform).
+function relayoutDesk3D() {
+  for (const o of objects) {
+    const [hx, hz] = toWorld(o.it.px, o.it.py);
+    o.home.x = hx; o.home.z = hz;
+    placeName(o.label, hx, hz);
+  }
+  for (const F of folders) {
+    const it = items.find((x) => x.folder === F.i);
+    const [hx, hz] = toWorld(it.px, it.py);
+    F.home.x = hx; F.home.z = hz;
+    F.tidy = toWorld(GRID0.x, GRID0.y + F.i * CELL.h);
+    placeName(F.label, hx, hz);
+  }
+}
 const loader = (src) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
 // Top faces of the file things (desktop-v4/faces): the room's things and the floor's both draw them (drawFace), so they
 // load before either is built. A face that fails falls back to the drawn one below.
@@ -363,7 +410,7 @@ const SHELF_Z = -6.2 + BOX.d / 2, SHELF_Y = 0;
 const slotX = [-3.45, -1.15, 1.15, 3.45];
 
 async function buildGL() {
-  const iconKinds = ["document", "photo", "video", "audio", "archive", "folder-sage", "folder-sand"];
+  const iconKinds = ["document", "photo", "video", "audio", "archive", "folder-sand"];
   await Promise.all(iconKinds.map(async (k) => { iconImages[k] = await loader(`${DESK}/icons/${k}.webp`); }));
   const [wallImg, floorImg, plasterImg, boxModel] = await Promise.all([
     loader(`${DESK}/wallpaper.webp`), loader("./assets/landing/room-3d/attic-floor.webp"), loader("./assets/landing/room-3d/attic-plaster.webp"),
@@ -453,16 +500,17 @@ async function buildGL() {
     const rows = Math.ceil(clusterCount[ci] / cl.cols), col = n % cl.cols, row = Math.floor(n / cl.cols);
     const target = { x: cl.center[0] + (col - (cl.cols - 1) / 2) * .98 + (R() - .5) * .1, z: cl.center[1] + (row - (rows - 1) / 2) * .8 + (R() - .5) * .08, rot: (R() - .5) * .3 };
     const [hx, hz] = toWorld(it.px, it.py);
-    const order = (it.py / 100) * 0.07 + (it.px / 94) * 0.018 + R() * .05;
+    const order = (it.py / CELL.h) * 0.07 + (it.px / CELL.w) * 0.018 + R() * .05;
     const obj = { it, group, thing, icon, shadow, mats: [side, face, backMat], home: { x: hx, z: hz, rot: -it.deg * Math.PI / 180 }, target, rest: { ...target }, cluster: ci, order, thick: t,
       state: "floor", user: null, held: null, fly: null, size: [w, d] };
+    obj.label = nameLabel(it.name, hx, hz);
     thing.userData.obj = obj;
     objects.push(obj);
   }
   // folders → boxes
   FOLDERS.forEach((f, i) => {
     const it = items.find((x) => x.folder === i);
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(.68, .68), basic({ map: textures[`icon:folder-${f.tone}`], transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), basic({ map: textures[`icon:folder-${f.tone}`], transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     plane.renderOrder = 3;
     // the effect pass outlines every mesh's full quad; an icon cut out by its alpha would get a square ink frame.
     // On the game's text layer it is drawn after the effects, against the scene's depth, so it keeps its own outline.
@@ -494,7 +542,7 @@ async function buildGL() {
     box.position.set(slotX[i], SHELF_Y, SHELF_Z + .05);
     scene.add(box);
     const [hx, hz] = toWorld(it.px, it.py);
-    folders.push({ f, i, plane, box, catcher, rimGlow, labelTex, home: { x: hx, z: hz, rot: -it.deg * Math.PI / 180 }, tidy: toWorld(54, 45 + i * 100), shown: -1, glow: 0, bump: 0 });
+    folders.push({ f, i, plane, box, catcher, rimGlow, labelTex, label: nameLabel(it.name, hx, hz), home: { x: hx, z: hz, rot: -it.deg * Math.PI / 180 }, tidy: toWorld(GRID0.x, GRID0.y + i * CELL.h), shown: -1, glow: 0, bump: 0 });
   });
   // guide dots from the hand up to a box
   const dot = canvasTex(makeCanvas(64, 64, (g) => { g.fillStyle = "#fff"; g.beginPath(); g.arc(32, 32, 24, 0, Math.PI * 2); g.fill(); }));
@@ -871,6 +919,49 @@ function updateGuide(holding, now) {
   }
   guide.geometry.attributes.position.needsUpdate = true; guide.geometry.attributes.color.needsUpdate = true;
 }
+// An icon's name on the 3D desktop floor, drawn like the DOM desktop's .name (10.5 px, two lines, cream halo) so the
+// hand-off from the DOM desktop to this scene doesn't jump. On the text layer: drawn after the effects (no dither/ink).
+const NAME_W = 96, NAME_H = 32, NAME_RES = 3; // CSS px, like .desk .name
+function wrapName(g, text, max) {
+  const lines = [];
+  let line = "";
+  for (const ch of [...text]) {
+    if (g.measureText(line + ch).width > max && line) { lines.push(line); line = ch.trimStart(); } else line += ch;
+    if (lines.length === 2) break;
+  }
+  if (lines.length < 2 && line) lines.push(line);
+  if (lines.length === 2 && lines.join("").length < [...text].length) {
+    let last = lines[1];
+    while (last && g.measureText(last + "…").width > max) last = last.slice(0, -1);
+    lines[1] = last + "…";
+  }
+  return lines.slice(0, 2);
+}
+function nameLabel(name, hx, hz) {
+  const cv = makeCanvas(NAME_W * NAME_RES, NAME_H * NAME_RES, (g, w) => {
+    g.font = `500 ${12 * NAME_RES}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif`;
+    g.textAlign = "center"; g.textBaseline = "top";
+    wrapName(g, name, w - 4 * NAME_RES).forEach((line, i) => {
+      const y = i * 15.6 * NAME_RES;
+      g.fillStyle = "#fff8e6"; g.fillText(line, w / 2, y + NAME_RES);
+      g.fillStyle = "#3f3c30"; g.fillText(line, w / 2, y);
+    });
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(NAME_W / 100, NAME_H / 100), basic({ map: canvasTex(cv), transparent: true, depthWrite: false }));
+  mesh.rotation.x = -Math.PI / 2;
+  placeName(mesh, hx, hz);
+  mesh.renderOrder = 4; mesh.userData.noSnap = true;
+  mesh.layers.set(TEXT_LAYER);
+  scene.add(mesh);
+  return mesh;
+}
+
+// under the icon: icon centre + half the icon + 4 px gap + half the name box, all CSS px × du
+function placeName(mesh, hx, hz) {
+  mesh.position.set(hx, .005, hz + (ICON / 2 + 4 + NAME_H / 2) * du / 100);
+  mesh.scale.setScalar(du);
+}
+
 function showThing(o, showIcon, alpha = 1) {
   o.icon.visible = showIcon; o.thing.visible = !showIcon;
   o.icon.material.opacity = alpha;
@@ -901,12 +992,14 @@ function frameGL(p, now) {
   const clearT = local("clear", p), nudgeAge = (now - nudgeT0) / 1000;
   for (const o of objects) {
     let x, y, z, rot = 0, flip = 0, lean = 0, icon = false, alpha = 1, scale = 1;
-    if (p < B.fall[0]) { x = o.home.x; z = o.home.z; y = .004; icon = true; rot = o.home.rot; scale = .68 / o.size[0]; }
+    let nameA = 0;
+    if (p < B.fall[0]) { x = o.home.x; z = o.home.z; y = .004; icon = true; rot = o.home.rot; scale = ICON * du / 100 / o.size[0]; nameA = 1; }
     else if (p < B.try[0]) {
       const u = clamp((fall - .22 - o.order * .55) / .32);
+      nameA = 1 - clamp(u * 6); // the name stays on the desktop and fades as its file lifts off
       const e = inOut(u);
       ({ x, y, z } = arc({ x: o.home.x, y: .004, z: o.home.z }, { x: o.target.x, y: o.thick / 2, z: o.target.z }, e, 1.5));
-      rot = lerp(o.home.rot, o.target.rot, e); flip = u * Math.PI * 2; icon = u < .25; scale = lerp(.68 / o.size[0], 1, smooth(.15, .6, u));
+      rot = lerp(o.home.rot, o.target.rot, e); flip = u * Math.PI * 2; icon = u < .25; scale = lerp(ICON * du / 100 / o.size[0], 1, smooth(.15, .6, u));
     } else if (o.state === "held") {
       const i = o.held.i, fan = (i % 7 - 3) * .05;
       const tx = hand.anchor.x + fan, ty = hand.anchor.y + Math.min(i, 24) * .028, tz = hand.anchor.z + (i % 2 ? .04 : -.04);
@@ -960,6 +1053,7 @@ function frameGL(p, now) {
     o.group.scale.setScalar(scale);
     showThing(o, icon, alpha);
     o.group.visible = alpha > .01;
+    o.label.material.opacity = nameA; o.label.visible = nameA > .01;
     const onFloor = !(o.state === "flying" || o.state === "boxed") || p < B.try[0];
     const piled = o.state === "held" ? o.held.i : (p >= B.clear[0] && clearU(o, clearT) > .2) ? clearPlan.get(o)?.i ?? 0 : 0;
     const shadowA = piled > 0 ? 0 : o.state === "held" || (p >= B.clear[0] && clearU(o, clearT) > .2) ? .55 : 1;
@@ -979,14 +1073,17 @@ function frameGL(p, now) {
       ({ x: px, y: py, z: pz } = arc({ x: F.home.x, y: .006, z: F.home.z }, slot, e, 1.4));
       rx = lerp(-Math.PI / 2, 0, smooth(.1, .8, u)); s = lerp(1, 1.5, e); rz = lerp(F.home.rot, 0, e);
       planeA = 1 - smooth(.72, .95, u); boxS = outBack(smooth(.68, 1, u));
+      F.label.material.opacity = 1 - clamp(u * 6);
     } else {
+      F.label.material.opacity = 0;
       const v = clamp((back - .18 - F.i * .05) / .5), e = inOut(v);
       const tidy = { x: F.tidy[0], y: .006, z: F.tidy[1] };
       ({ x: px, y: py, z: pz } = arc(slot, tidy, e, 1.2));
       rx = lerp(0, -Math.PI / 2, smooth(.2, .9, v)); s = lerp(1.5, 1, e);
       planeA = smooth(0, .3, v); boxS = 1 - smooth(0, .35, v);
     }
-    F.plane.position.set(px, py, pz); F.plane.rotation.set(rx, 0, rz); F.plane.scale.setScalar(s);
+    F.plane.position.set(px, py, pz); F.plane.rotation.set(rx, 0, rz); F.plane.scale.setScalar(s * ICON * du / 100);
+    F.label.visible = F.label.material.opacity > .01;
     F.plane.material.opacity = planeA; F.plane.visible = planeA > .01;
     // a deposit squashes the box and it wobbles back; the call makes each box hop in turn
     F.bs ??= { x: 0, v: 0 }; F.hy ??= { x: 0, v: 0 };

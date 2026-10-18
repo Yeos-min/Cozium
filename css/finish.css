@@ -1,0 +1,129 @@
+/* 정리 결과 = 정리된 노트북 바탕화면 (2026-10-18). 모양은 가져오기 화면(css/onboarding.css)의 바탕화면·창·작업표시줄을
+   그대로 쓰고(.onboarding.finish), 여기는 결과 창·아이콘이 폴더로 날아가는 것·적용 패널만. js/ui/finish-desk.js */
+
+/* 방 위를 덮는다(방은 뒤에서 멈춰 있다) */
+.onboarding.finish { z-index: 95; }
+.finish .desk-files { z-index: 3; }
+
+/* 방에서 나올 때: 어두운 막이 걷히며 바탕화면이 밝아진다(가져오기 화면이 어두워지며 방으로 들어간 것의 반대) */
+.finish.is-arriving .desk::after { content: ""; position: absolute; inset: 0; z-index: 60; background: #2b2a21; pointer-events: none; animation: finish-undim 0.9s ease 0.05s both; }
+@keyframes finish-undim { from { opacity: 1; } to { opacity: 0; } }
+.finish.is-arriving .win-finish { animation: finish-win-in 0.55s cubic-bezier(.2, .9, .3, 1) 0.45s both; }
+@keyframes finish-win-in { from { opacity: 0; transform: translateY(16px) scale(0.97); } }
+
+/* ── 아이콘 ── */
+.finish-file[data-kind="folder"] { z-index: 2; }
+.finish-file[data-new="true"]::before { content: "새 폴더"; position: absolute; top: 4px; left: 6px; z-index: 1; padding: 2px 5px; border-radius: 4px; background: #d9b768; color: #3f3c30; font-size: 10px; font-weight: 700; }
+.finish-badge {
+  position: absolute; top: 2px; right: 8px; min-width: 24px; padding: 3px 7px; border-radius: 999px;
+  background: var(--desk-ink); color: var(--desk-paper); font-size: 11px; font-weight: 700; line-height: 1; font-style: normal; box-shadow: 0 2px 6px #254c4340;
+}
+.finish-badge[hidden] { display: none; }
+.finish-file.is-gulp img { animation: finish-gulp 0.34s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes finish-gulp { 0% { transform: scale(1); } 35% { transform: scale(1.2, 1.1) translateY(-3px); } 70% { transform: scale(.94, 1.04); } }
+.finish-badge.is-pop { animation: finish-pop 0.3s cubic-bezier(.3, 1.8, .5, 1); }
+@keyframes finish-pop { from { transform: scale(1.5); } }
+
+/* ── 결과 창 ── */
+/* 창은 내용만큼 크고(화면 안에서), 넘치면 폴더 목록이 먼저 줄어 그 안에서만 스크롤. 끌기·크기 바꾸기(js/ui/win-frame.js) */
+.win-finish { width: min(540px, calc(100% - 120px)); min-width: 400px; right: max(64px, 6%); top: max(44px, 5.5%); max-height: calc(100% - var(--taskbar-h) - 30px - max(44px, 5.5%) - 14px); }
+.win-finish .win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 20px 26px 22px; scrollbar-width: thin; scrollbar-color: #c9bb98 transparent; }
+.win-finish .win-body > * { flex: none; }
+.win-finish.is-resizing { user-select: none; }
+.finish-kicker { margin: 0 0 8px; color: #6c7465; font-size: 12px; letter-spacing: 0.04em; }
+.win-finish h1 { margin: 0 0 10px; font: 400 34px/1.15 var(--desk-heading); letter-spacing: -0.01em; color: var(--desk-ink); }
+.win-finish h1 em { font-family: inherit; font-weight: inherit; font-style: normal; color: #8a6a2f; }
+.finish-lede { margin: 0 0 14px; color: #4d5f55; font-size: 13.5px; line-height: 1.6; }
+.finish-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin: 0 0 12px; }
+.finish-stats > div { padding: 9px 12px 8px; border: 1px solid #46352920; border-radius: 8px; background: #fffaf0; }
+.finish-stats dt { color: #6c7465; font-size: 11px; }
+.finish-stats dd { margin: 4px 0 0; color: var(--desk-ink); font: 400 24px/1.1 var(--desk-heading); font-variant-numeric: tabular-nums; } /* 숫자도 주아(10-18: 세리프는 로고 말고 안 쓴다) */
+.finish-stats dd small { margin-left: 4px; font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif; font-size: 11px; font-weight: 500; color: #6c7465; }
+.finish-folders {
+  flex: 1 1 auto !important; min-height: 76px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); align-content: start; gap: 2px 10px;
+  margin: 0 0 10px; padding: 0 4px 0 0; overflow-x: hidden; overflow-y: auto; list-style: none; scrollbar-width: thin; scrollbar-color: #c9bb98 transparent;
+}
+.finish-folders > li { min-width: 0; }
+.finish-folders details[open] { grid-column: 1 / -1; }
+.finish-folders summary { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; list-style: none; font-size: 14px; color: var(--desk-label); }
+.finish-folders summary::-webkit-details-marker { display: none; }
+.finish-folders summary:hover { background: #46352910; }
+.finish-folders summary img { width: 28px; height: 28px; }
+.finish-folders summary span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finish-folders summary i { margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: #d9b76833; color: #8a6a2f; font-size: 10px; font-weight: 700; line-height: 1.4; font-style: normal; }
+.finish-folders summary b { color: var(--desk-ink); font-size: 13px; font-variant-numeric: tabular-nums; }
+.finish-folders details p { margin: 0 8px 8px 46px; color: #6c7465; font-size: 12px; line-height: 1.6; word-break: break-all; }
+.finish-left { margin: 0 0 12px; color: #5f6a5f; font-size: 12.5px; line-height: 1.55; }
+.finish-left[hidden] { display: none; }
+
+/* 적용 패널 */
+.finish-apply-box { padding: 12px 14px; border: 1px dashed #254c4359; border-radius: 8px; background: #fffaf0; }
+.finish-apply-box > p { margin: 0 0 6px; color: #4d5f55; font-size: 12.5px; line-height: 1.55; }
+.finish-apply-box > p:last-child { margin-bottom: 0; }
+.finish-apply-head { color: var(--desk-ink) !important; font-weight: 700; font-size: 14px !important; }
+.finish-apply-ok { color: #2f6b45 !important; font-weight: 600; }
+.finish-apply-note { color: #6c7465 !important; font-size: 12px !important; }
+.finish-apply-progress { font-variant-numeric: tabular-nums; }
+.finish-apply-row { display: flex; gap: 8px; align-items: stretch; margin: 8px 0; }
+.finish-apply-row .win-go { flex: 1; width: auto; margin: 0; min-height: 44px; font-size: 14px; }
+.finish-apply-row .win-button { min-height: 44px; }
+.finish-apply-box > .win-go { min-height: 44px; margin: 6px 0 0; font-size: 14px; }
+.finish-apply-box .win-go:disabled { display: flex; opacity: 0.45; cursor: default; }
+.finish-apply-box .howto { margin: 0 0 10px; padding-left: 18px; color: #4d5f55; font-size: 12.5px; line-height: 1.6; }
+.finish-apply-box .howto a { color: var(--desk-ink); font-weight: 600; }
+.finish-apply-box .helper-form { display: flex; gap: 6px; margin-bottom: 8px; }
+.finish-apply-box .helper-form input { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid #46352940; border-radius: 6px; background: #fff; color: var(--desk-ink); font: inherit; }
+.finish-apply-box > .win-button { margin-top: 10px; }
+.finish-problems { margin: 6px 0 0; font-size: 12.5px; color: #7d3324; }
+.finish-problems summary { cursor: pointer; }
+.finish-problems ul { margin: 6px 0 0; padding-left: 18px; max-height: 140px; overflow: auto; color: #6c4a3e; line-height: 1.55; }
+
+/* 단추는 창이 낮아도 늘 보이게 아래에 붙는다 */
+.finish-actions { position: sticky; bottom: -22px; z-index: 1; margin: 4px -26px -22px; padding: 12px 26px 16px; background: linear-gradient(#faf4e300, var(--desk-paper) 12px); }
+.finish-actions .win-go { margin-top: 0; }
+.finish-actions .win-go:disabled { display: flex; opacity: 0.5; cursor: progress; }
+.finish-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.finish-links .win-link { font-size: 13px; }
+.finish-links [hidden] { display: none; }
+
+/* 방 HUD의 「정리 끝내기」: 상자 배치 단추 옆 */
+body.is-playing #arrange-toggle { position: static; }
+body.is-playing #finish-button { background: #514734c9; color: #fff4df; border: 1px solid #fff2cd40; pointer-events: auto; }
+body.is-playing #finish-button:hover { background: #665b42ee; }
+body.is-playing #finish-button[data-done="true"] { background: #ece1bf; color: #423d2c; border-color: #ece1bf; box-shadow: 0 0 0 3px #ece1bf40; }
+
+@media (max-width: 900px) {
+  .win-finish { left: 24px; right: 24px; width: auto; top: 30px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .finish-file { transition: none; }
+  .finish.is-arriving .desk::after, .finish.is-arriving .win-finish, .finish.is-arriving .finish-ch { animation: none; }
+}
+
+/* 가져오기 화면 Helper 창: 저장한 정리 계획 */
+.helper-plan { margin-top: 16px; padding-top: 14px; border-top: 1px solid #46352920; }
+.helper-plan p { margin: 0 0 10px; color: #4d5f55; font-size: 12.5px; line-height: 1.6; }
+.helper-plan .win-button { width: 100%; margin-bottom: 10px; }
+.helper-plan-file { display: inline-block; font-size: 13px; }
+
+/* ── 창 손잡이: 네 변·네 모서리. 오른쪽 아래에는 늘릴 수 있다는 빗금 ── */
+.win-grip { position: absolute; z-index: 20; }
+.win-grip-n, .win-grip-s { left: 12px; right: 12px; height: 7px; cursor: ns-resize; }
+.win-grip-n { top: 0; } .win-grip-s { bottom: 0; }
+.win-grip-e, .win-grip-w { top: 12px; bottom: 12px; width: 7px; cursor: ew-resize; }
+.win-grip-e { right: 0; } .win-grip-w { left: 0; }
+.win-grip-ne, .win-grip-nw, .win-grip-se, .win-grip-sw { width: 16px; height: 16px; }
+.win-grip-ne { top: 0; right: 0; cursor: nesw-resize; } .win-grip-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.win-grip-nw { top: 0; left: 0; cursor: nwse-resize; }
+.win-grip-se { bottom: 0; right: 0; cursor: nwse-resize; background: linear-gradient(135deg, transparent 52%, #46352940 52% 58%, transparent 58% 68%, #46352940 68% 74%, transparent 74%); }
+.win-finish .win-bar { cursor: grab; }
+.win-finish .win-bar:active { cursor: grabbing; }
+
+/* ── 제목: 글자마다 통통 ── */
+.finish-ch { display: inline-block; white-space: pre; }
+.finish.is-arriving .finish-ch { animation: finish-ch 0.5s cubic-bezier(.3, 1.6, .5, 1) calc(0.6s + var(--i) * 0.05s) both; }
+@keyframes finish-ch { from { opacity: 0; transform: translateY(16px) scale(.6); } }
+.finish-num { display: inline-block; font-variant-numeric: tabular-nums; }
+.finish-num.is-tick { animation: finish-tick 0.18s ease-out; }
+@keyframes finish-tick { 50% { transform: translateY(-2px) scale(1.12); color: #8a6a2f; } }
+

@@ -40,11 +40,12 @@ export const ATTIC_PILE = Object.freeze({ x: -3.5, z: 4.7 });
 
 /** 걸을 때 부딪히는 가구 (보수적인 사각형, 회전 없음) */
 export const ATTIC_OBSTACLES = Object.freeze([
-  { x: 6.15, z: -3.83, width: 3.9, depth: 3.55 },  // 침대
-  { x: 6.4, z: 1.9, width: 4.1, depth: 3.7 },      // 책상·의자·노트북
-  { x: 4.85, z: 4.6, width: 6.9, depth: 2.1 },     // 수납장·소품 상자·화분·서류 상자
-  { x: 7.32, z: -1.17, width: 1.7, depth: 1.8 },   // 침대 옆 화분
-  { x: 8.2, z: 3.0, width: 1.1, depth: 1.1 },      // 책상 옆 화분
+  // throwTop: 던진 파일이 부딪히는 높이(게임 단위, 모델 눈대중 — 10-13 던지기). 걷기에는 안 쓴다(가구는 못 넘음).
+  { x: 6.15, z: -3.83, width: 3.9, depth: 3.55, throwTop: 1.2 },  // 침대
+  { x: 6.4, z: 1.9, width: 4.1, depth: 3.7, throwTop: 1.7 },      // 책상·의자·노트북
+  { x: 4.85, z: 4.6, width: 6.9, depth: 2.1, throwTop: 1.6 },     // 수납장·소품 상자·화분·서류 상자
+  { x: 7.32, z: -1.17, width: 1.7, depth: 1.8, throwTop: 1.6 },   // 침대 옆 화분
+  { x: 8.2, z: 3.0, width: 1.1, depth: 1.1, throwTop: 1.6 },      // 책상 옆 화분
 ].map(Object.freeze));
 
 /**

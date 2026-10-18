@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { SAMPLE_FILES } from "../js/providers/sample-desktop.js";
-import { SessionStore } from "../js/state/session-store.js";
+import { MAX_BOXES, SessionStore } from "../js/state/session-store.js";
 import { extensionOf, rectsOverlap } from "../js/ui/layout.js";
 
 function sampleItems(count) {
@@ -154,11 +154,10 @@ test("a partial undo keeps the failed item placed and the batch alive", () => {
   assert.deepEqual(store.lastBatch.fileIds, [b]);
 });
 
-test("destination tree: entering a folder shows [self, ...children] and number keys follow the visible row", () => {
+test("destination tree: entering a folder shows [self, ...children]", () => {
   const store = new SessionStore({ capacity: 16, refillBelow: 6 });
   store.setFolders(FOLDERS);
   assert.deepEqual(store.visibleTargets.map((target) => target.id), ["A", "B"]);
-  assert.equal(store.folderAt(2).id, "B");
 
   store.addFolders([
     { id: "A1", name: "3D모델링", parentId: "A", path: ["과제", "3D모델링"], hasChildren: null },
@@ -169,9 +168,7 @@ test("destination tree: entering a folder shows [self, ...children] and number k
   assert.equal(store.enterFolder("A"), true);
   const row = store.visibleTargets;
   assert.deepEqual(row.map((target) => [target.id, target.isSelf]), [["A", true], ["A1", false], ["A2", false]]);
-  assert.equal(store.folderAt(1).id, "A", "1번은 '여기에'");
-  assert.equal(store.folderAt(3).id, "A2");
-  assert.equal(store.folderAt(4), null);
+  assert.equal(row.length, 3);
   assert.equal(store.folderLabel("A2"), "과제 › 인터랙션");
 
   store.addFolders([{ id: "A1a", name: "과제3", parentId: "A1", path: ["과제", "3D모델링", "과제3"], hasChildren: null }]);
@@ -221,4 +218,22 @@ test("marquee-style selectMany ignores placed cards and supports additive select
   assert.equal(store.selection.includes(ids[1]), false);
   store.clearSelection();
   assert.deepEqual(store.selection, []);
+});
+
+test("상자는 한 번에 20개까지: 넘는 맨 위 폴더는 빠지고, 그 하위 폴더도 안 들어온다", () => {
+  const store = new SessionStore({ capacity: 16, refillBelow: 6 });
+  const roots = Array.from({ length: 23 }, (_, i) => ({ id: `F${i}`, name: `폴더${i}`, parentId: null, hasChildren: null }));
+  store.setFolders(roots);
+  assert.equal(MAX_BOXES, 20);
+  assert.equal(store.rootFolders.length, 20);
+  assert.deepEqual(store.overflowFolders.map((f) => f.id), ["F20", "F21", "F22"]);
+  assert.equal(store.canAddBox, false);
+  store.addFolders([{ id: "F21a", name: "하위", parentId: "F21", hasChildren: null }, { id: "F0a", name: "하위", parentId: "F0", hasChildren: null }]);
+  assert.equal(store.folder("F21a"), null, "안 가져온 폴더의 하위는 없음");
+  assert.ok(store.folder("F0a"));
+  store.addFolders([{ id: "F99", name: "새 폴더", parentId: null, hasChildren: false }]);
+  assert.equal(store.rootFolders.length, 20, "꽉 차면 더 안 들어간다");
+  store.setFolders(roots.slice(0, 5));
+  assert.deepEqual(store.overflowFolders, []);
+  assert.equal(store.canAddBox, true);
 });

@@ -15,6 +15,11 @@ import { floorSlotCount, placeFloorItems } from "../ui/floor-layout.js";
 
 export const SELECTABLE_STATUSES = new Set(["idle", "conflict", "error"]);
 export const BOARD_STATUSES = new Set(["idle", "conflict", "error", "moving"]);
+/**
+ * 한 번에 둘 수 있는 상자(폴더) 수. 다락방 처마 벽 두 줄 × 두 단 = 20칸이고, 방을 더 넓히지 않는다(2026-10-13 사용자:
+ * 큰 공간은 cozy와 안 맞는다). 넘는 폴더는 이번에 상자로 안 가져온다 — 파일은 그대로 다 온다.
+ */
+export const MAX_BOXES = 20;
 
 /** 레이아웃이 준 자리 → 항목 위치. home(바닥이 아닌 처음 자리)이 있으면 같이 둔다. */
 function positionFrom(spot) {
@@ -32,6 +37,8 @@ export class SessionStore {
   #queue = [];
   #folders = new Map();
   #folderOrder = [];
+  /** 20개를 넘어 이번에 상자로 안 가져온 맨 위 폴더들 */
+  #overflow = [];
   #level = null;
   #batches = [];
   #selection = new Set();
@@ -186,20 +193,40 @@ export class SessionStore {
   setFolders(items) {
     this.#folders.clear();
     this.#folderOrder = [];
+    this.#overflow = [];
     this.#level = null;
     this.addFolders(items);
   }
 
   addFolders(items) {
+    const dropped = new Set(this.#overflow.map((folder) => folder.id));
+    let roots = this.rootFolders.length;
     for (const item of items) {
       if (this.#folders.has(item.id)) {
         Object.assign(this.#folders.get(item.id), item);
         continue;
       }
+      const parentId = item.parentId ?? null;
+      if (parentId === null && roots >= MAX_BOXES) {
+        if (!dropped.has(item.id)) { this.#overflow.push(item); dropped.add(item.id); }
+        continue;
+      }
+      if (parentId !== null && dropped.has(parentId)) continue; // 안 가져온 폴더의 하위 폴더
+      if (parentId === null) roots += 1;
       this.#folders.set(item.id, { ...item, path: [...(item.path ?? [item.name])] });
       this.#folderOrder.push(item.id);
     }
     this.#emit("folders");
+  }
+
+  /** 20개를 넘어 상자로 안 가져온 폴더(맨 위 줄). */
+  get overflowFolders() {
+    return [...this.#overflow];
+  }
+
+  /** 지금 보이는 줄에 상자를 하나 더 둘 수 있는가(새 폴더 만들기 전에 본다). */
+  get canAddBox() {
+    return this.visibleTargets.length < MAX_BOXES;
   }
 
   /** 현재 열려 있는 배송지. null이면 루트 줄. */
@@ -208,19 +235,14 @@ export class SessionStore {
   }
 
   /**
-   * 지금 보이는 상자 줄. 루트면 배송지 전부, 열려 있으면 [← 자기 자신(여기에), ...하위 폴더].
-   * 숫자 키는 이 순서에 대응한다.
+   * 지금 보이는 상자 줄. 루트면 배송지 전부, 열려 있으면 [← 자기 자신(여기에), ...하위 폴더]. 최대 MAX_BOXES개.
    */
   get visibleTargets() {
-    if (this.#level === null) return this.rootFolders.map((folder) => ({ ...folder, isSelf: false }));
+    const roots = () => this.rootFolders.map((folder) => ({ ...folder, isSelf: false }));
+    if (this.#level === null) return roots();
     const parent = this.#folders.get(this.#level);
-    if (!parent) return this.rootFolders.map((folder) => ({ ...folder, isSelf: false }));
-    return [{ ...parent, isSelf: true }, ...this.childrenOf(this.#level).map((folder) => ({ ...folder, isSelf: false }))];
-  }
-
-  /** 숫자 키용. 1부터 센다. */
-  folderAt(index) {
-    return this.visibleTargets[index - 1] ?? null;
+    if (!parent) return roots();
+    return [{ ...parent, isSelf: true }, ...this.childrenOf(this.#level).map((folder) => ({ ...folder, isSelf: false }))].slice(0, MAX_BOXES);
   }
 
   enterFolder(id) {
