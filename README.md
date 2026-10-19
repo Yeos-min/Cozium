@@ -76,6 +76,10 @@ node helper/desktop-helper.mjs --dev --app http://localhost:5173/app.html --desk
 | Tab | 파일 정리 / 상자 배치 전환 (배치 중 휠: 회전) |
 | 오른쪽 위 「정리 끝내기」 | 언제든 끝내고 결과 보기 (다 치우면 자동). 결과는 정리된 바탕화면 — 체험 모드면 여기서 Desktop Helper로 실제 바탕화면에 적용하거나 정리 계획(.json)을 저장 |
 
+## ⚠️ 앱이 이상하면 먼저: 보안 정책(CSP)
+
+`app.html`에는 보안 정책(Content-Security-Policy)이 걸려 있습니다. 외부 폰트·CDN·분석 스크립트를 새로 넣거나, `app.html` 안의 importmap·인라인 스크립트를 고치면 브라우저가 막습니다. 콘솔(F12)에 "Content Security Policy" 빨간 줄이 보이면 이것 때문입니다. 고치는 법은 `CLAUDE.md` §8-9, 지문(sha256)이 맞는지는 `npm test`가 확인합니다.
+
 ## 테스트와 확인 범위
 
 ```bash
@@ -96,10 +100,13 @@ npm test
 
 첫 방문에 받는 큰 파일은 `models/room.glb`(약 3.1 MB, 랜딩과 정리방이 같이 씀, 브라우저 캐시로 한 번만)와 Three.js(약 0.75 MB)입니다.
 
-Helper는 사용자의 컴퓨터에서 따로 실행합니다. 배포 주소를 쓸 때는 `OWNER`, `REPOSITORY`를 실제 값으로 바꿉니다.
+Helper는 사용자의 컴퓨터에서 따로 실행합니다. 배포본은 `CoziumHelper.exe` 하나이고(Node 설치 불필요), GitHub Releases에 올립니다. 사이트의 다운로드 링크는 `https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe`입니다. 만드는 법은 `helper/README.md`.
+
+기본 허용 출처는 `https://yeos-min.github.io`, Helper가 여는 페이지는 `https://yeos-min.github.io/Cozium/app.html`입니다. 테스트할 때는 더미 폴더를 줍니다.
 
 ```bash
-node helper/desktop-helper.mjs --origin https://OWNER.github.io --app https://OWNER.github.io/REPOSITORY/app.html --desktop "<테스트 폴더의 절대 경로>"
+node helper/desktop-helper.mjs --desktop "<테스트 폴더의 절대 경로>"
+CoziumHelper.exe --desktop "<테스트 폴더의 절대 경로>"
 ```
 
 HTTPS 페이지와 로컬 Helper 사이의 연결 허용 방식은 브라우저·환경에 따라 실기기 확인이 필요합니다.

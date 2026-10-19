@@ -38,3 +38,11 @@ test("legacy development options open the organizer", () => {
     assert.equal(redirectOf(`http://localhost:5173/?${query}`), `http://localhost:5173/app.html?${query}`);
   }
 });
+
+test("helper connection in the fragment (v0.2.2+) also goes to the organizer, #end stays on the landing (10-20)", () => {
+  assert.equal(
+    redirectOf("https://example.com/cozium/#helper=12345&token=test-only-token"),
+    "https://example.com/cozium/app.html#helper=12345&token=test-only-token",
+  );
+  assert.equal(redirectOf("https://example.com/cozium/index.html#end"), undefined);
+});

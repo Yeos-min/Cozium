@@ -611,3 +611,54 @@ index.html·css/landing-story.css를 20:38 이전(_archive/claude-cta-box-202610
 css/landing-story.css: 새 변수 --cta:#2f231a. .cta .primary 배경·테두리·그림자, CTA 초점 테두리만 --cta로. --ink(#254c43, 바탕화면 폴더 칩 등)는 그대로.
 백업: _archive/claude-cta-color-20261018/.
 검증: npm test 180/181.
+
+2026-10-19 01:24–01:40 KST — Claude (Cowork, claude-opus-5-5) — 완료: Helper 출처·다운로드 링크 고침 + CoziumHelper.exe 빌드
+사용자(01:20): 실제 Pages 주소 https://yeos-min.github.io/Cozium/ 확인, "사이트 안에서 바로 받게", exe가 제일 간단하냐 → Releases에 exe를 올리고 사이트 버튼이 파일을 직접 가리키는 방식(사용자 "굳 진행시켜").
+helper/desktop-helper.mjs: DEFAULT_ORIGINS min20011009.github.io → yeos-min.github.io, 신규 DEFAULT_APP_URL https://yeos-min.github.io/Cozium/app.html(이전엔 출처 뿌리를 열었음 — 404), --origin만 줬으면 예전처럼 그 출처를 연다. VERSION 0.2.0, 이름 "정리대" → "Cozium Desktop Helper". isMain 판정을 try로 감쌈(번들에서 import.meta.url 없음).
+app.html #helper-download, js/ui/finish-desk.js: 링크 → https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe(새 탭 안 염), 안내 "CoziumHelper.exe를 받아 실행. 설치 필요 없음"(Node 문구 뺌). SmartScreen 안내 그림·문구는 아직 — 사용자에게 먼저 보여 주기로 함.
+신규 helper/exe-entry.mjs(실패하면 Enter까지 창 유지), tools/build-helper-exe.mjs(esbuild CJS 번들 → SEA blob → node.exe 서명 떼고 postject, npm script helper:exe). helper/app-url.test.mjs에 기본 페이지 출처 = 허용 출처 테스트. CLAUDE.md §3·§8-6, README.md, helper/README.md.
+결과: output/helper/CoziumHelper.exe 82.0 MB, SHA-256 3df5f1eeca7ae59de676da3c56b9702ad7dc469000f9417e2bbd357c61806301. 바탕 node.exe = npm node-win-x64@22.22.0(OpenJS 서명의 해시와 파일 해시 일치 확인), 빌드 node v22.22.0.
+백업: _archive/claude-helper-exe-20261019/.
+검증: helper 테스트 17/18(실패 1은 원래부터의 Linux 전용 isInside 테스트, 고치기 전 16/17). 같은 스크립트로 만든 리눅스 SEA를 더미 폴더로 띄워 scan(허용 출처 200·옛 출처 403)·preflight(Private-Network 헤더)·move·undo 디스크 확인·bye 종료. Windows exe는 PE 구조(x64 콘솔, 서명 없음, NODE_SEA_BLOB 리소스, fuse 켜짐)만 확인 — **실제 실행·SmartScreen·LNA는 미확인.** npm test 전체는 안 돌림(바꾼 웹 파일은 링크 문자열뿐, 구문 검사만).
+
+2026-10-19 01:41–01:46 KST — Claude (Cowork, claude-opus-5-5) — 완료: 결과 화면이 이미 붙은 Helper를 못 쓰던 것
+사용자(01:41, 캡처): exe 실행 → 웹 체험으로 정리 → 결과 화면 「Helper로 적용」 → 포트·토큰 입력 칸이 뜸.
+원인: openFinish()가 finishDesk.show()에 이 탭의 Helper 연결(onboarding.helperProvider)을 안 넘김. 그래서 Helper가 연 탭에서 웹 체험으로 정리해도 결과 화면은 연결 안 된 걸로 봄(가져오기 화면 Helper 창의 「저장한 계획 적용」 경로만 넘기고 있었음).
+js/app.js openFinish: 웹 체험이면 { connected: onboarding.helperProvider }를 넘김 → 「Helper로 적용」이 바로 「파일 N개 바탕화면에 적용」. Helper 모드·샘플은 그대로.
+백업: _archive/claude-finish-helper-20261019/.
+검증: node --check만. 실제 동작은 사용자 PC(push 뒤 Pages, 또는 로컬 + --dev)에서 확인 필요. 그 전엔 Helper 창의 포트·토큰을 칸에 넣으면 됨.
+
+2026-10-19 02:11–02:20 KST — Claude (Cowork, claude-opus-5-5) — 완료: 적용 전 확인 + 0개일 때 경고
+사용자(02:04–02:11): 결과 화면 "✓ 0개를 실제로 옮겼어요 · 옮기지 않은 것 18개". 원인 = 탐색기에서 바탕화면 하위 폴더를 열고 그 안 파일을 끌어 놓음(B). 웹 드롭은 원래 위치를 모르니 계획엔 "바탕화면 위 파일"로 남고 Helper는 바탕화면 바로 위에서 못 찾음. 이름으로 하위 폴더를 뒤지는 건 같은 이름 오인 위험이 있어 안 함(Claude 판단, 사용자에게 설명).
+js/state/cleanup-plan.js: 신규 checkPlan(plan, files) — applyPlan과 같은 판정(이름 대소문자 무시 + 크기)으로 있는 것/없는 것/직접 옮길 것을 셈. js/ui/finish-desk.js: 「Helper로 적용」 뒤 ready 상태에서 Helper 폴더를 먼저 읽고 — 하나도 없으면 "Helper가 보는 ‘X’에 이 파일들이 없어요" + 이유 목록 펼침 + 단추 막음(「옮길 파일 없음」), 일부만 있으면 "N개 중 M개만 ‘X’에 있어요. 있는 M개만 옮겨요" + 「파일 M개 적용」. 적용 결과 0개면 초록 ✓ 대신 노란 「옮긴 파일이 없어요」, 이유 목록 처음부터 펼침. css/finish.css .finish-apply-warn(#8a5a12). tests/cleanup-plan.test.js +1.
+백업: _archive/claude-plan-check-20261019/.
+검증: cleanup-plan 테스트 5/5, node --check. 화면은 헤드리스로도 안 봄 — 사용자 PC 확인 필요.
+남은 결정(사용자에게 물음): A(바탕화면 폴더를 통째로 끌어 와 방에서 꺼낸 파일)를 Helper가 한 단계 안쪽까지 옮기게 할지 — 지금은 "직접 옮길 것".
+
+2026-10-20 00:38–00:50 KST — Claude (Cowork, claude-opus-5-5) — 완료: 보안·최적화 점검 1차 (Helper·웹)
+사용자(00:38): "코드 최적화랑 보안 관련해서 생길 수 있는 문제들 잡아봐". 폴더 안 파일 꺼내기(A)는 사용자 "꺼낼 일 없으니 굳이" → 지원 안 함으로 결정.
+고친 것:
+- helper/desktop-helper.mjs (v0.2.1): ① 되돌리기가 다시 스캔한 뒤엔 실패하던 버그 — scan()이 폴더로 옮긴 파일을 대응표에서 지워 undo가 FILE_UNKNOWN. 임시 폴더로 재현 후 수정(기록으로 다시 세우고 정체 대조는 그대로). ② 이미지 content 스트림 오류를 처리 안 해서 읽는 사이 파일이 지워지면 Helper가 통째로 죽을 수 있던 것 → pipeline + destroy. ③ 요청 처리기의 예상 못 한 예외가 unhandledRejection으로 프로세스를 끝내던 것 → 감싸서 500.
+- helper/exe-entry.mjs: 실행 중 예상 못 한 오류도 창이 바로 닫히지 않고 이유를 보여 준 뒤 Enter로 닫힘.
+- js/providers/native-helper-provider.js: 연결된 동안 4분마다 /v1/hello(keep-alive), disconnect 때 멈춤. 전엔 15분 동안 이동이 없으면 Helper가 꺼져 그 뒤 이동·되돌리기가 "연결할 수 없습니다".
+- .gitignore *.exe, tools/sync-to-c.ps1 /XF *.exe: D 루트에 CoziumHelper.exe(86 MB)가 있어 동기화 → 커밋에 섞일 수 있었음.
+- js/three/board-3d.js: 침대 겨냥 판정이 매 프레임 Vector3를 새로 만들던 것 재사용(작은 것).
+- CLAUDE.md §8-5 keep-alive 한 줄. 테스트 +3(helper 2, providers 1).
+점검했지만 문제 없던 것: 파일 이름이 innerHTML로 들어가는 곳 없음(폴더 이름은 escapeHtml), 외부 스크립트 없음, 포트 값은 Number()라 다른 호스트로 못 샘, Origin 없는 요청·DNS 리바인딩은 403, 토큰 192비트·상수 시간 비교, 경로는 realpath + 바탕화면 안 검사.
+안 고치고 사용자에게 물은 것: CSP meta 추가, 토큰을 주소 ?가 아니라 #로(서버 기록·방문 기록에 안 남게), 릴리스에 SHA-256 적기, OneDrive 동기화 폴더에서 하드 링크 이동 실기기 확인, yeos-min.github.io 출처를 다른 Pages 저장소와 같이 쓴다는 점.
+백업: _archive/claude-review-20261020/.
+검증: npm test 172/175(실패 3 = 원래부터의 Linux 전용 1 + 이 사본에 랜딩 그림이 없어서 2, 고치기 전 169/172). 새로 만든 리눅스 Helper로 이동 → 다시 스캔 → 되돌리기 HTTP 확인. CoziumHelper.exe v0.2.1 다시 빌드(82.0 MB, SHA-256 b4c9ff477b28251b9d6b2308d32e9fde69b4697bd8fd76c653bbb13dbecd12a0) — Windows 실행은 사용자 확인. 성능은 실제 GPU에서 재지 못함 — 10-11 최적화 이후 새 병목은 코드에서 못 찾음.
+
+2026-10-20 00:54–01:05 KST — Claude (Cowork, claude-opus-5-5) — 완료: 토큰을 주소 # 뒤로, 릴리스 SHA-256 규칙
+사용자(00:54): CSP는 원리를 이해한 뒤 결정. 나머지 제안은 그대로 적용. OneDrive는 주변·본인 대부분 안 씀.
+helper/desktop-helper.mjs v0.2.2: buildAppUrl이 #helper=PORT&token=…로 연결 정보를 붙임(# 뒤는 GitHub Pages 서버 기록·Referer에 안 남음), 낡은 ?helper/?token은 지움. js/app.js: # 먼저 읽고 없으면 예전 ?(v0.2.1 이하 exe) — 둘 다 읽자마자 주소에서 지움. js/entry-route.js: #helper=가 index.html로 와도 app.html로 넘김(#end는 랜딩에 남음). 주석 2곳(onboarding.js, native-helper-provider.js). helper/app-url.test.mjs·tests/entry-route.test.js 갱신·추가.
+CLAUDE.md §8-5(# 뒤), §8-6(릴리스 설명에 SHA-256 필수, Get-FileHash로 대조), §3(OneDrive 우선순위 낮음 — 코드는 그대로). helper/README.md 같은 내용.
+백업: _archive/claude-fragment-20261020/.
+검증: npm test 173/176(실패 3 = 원래 Linux 전용 1 + 사본에 랜딩 그림 없음 2). 리눅스 빌드가 https://yeos-min.github.io/Cozium/app.html#helper=…&token=… 를 여는 것 확인. 브라우저에서 # 연결은 미확인(사용자 PC). CoziumHelper.exe v0.2.2 82.0 MB, SHA-256 c41c77c16c948d32e17baa0ec29ce90e40ff8f9776f3720e018af8dc3505e4e9.
+
+2026-10-20 01:00–01:08 KST — Claude (Cowork, claude-opus-5-5) — 완료: app.html 보안 정책(CSP)
+사용자(01:00): CSP 설명 듣고 "필요하겠네, 대신 어딘가 중요 표시 — 뭔가 안 되면 이것부터 의심할 정도의 구속구".
+app.html: <meta charset> 바로 아래에 CSP meta + 경고 주석. default-src 'self'; script-src 'self' + importmap sha256; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: http://127.0.0.1:*; media/worker 'self' blob:; object-src 'none'; base-uri·form-action 'self'. 랜딩·이용 안내에는 안 넣음.
+신규 tests/csp.test.js: importmap 지문이 맞는지(틀리면 새 값을 알려 줌 — importmap을 일부러 바꿔 실패 메시지 확인), 직접 쓴 스크립트는 importmap 하나, connect-src에 Helper만, inline onX 속성 없음.
+중요 표시: CLAUDE.md 맨 위 ⚠️ 줄 + 신규 §8-9(무엇·왜·깨지는 경우와 고치는 법), AGENTS.md 맨 위 ⚠️(Codex용), README "앱이 이상하면 먼저", app.html 주석.
+검증: 헤드리스 Chromium(SwiftShader) — 진짜 리눅스 Helper v0.2.2에 #helper=로 붙어(주소에서 토큰 지워짐 확인 — 00:54 항목의 "브라우저 # 연결 미확인"도 이걸로 확인) Helper 모드 방(room.glb·상자·텍스처) → 결과 화면, 샘플 모드까지: CSP 위반 0, 콘솔 오류 0, 실패 요청 0(CSP 없을 때와 같음). 일부러 넣은 inline 스크립트·<img onerror>·eval·외부 fetch는 막힘. npm test 177/180(실패 3 = 원래 Linux 전용 1 + 사본에 랜딩 그림 일부 없음 2). 실제 Pages·실제 GPU는 사용자 확인.

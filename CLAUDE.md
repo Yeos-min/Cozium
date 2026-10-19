@@ -3,6 +3,7 @@
 > 먼저 [AGENTS.md](AGENTS.md), [작업 타임라인](docs/agent-timeline.md), [디자인 시스템](docs/design-system.md), [성능 기준](docs/performance.md)을 읽으세요.
 > 사용자 확인: D 프로젝트 루트가 최신본, C 프로젝트는 GitHub PR용 복제본입니다. 아래의 이전 단계별 계획·테스트 수를 최신 상태로 해석하지 마세요.
 > 실행 진입점은 `index.html`(Cozium 랜딩), `app.html`(파일 정리 앱)입니다. 이번 우선 작업은 1인칭 입력 반응과 기기별 성능입니다. 랜딩은 2026-10-11 3D 다락방으로 교체됐습니다(`js/landing-story/story.js`·`room-layer.js`. 이전 그림 랜딩 `landing-classic.html`은 10-11 `_archive/`로 뺐습니다) — [디자인 시스템](docs/design-system.md)의 ‘현재 랜딩’. 가져오기 화면은 2026-10-18 랜딩에서 들어간 노트북 바탕화면으로 새로 만들었습니다(`css/onboarding.css`, `js/ui/import-desk.js`).
+> ⚠️ **`app.html`에 보안 정책(CSP)이 걸려 있습니다(2026-10-20). 앱에서 뭔가 안 불러와지거나 안 되면 이것부터 의심하세요 → §8-9.**
 > 사용자 최신 지시가 과거 규격보다 우선합니다. 작업 날짜·시각·담당 범위·실제 검증 결과를 타임라인에 남깁니다.
 
 # CLAUDE.md
@@ -110,9 +111,9 @@
 아래는 사용자가 실제 환경에서 직접 확인한 뒤에만 위로 옮긴다. **동작한다고 가정한 설계를 하지 말 것.**
 
 - **GitHub Pages(HTTPS) → `http://127.0.0.1` 연결.** Chrome 142+의 Local Network Access 권한 프롬프트가 뜨는지, 허용하면 그 뒤 프롬프트 없이 통하는지 (§8-8).
-- **실제 바탕화면 스캔 결과.** OneDrive 리디렉션 경로가 잡히는지, 바로가기(.lnk)·숨김 파일·Public Desktop 항목이 어떻게 보이는지.
+- **실제 바탕화면 스캔 결과.** OneDrive 리디렉션 경로가 잡히는지(10-20 사용자: 주변·본인 대부분 OneDrive 안 씀 → 우선순위 낮음, 레지스트리 조회 코드는 그대로 둠), 바로가기(.lnk)·숨김 파일·Public Desktop 항목이 어떻게 보이는지.
 - **Ctrl+A 드롭(웹 체험)에서 휴지통·내 PC 같은 가상 항목이 `unresolved`로 빠지는지.**
-- SmartScreen / 백신 경고. 단일 exe 패키징 전이라 지금은 `node` 실행이다.
+- **`CoziumHelper.exe`** — 10-19 사용자 PC에서 v0.2.0이 실행·연결·정리 계획 적용까지 됨(사용자 보고). SmartScreen / Chrome 다운로드 경고 / 백신 반응은 기록 없음. v0.2.1(10-20)은 아직.
 - 브라우저를 완전히 껐다 켠 뒤의 웹 체험 모드 동작 (핸들을 저장하지 않으므로 다시 드롭하면 된다 — 확인만).
 
 ### 다음 단계
@@ -253,13 +254,16 @@ Helper 모드에서는 바탕화면 안 어디든 실제로 만든다. 웹 체�
 - `Origin` 허용 목록: 배포 origin만. `--dev`일 때 `localhost:5173` 추가. Origin이 없어도(curl) 403.
 - CORS preflight에 `Access-Control-Allow-Private-Network: true`.
 - 요청 본문 64KB, 배치 500개 제한. 요청 schema는 라우트마다 검사.
-- 요청이 없으면 `--idle-minutes`(기본 15) 뒤 스스로 종료. 페이지가 닫히면 `/v1/bye`. 상주하지 않는다.
-- Helper 실행 → 브라우저를 `?helper=PORT&token=…`으로 연다 → 페이지는 주소창에서 토큰을 지우고 메모리에만 둔다.
+- 요청이 없으면 `--idle-minutes`(기본 15) 뒤 스스로 종료. 페이지가 닫히면 `/v1/bye`. 상주하지 않는다. 연결된 페이지는 열려 있는 동안 4분마다 `/v1/hello`로 깨워 둔다(10-20, 방에 오래 있거나 결과 화면을 읽다 꺼지지 않게).
+- Helper 실행 → 브라우저를 `#helper=PORT&token=…`으로 연다(10-20부터 # 뒤 — 서버 기록·Referer에 안 남음. v0.2.1까지의 `?helper=`도 계속 받는다) → 페이지는 주소창에서 토큰을 지우고 메모리에만 둔다.
 
 ### 8-6. Helper 배포 `[임시]`
 
-지금은 `node helper/desktop-helper.mjs` (Node 20+). 단일 exe(Node SEA)와 코드 서명은 2단계. 학교 프로젝트 단계에서는 unsigned 경고를 감안한다.
-GitHub Releases에 올린다. 배포 origin은 `helper/desktop-helper.mjs`의 `DEFAULT_ORIGINS`에 있다 — 저장소 주소가 정해지면 바꿀 것.
+2026-10-19부터 배포본은 **`CoziumHelper.exe` 하나**(Node SEA, Node v22.22.0 내장, 약 82 MB, 설치 없음). `node helper/desktop-helper.mjs`는 개발용으로 그대로 된다.
+빌드: `node tools/build-helper-exe.mjs --node <같은 버전의 Windows node.exe>` → `output/helper/CoziumHelper.exe`(저장소에 안 올림).
+exe는 저장소가 아니라 **GitHub Releases**에 `CoziumHelper.exe` 이름으로 올린다. 사이트 링크는 `https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe`(app.html `#helper-download`, `js/ui/finish-desk.js`) — 새 릴리스에 같은 이름으로 올리면 링크는 안 바꿔도 된다.
+배포 origin `https://yeos-min.github.io`(`DEFAULT_ORIGINS`), Helper가 여는 페이지 `https://yeos-min.github.io/Cozium/app.html`(`DEFAULT_APP_URL`).
+서명 없음: Chrome 다운로드 경고·SmartScreen "추가 정보 → 실행"을 감수한다. 그래서 **릴리스 설명에 exe의 SHA-256을 꼭 적는다**(빌드 스크립트가 찍어 준다, 받은 사람은 PowerShell `Get-FileHash CoziumHelper.exe`로 대조). 코드 서명은 계속 2단계. exe 실행은 Windows 실기기에서 아직 미확인 `[검증필요]`.
 
 ### 8-7. 바탕화면 경로 `[확정 / 검증필요]`
 
@@ -271,6 +275,23 @@ GitHub Releases에 올린다. 배포 origin은 `helper/desktop-helper.mjs`의 `D
 Chrome은 loopback을 안전 출처로 봐 mixed content는 통과한다. Chrome 142(2025-10)부터 공개 사이트가 loopback에 접속하면 **Local Network Access 권한 프롬프트**가 뜬다. 세션당 1번이면 감수한다. GitHub Pages에서 실제로 확인 전이다. localhost 페이지 ↔ localhost Helper는 같은 주소 공간이라 프롬프트가 없다 (개발 중 확인됨).
 
 ---
+
+### 8-9. ⚠️ 보안 정책(CSP) — 뭔가 안 되면 이것부터 의심 `[확정 2026-10-20]`
+
+> **`app.html`에서 무언가 안 불러와지거나, 버튼이 안 먹거나, Helper에 안 붙으면 제일 먼저 CSP를 의심한다.**
+> 브라우저 콘솔(F12 → Console)에 `Refused to … because it violates the following Content Security Policy directive` 빨간 줄이 뜬다.
+
+- **무엇:** `app.html` 맨 위 `<meta http-equiv="Content-Security-Policy">`. 브라우저에게 주는 허용 목록이다 — 이 페이지는 이 출처의 코드만 실행하고, 이 출처와만 통신한다. 목록에 없는 것은 브라우저가 막는다.
+- **왜:** 이 페이지는 Desktop Helper 토큰을 들고 있어 실제 파일을 옮길 수 있다. 언젠가 남의 코드가 페이지에 끼어들어도(파일 이름이 실수로 HTML로 들어가는 등) 실행되지 못하고, 훔친 것을 밖으로 보내지 못하게 하는 두 번째 자물쇠다. GitHub Pages는 서버 헤더를 못 바꾸므로 meta로 넣는다.
+- **허용 목록 요약:** 스크립트 = 우리 파일 + importmap(sha256 지문) / 통신 = 우리 사이트 + `http://127.0.0.1:*`(Helper) + blob·data(glb 텍스처) / 이미지 = 우리 파일 + blob·data(썸네일) / 폰트·CSS = 우리 파일(style 속성은 허용) / object 금지 / base·form은 우리 사이트만.
+- **이럴 때 깨진다 → 이렇게 고친다:**
+  - 외부 주소(Google Fonts, CDN, 분석, 외부 이미지)를 새로 쓴다 → 해당 항목(`font-src`, `script-src`, `img-src`, `connect-src`)에 그 주소를 더한다.
+  - `app.html` 안의 importmap을 고친다 → `script-src`의 `sha256-…`을 바꾼다. `npm test`의 `tests/csp.test.js`가 실패하며 새 값을 알려 준다.
+  - HTML에 `onclick="…"` 같은 속성이나 새 `<script>…</script>`를 직접 쓴다 → 막힌다. JS 파일에서 `addEventListener`로 한다.
+  - `eval`, `new Function` → 막힌다(지금 코드엔 없음).
+  - Helper를 `127.0.0.1`이 아닌 주소(`localhost` 등)로 붙인다 → `connect-src`에 더해야 한다.
+- **범위:** `app.html`만. 랜딩(`index.html`)·이용 안내(`help.html`)에는 없다(Helper 권한이 없어서). meta 방식이라 iframe으로 감싸기(frame-ancestors)는 못 막는다.
+- **확인(10-20):** 헤드리스 Chromium으로 Helper 연결(`#helper=`) → Helper 모드 방 → 결과 화면, 샘플 모드까지 CSP 위반 0, 콘솔 오류 0. 끼워 넣은 inline 스크립트·`onerror`·`eval`·외부 fetch는 막힘 확인. 실제 PC·실제 Pages에서는 사용자 확인 필요.
 
 ## 9. 범위 — 하지 말 것 `[확정]`
 

@@ -2,6 +2,14 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      ⚠️ 보안 정책(CSP) — 2026-10-20. 이 페이지는 Desktop Helper(실제 파일 이동) 토큰을 들고 있어서 넣었다.
+      **무언가 안 불러와지거나 안 되면 이것부터 의심할 것.** 브라우저 콘솔(F12)에 "Content Security Policy" 빨간 줄이 뜬다.
+      - 외부 주소(폰트·CDN·분석 등)를 새로 쓰면 아래 목록에 그 주소를 더해야 한다.
+      - 바로 아래 importmap 내용을 한 글자라도 고치면 script-src의 sha256 값을 다시 계산해야 한다 → npm test가 알려 준다(tests/csp.test.js).
+      - 자세한 설명: CLAUDE.md §8-9.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-4EbCb73MdgzVJ7oNfKLeursrouhyHOEOPdT4KGTYttw='; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: data: http://127.0.0.1:*; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="내 바탕화면을 정리해야 할 물건이 흩어진 공간으로 바꿔, 집어 옮기며 정리하는 웹 프로토타입" />
     <meta name="theme-color" content="#182c24" />
@@ -89,7 +97,7 @@
                 되돌리기도 실제로 됩니다. 이동과 새 폴더만 하고, 지우기는 없습니다.
               </p>
               <ol class="howto">
-                <li><a id="helper-download" href="https://github.com/min20011009/desktop-cleanup-prototype/releases" target="_blank" rel="noopener">Desktop Helper</a>를 받아 실행합니다. Node 20 이상이 있으면 <code>node desktop-helper.mjs</code>.</li>
+                <li><a id="helper-download" href="https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe">Desktop Helper</a>(CoziumHelper.exe)를 받아 실행합니다. 설치는 필요 없습니다.</li>
                 <li>실행되면 브라우저가 이 페이지를 연결 주소로 엽니다. Chrome이 "로컬 네트워크 접근"을 물으면 허용하세요.</li>
                 <li>자동으로 안 열리면 Helper 창의 포트와 토큰을 넣고 연결하세요.</li>
               </ol>

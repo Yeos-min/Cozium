@@ -203,3 +203,18 @@ test("NativeHelperProvider surfaces helper errors as ProviderError codes", async
   const unreachable = new NativeHelperProvider({ port: 1, token: "tok", fetchImpl: async () => { throw new TypeError("Failed to fetch"); } });
   await assert.rejects(unreachable.connect(), (error) => error.code === "HELPER_UNREACHABLE");
 });
+
+test("NativeHelperProvider keeps the helper awake while connected and stops on disconnect (10-20)", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const calls = [];
+  const fetchImpl = async (url) => { calls.push(url); return { ok: true, json: async () => ({ version: "0.2.0", desktopName: "d" }) }; };
+  const provider = new NativeHelperProvider({ port: 4321, token: "tok", fetchImpl, keepAliveMs: 1000 });
+  await provider.connect();
+  t.mock.timers.tick(3000);
+  await Promise.resolve();
+  assert.equal(calls.filter((url) => url.endsWith("/hello")).length, 4);
+  await provider.disconnect();
+  t.mock.timers.tick(5000);
+  await Promise.resolve();
+  assert.equal(calls.filter((url) => url.endsWith("/hello")).length, 4);
+});

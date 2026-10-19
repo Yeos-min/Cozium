@@ -30,6 +30,7 @@ import { FolderShelfAssignments } from "./folder-shelves.js";
 import { PointerLockState } from "./pointer-lock-state.js";
 import { movementKey } from "./walk-collision.js";
 import { surfaceMaterial } from "./materials.js";
+const BED_HIT = new THREE.Vector3();
 
 /**
  * 한 줄에 count개를 넣는다. 넘치면 간격을 줄이고, 그래도 넘치면 크기를 줄인다.
@@ -1376,7 +1377,7 @@ export class Board3D {
     if (!box || !this.walking || this.#arranging) return false;
     const kit = this.#kit;
     kit.raycaster.setFromCamera(kit.ndcFrom(aim.x, aim.y), kit.camera);
-    const hit = kit.raycaster.ray.intersectBox(box, new THREE.Vector3());
+    const hit = kit.raycaster.ray.intersectBox(box, BED_HIT); // 매 프레임 부르므로 벡터를 새로 만들지 않는다
     return !!hit && hit.distanceTo(kit.raycaster.ray.origin) < 10;
   }
 

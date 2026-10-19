@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { MemoryProvider } from "../js/providers/memory-provider.js";
-import { applyPlan, buildPlan, parsePlan, planGroups, splitPlan, undoApplied } from "../js/state/cleanup-plan.js";
+import { applyPlan, buildPlan, checkPlan, parsePlan, planGroups, splitPlan, undoApplied } from "../js/state/cleanup-plan.js";
 
 /** NativeHelperProvider와 같은 모양의 가짜 Helper. 바탕화면 바로 위 파일과 폴더 트리만 안다. */
 function fakeHelper({ files, folders }) {
@@ -87,4 +87,19 @@ test("Helper로 적용: 있는 폴더·하위 폴더·새 폴더, 없는 파일�
   const back = await undoApplied(report, helper);
   assert.equal(back.restored.length, 2);
   assert.ok(helper.state.files.every((f) => !f.in));
+});
+
+test("checkPlan counts only files that sit directly in the Helper folder (10-19: files dragged from inside a subfolder)", async () => {
+  const plan = buildPlan({ moves: [
+    { name: "a.png", size: 10, from: [], to: ["사진"] },
+    { name: "B.txt", size: 5, from: [], to: ["문서"] },
+    { name: "c.pdf", size: 7, from: [], to: ["문서"] },
+    { name: "d.hwp", size: 3, from: ["과제"], to: ["문서"] },
+  ] });
+  const files = [{ id: "1", name: "a.png", size: 10 }, { id: "2", name: "b.txt", size: 5 }, { id: "3", name: "c.pdf", size: 99 }];
+  const { present, missing, manual } = checkPlan(plan, files);
+  assert.deepEqual(present.map((m) => m.name), ["a.png", "B.txt"]);
+  assert.deepEqual(missing.map((m) => m.name), ["c.pdf"]);
+  assert.equal(manual.length, 1);
+  assert.equal(checkPlan(plan, []).present.length, 0);
 });

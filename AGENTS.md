@@ -1,5 +1,7 @@
 # Cozium — 공통 협업 지침
 
+> ⚠️ **`app.html`에 보안 정책(CSP)이 있다(2026-10-20).** 외부 주소를 새로 쓰거나 importmap·인라인 스크립트를 고치면 막힌다. 앱에서 뭔가 안 되면 이것부터 의심 → `CLAUDE.md` §8-9, 콘솔의 "Content Security Policy" 줄. `npm test`의 `tests/csp.test.js`가 지문 어긋남을 잡는다.
+
 ## 최신 소스와 읽는 순서
 
 - 사용자 컴퓨터의 최신본은 `D:\울산대\3학년 2학기\웹디자인2\Project\desktop-cleanup-prototype` **루트**다. 사용자가 2026-10-06에 확인했다.

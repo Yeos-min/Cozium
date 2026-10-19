@@ -64,7 +64,7 @@ $skipPatterns = @(
 
 $xd = @() + $skipNames
 foreach ($d in $skipDirs) { $xd += (Join-Path $Root $d); $xd += (Join-Path $full $d) }
-$xf = @()
+$xf = @("*.exe")  # 10-20: CoziumHelper.exe goes to GitHub Releases, not into C / the repository
 foreach ($f in $skipFiles) { $xf += (Join-Path $Root $f); $xf += (Join-Path $full $f) }
 foreach ($p in $skipPatterns) {
   foreach ($base in @($Root, $full)) {
