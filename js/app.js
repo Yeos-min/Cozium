@@ -64,7 +64,6 @@ const elements = {
   plan: $("#plan"),
   panelToggle: $("#panel-toggle"),
   arrangeToggle: $("#arrange-toggle"),
-  finishButton: $("#finish-button"),
   finish: $("#finish"),
   stageSide: $(".stage-side"),
   progressHud: $("#progress-hud"),
@@ -110,7 +109,7 @@ let provider = null;
 let board = null;
 let labels = { verb: "옮김", mode: "체험" };
 /** 이번 정리의 시작 시각(방에 들어간 순간)과 방에서 만든 폴더. 결과 화면이 쓴다. */
-const session = { startedAt: 0, createdFolders: new Set(), autoFinished: false };
+const session = { startedAt: 0, createdFolders: new Set() };
 
 // ───────────────────────── Provider 작업은 한 번에 하나씩 ─────────────────────────
 
@@ -279,20 +278,13 @@ function updateBar() {
   const complete = total > 0 && done === total;
   if (complete && !completedNoticeShown) {
     completedNoticeShown = true;
-    status.notice(`${total}개를 전부 치웠습니다.`, "success");
-    // 다 치웠으면 잠깐 뒤 결과 화면(10-18). 마지막 카드가 상자에 들어가는 걸 보고 나서. 한 번만.
-    if (!session.autoFinished) {
-      session.autoFinished = true;
-      setTimeout(() => {
-        const now = store.progress;
-        if (pending === 0 && now.total > 0 && now.done === now.total && !finishDesk.open && !interior.active) openFinish();
-      }, 1600);
-    }
+    // 마지막 이동의 「N개를 …에 옮김」 알림(logMove)이 바로 뒤에 덮어쓰므로 한 박자 늦게 띄운다(10-20, 노트북으로 가라는 안내라 꼭 보여야 함)
+    setTimeout(() => { if (store.progress.done === total) status.notice(`${total}개를 전부 치웠어요. 책상 위 노트북에서 마무리하세요.`, "success"); }, 0);
   } else if (!complete) {
     completedNoticeShown = false;
   }
-  elements.finishButton.dataset.done = String(complete);
-  elements.finishButton.textContent = complete ? "다 치웠어요 · 결과 보기" : "정리 끝내기";
+  // 다 치웠으면 저절로 넘어가지 않고 노트북이 부른다(10-20 사용자). 직접 걸어가 누르면 결과 화면.
+  board?.setLaptopCall?.(complete);
   const last = store.lastBatch;
   const arranging = board?.arranging;
   elements.arrangeToggle.hidden = !board?.setArranging;
@@ -370,11 +362,11 @@ async function startWith(nextProvider) {
     onPullWave: () => store.supply({ force: true }),
     onOpenFolder: openFolder,
     onLeaveFolder: () => store.leaveFolder(),
+    onLaptop: () => openFinish(),
     loadThumbnail: (item) => provider.readThumbnail(item.id),
   });
   session.startedAt = performance.now();
   session.createdFolders.clear();
-  session.autoFinished = false;
   if (showIntro) {
     board.setSuspended(true); // 안내가 떠 있는 동안은 걷기·집기를 막는다. 「방에 들어가기」가 푼다
     roomIntro.track(board);
@@ -468,7 +460,7 @@ window.addEventListener("keydown", (event) => {
     (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
   if (isEditing || elements.stage.hidden || interior.active) return;
   if (roomIntro.active) { if (event.key === "Tab") event.preventDefault(); return; } // 정리 시작 화면에서는 Enter만
-  if (finishDesk.open) return; // 결과 화면은 방 조작을 받지 않는다
+  if (finishDesk.open || diving) return; // 결과 화면(과 노트북으로 들어가는 중)은 방 조작을 받지 않는다
   const modifier = event.ctrlKey || event.metaKey;
   if (event.key === "Tab") {
     event.preventDefault();
@@ -586,16 +578,26 @@ function buildFinishReport() {
   };
 }
 
-function openFinish() {
-  if (!board || finishDesk.open || pending > 0) return;
+/** 정리 끝내기 = 빈손으로 책상 노트북을 누름(10-20, HUD 단추는 뺐다). 화면 속으로 줌인 → 화면이 꽉 차면 결과 화면. */
+let diving = false;
+async function openFinish() {
+  if (!board || finishDesk.open || pending > 0 || diving) return;
   if (interior.active) return;
   if (board.arranging) toggleArrangement();
   toggleSidePanel(false);
+  diving = true;
+  document.body.classList.add("is-diving"); // HUD·이름표를 걷고 노트북 화면만(css/finish.css)
+  let dove = false;
+  try {
+    dove = await board.diveIntoLaptop(); // 입력도 여기서 막힌다
+  } finally {
+    diving = false;
+  }
   board.setSuspended(true);
   // 이 탭이 이미 Helper에 붙어 있으면(Helper가 연 탭에서 웹 체험으로 정리한 경우) 포트·토큰을 다시 묻지 않는다.
   const report = buildFinishReport();
-  finishDesk.show(report, { connected: report.modeKind === "web" ? onboarding.helperProvider : null });
-  setTimeout(() => { if (finishDesk.open) board?.setPaused(true); }, 1000); // 막이 다 덮은 뒤
+  finishDesk.show(report, { connected: report.modeKind === "web" ? onboarding.helperProvider : null, from: dove ? "laptop" : null });
+  setTimeout(() => { if (finishDesk.open) board?.setPaused(true); }, dove ? 500 : 1000); // 바탕화면이 다 덮은 뒤
 }
 
 async function connectHelperForFinish(port, token) {
@@ -618,13 +620,14 @@ const finishDesk = mountFinishDesk({
   root: elements.finish,
   connectHelper: connectHelperForFinish,
   notice: (text, tone) => status.notice(text, tone),
-  onBack: (report) => {
+  onBack: async (report) => {
     if (report.variant === "plan") return; // 가져오기 화면에서 연 계획: 그 화면으로 돌아간다
     board?.setPaused(false);
+    await board?.surfaceFromLaptop(); // 노트북 화면 속에서 서 있던 자리로 빠져나온다
+    document.body.classList.remove("is-diving");
     board?.setSuspended(false); // 「게임으로 돌아가기」 알약이 뜬다
   },
 });
-elements.finishButton.addEventListener("click", () => openFinish());
 if (typeof window !== "undefined") window.__app.finish = { open: openFinish, report: buildFinishReport, show: (report) => finishDesk.show(report) }; // 자동 점검용
 
 // ── 가져오기 화면의 Helper 창: 저장해 둔 정리 계획을 연결된 Helper로 적용 ──

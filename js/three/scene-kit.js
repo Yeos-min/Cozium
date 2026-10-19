@@ -287,6 +287,98 @@ export class SceneKit {
     }
     const bed = room.getObjectByName("Bed001") ?? room.getObjectByName("Bed.001"); // GLTFLoader가 이름의 "."을 뺀다
     if (bed) this.bedBox = new THREE.Box3().setFromObject(bed);
+    // 노트북(몸통 `Laptop` + 화면 `Laptop.001`): 누르는 범위 = 둘을 합친 상자(10-20 정리 끝내기)
+    const laptop = new THREE.Box3();
+    const body = room.getObjectByName("Laptop");
+    if (body) laptop.expandByObject(body);
+    if (this.laptopScreen) laptop.expandByObject(this.laptopScreen);
+    if (!laptop.isEmpty()) this.laptopBox = laptop;
+  }
+
+  // ───────────────────────── 노트북 = 정리 끝내기 (10-20) ─────────────────────────
+
+  /** 화면이 시야를 꽉 채우는 카메라 자리. 화면 메시(사각형)의 꼭짓점·법선으로 잰다. */
+  laptopView() {
+    const mesh = this.laptopScreen;
+    if (!mesh?.geometry?.attributes?.normal) return null;
+    mesh.updateWorldMatrix(true, false);
+    const position = mesh.geometry.attributes.position, points = [];
+    for (let i = 0; i < position.count; i++) points.push(new THREE.Vector3().fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld));
+    const center = points.reduce((sum, point) => sum.add(point), new THREE.Vector3()).multiplyScalar(1 / points.length);
+    const normal = new THREE.Vector3().fromBufferAttribute(mesh.geometry.attributes.normal, 0)
+      .applyMatrix3(new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld)).normalize();
+    if (normal.x * -center.x + normal.z * -center.z < 0) normal.negate(); // 방 가운데 쪽을 보는 면
+    const right = new THREE.Vector3(0, 1, 0).cross(normal).normalize();
+    const up = normal.clone().cross(right).normalize();
+    let halfW = 0, halfH = 0;
+    for (const point of points) {
+      const d = point.clone().sub(center);
+      halfW = Math.max(halfW, Math.abs(d.dot(right)));
+      halfH = Math.max(halfH, Math.abs(d.dot(up)));
+    }
+    const tan = Math.tan(this.camera.fov * DEG / 2);
+    const distance = Math.min(halfH / tan, halfW / (tan * this.camera.aspect)) * TUNING.laptop.fill;
+    const eye = center.clone().addScaledVector(normal, distance);
+    const look = new THREE.Matrix4().lookAt(eye, center, new THREE.Vector3(0, 1, 0));
+    return { center, normal, eye, quaternion: new THREE.Quaternion().setFromRotationMatrix(look) };
+  }
+
+  /** 지금 자리에서 노트북 화면 속으로. 화면이 꽉 차면 resolve(true). 노트북이 없으면 바로 false. */
+  diveLaptop() {
+    const view = this.laptopView();
+    if (!view || this.dive) return Promise.resolve(false);
+    const from = { position: this.camera.position.clone(), quaternion: this.camera.quaternion.clone() };
+    // 화면 정면 몇 단위 앞을 거쳐 들어간다: 옆에서 눌러도 비스듬히 박히지 않고, 의자·책상 위로 넘어간다
+    const via = view.center.clone().addScaledVector(view.normal, TUNING.laptop.approach);
+    via.y = Math.max(via.y, Math.min(from.position.y, view.eye.y + 0.6));
+    return new Promise((resolve) => {
+      this.dive = { t: 0, direction: 1, duration: TUNING.laptop.dive, from, via, to: view, resolve };
+    });
+  }
+
+  /** 화면 속에서 원래 서 있던 자리로 되돌아 나온다. 끝나면 걷기 카메라로. */
+  surfaceLaptop() {
+    const dive = this.dive;
+    if (!dive) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      Object.assign(dive, { direction: -1, duration: TUNING.laptop.surface, resolve });
+    });
+  }
+
+  get diving() {
+    return Boolean(this.dive);
+  }
+
+  #stepDive(dt) {
+    const dive = this.dive;
+    dive.t = clamp(dive.t + (dive.direction * dt) / dive.duration, 0, 1);
+    const t = dive.t;
+    const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // 천천히 출발, 천천히 닿기
+    const a = (1 - e) * (1 - e), b = 2 * (1 - e) * e, c = e * e;
+    this.camera.position.set(
+      a * dive.from.position.x + b * dive.via.x + c * dive.to.eye.x,
+      a * dive.from.position.y + b * dive.via.y + c * dive.to.eye.y,
+      a * dive.from.position.z + b * dive.via.z + c * dive.to.eye.z,
+    );
+    const turn = Math.min(1, t / 0.7); // 먼저 노트북 쪽으로 고개를 돌리고 다가간다
+    this.camera.quaternion.slerpQuaternions(dive.from.quaternion, dive.to.quaternion, 1 - Math.pow(1 - turn, 3));
+    if (dive.direction > 0 && t >= 1 && dive.resolve) { const done = dive.resolve; dive.resolve = null; done(true); }
+    if (dive.direction < 0 && t <= 0) {
+      const done = dive.resolve;
+      this.dive = null;
+      this.#applyCamera();
+      done?.(true);
+    }
+  }
+
+  /** 겨눴을 때 화면이 밝아지고, 다 치웠으면 화면이 천천히 숨 쉰다(부른다). */
+  #stepLaptopGlow(dt) {
+    const material = this.laptopScreen?.material;
+    if (!material?.isMeshBasicMaterial) return;
+    const target = this.laptopHover && !this.dive ? 1 : 0;
+    this.laptopGlow = (this.laptopGlow ?? 0) + (target - (this.laptopGlow ?? 0)) * Math.min(1, dt * 10);
+    const pulse = this.laptopCalling && !this.dive ? 0.5 + 0.5 * Math.sin(this.clock.elapsedTime * 3.2) : 0;
+    material.color.setScalar(1 + TUNING.laptop.hoverGlow * this.laptopGlow + TUNING.laptop.callGlow * pulse * (1 - this.laptopGlow));
   }
 
   /** 낮 ↔ 밤. 바로 바뀌지 않고 TUNING.night.duration 동안 해가 진다(뜬다). */
@@ -632,18 +724,19 @@ export class SceneKit {
       }
       if (this.renderQuality.observe(elapsed)) this.#applyRenderQuality();
       this.#stepNight(Math.min(elapsed, 0.1));
+      this.#stepLaptopGlow(Math.min(elapsed, 0.1));
       if (this.profiler?.active) this.profiler.startFrame(elapsed);
       const dt = Math.min(elapsed, 0.05);
       if (this.profiler?.active) {
         this.profiler.measure("camera", () => {
-          this.#stepWalk(dt, Math.min(elapsed, 0.25));
+          if (this.dive) this.#stepDive(Math.min(elapsed, 0.1)); else this.#stepWalk(dt, Math.min(elapsed, 0.25));
         });
         this.profiler.measure("board", () => onFrame(dt));
         this.profiler.measure("webgl", () => this.#renderWebGL(dt));
         this.profiler.measure("labels", () => this.labelRenderer.render(this.scene, this.camera));
         this.profiler.endFrame();
       } else {
-        this.#stepWalk(dt, Math.min(elapsed, 0.25));
+        if (this.dive) this.#stepDive(Math.min(elapsed, 0.1)); else this.#stepWalk(dt, Math.min(elapsed, 0.25));
         onFrame(dt);
         this.#renderWebGL(dt);
         this.labelRenderer.render(this.scene, this.camera);

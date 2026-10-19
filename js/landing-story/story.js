@@ -107,6 +107,7 @@ const cameBack = location.hash === "#end";
 const room = new RoomLayer(roomCanvas, { faceCanvas: (k) => drawFace(k) });
 const desk = $("#desk"), deskIcons = $("#deskIcons"), deskChrome = $("#deskChrome");
 const title = $("#title"), cta = $("#cta"), cue = $("#cue"), veil = $("#veil"), sceneStatus = $("#sceneStatus");
+let cueLearned = false; // 한 번이라도 스크롤로 넘겼는지(첫 화면 안내 글)
 let deskMode = "messy";
 function buildDesk(mode, counts = []) {
   deskMode = mode;
@@ -1240,6 +1241,9 @@ function frameDOM(p, counts) {
   const atStop = Math.abs(p - GATE) < 1e-4 && (!gateOpen || autoClearAt);
   const cueOn = !noGL && atRest() && p < 1 - 1e-4 && !atStop && !hand.active && (p < 1e-4 || performance.now() - arrivedAt > 1300);
   cue.style.opacity = cueOn ? "1" : "0";
+  // 10-20 사용자: 첫 화면에서 스크롤해야 한다는 힌트가 빈약 → 첫 방에서만 「스크롤해서 시작」 글이 같이 뜬다. 한 번 넘기면 다시 안 뜸.
+  if (p > 1e-3) cueLearned = true;
+  cue.dataset.first = String(!cueLearned);
 }
 
 // ───────────── loop ─────────────

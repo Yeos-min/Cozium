@@ -171,6 +171,13 @@ export const TUNING = {
     steam: { color: "#dbe3ff", strength: 0.8 },
   },
 
+  /**
+   * 책상 노트북 = 정리 끝내기(10-20 사용자: HUD 단추 대신 노트북과 상호작용, 누르면 화면 속으로 줌인 → 결과 화면).
+   * dive·surface 초, fill = 화면이 시야를 채우는 정도(1보다 작으면 테두리까지 안 보이게 살짝 넘침),
+   * approach = 화면 앞 몇 단위에서 정면으로 꺾어 들어가나(의자·책상을 넘어가게), glow = 겨눴을 때·다 치웠을 때 화면 밝기.
+   */
+  laptop: { dive: 1.5, surface: 0.9, fill: 0.94, approach: 1.9, reach: 12, hoverGlow: 0.32, callGlow: 0.26 },
+
   wallWash: { amount: 0, scale: 1.25 },
 
   card: {

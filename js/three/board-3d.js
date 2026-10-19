@@ -30,6 +30,7 @@ import { FolderShelfAssignments } from "./folder-shelves.js";
 import { PointerLockState } from "./pointer-lock-state.js";
 import { movementKey } from "./walk-collision.js";
 import { surfaceMaterial } from "./materials.js";
+const LAPTOP_HIT = new THREE.Vector3();
 const BED_HIT = new THREE.Vector3();
 
 /**
@@ -165,7 +166,12 @@ export class Board3D {
   #homeSlots = new HomeSlots();
   #homePoses = new Map();
 
-  constructor({ root, store, labels = { verb: "옮김" }, onDropToFolder, onPullWave, onOpenFolder, onLeaveFolder, loadThumbnail = null }) {
+  /** 빈손으로 노트북을 누르면(10-20 정리 끝내기). 다 치웠으면 노트북이 부른다(#laptopCalling). */
+  #onLaptop;
+  #laptopCalling = false;
+  #laptopLabel = null;
+
+  constructor({ root, store, labels = { verb: "옮김" }, onDropToFolder, onPullWave, onOpenFolder, onLeaveFolder, onLaptop = null, loadThumbnail = null }) {
     this.#root = root;
     this.#store = store;
     this.#labels = labels;
@@ -173,6 +179,7 @@ export class Board3D {
     this.#onPullWave = onPullWave;
     this.#onOpenFolder = onOpenFolder;
     this.#onLeaveFolder = onLeaveFolder;
+    this.#onLaptop = onLaptop;
     this.#loadThumbnail = loadThumbnail;
 
     root.classList.add("board-viewport", "is-3d");
@@ -1102,8 +1109,10 @@ export class Board3D {
     }
     // 좌클릭은 상자에 넣기만 한다(10-13 22시 사용자: 좌클릭으로도 던져지는 건 버그). 바닥에 두는 건 우클릭 던지기.
     if (held.length) { this.#hintFlash = performance.now() + 1800; return; }
-    // 빈손으로 침대를 누르면 시간이 흐른다(낮 ↔ 밤, 10-13 사용자 아이디어)
-    if (this.#aimsAtBed(this.#aim(event))) this.#kit.toggleNight();
+    // 빈손으로 노트북 = 정리 끝내기(10-20), 침대 = 시간이 흐른다(낮 ↔ 밤, 10-13). 둘 다 겨누면 가까운 쪽.
+    const fixture = this.#aimedFixture(this.#aim(event));
+    if (fixture === "laptop") this.#onLaptop?.();
+    else if (fixture === "bed") this.#kit.toggleNight();
   }
 
   #walkPointerUp(event) {
@@ -1381,11 +1390,81 @@ export class Board3D {
     return !!hit && hit.distanceTo(kit.raycaster.ray.origin) < 10;
   }
 
+  /** 겨눈 노트북까지의 거리(없으면 Infinity). 침대와 같은 방식(상자 하나). */
+  #laptopDistance(aim) {
+    const box = this.#kit.laptopBox;
+    if (!box || !this.walking || this.#arranging || this.#kit.diving) return Infinity;
+    const kit = this.#kit;
+    kit.raycaster.setFromCamera(kit.ndcFrom(aim.x, aim.y), kit.camera);
+    const hit = kit.raycaster.ray.intersectBox(box, LAPTOP_HIT);
+    const distance = hit ? hit.distanceTo(kit.raycaster.ray.origin) : Infinity;
+    return distance < TUNING.laptop.reach ? distance : Infinity;
+  }
+
+  /** 빈손 클릭 대상: "laptop" | "bed" | null. 둘 다 겨누면 가까운 쪽. */
+  #aimedFixture(aim) {
+    const laptop = this.#laptopDistance(aim);
+    if (laptop === Infinity) return this.#aimsAtBed(aim) ? "bed" : null;
+    if (!this.#aimsAtBed(aim)) return "laptop";
+    return laptop <= BED_HIT.distanceTo(this.#kit.raycaster.ray.origin) ? "laptop" : "bed";
+  }
+
+  /** 노트북 위 이름표: 겨누면 「정리 끝내기」, 다 치웠으면 늘 「다 치웠어요 · 여기서 마무리」. */
+  #updateLaptopLabel(aimed) {
+    const box = this.#kit.laptopBox;
+    if (!box) return;
+    if (!this.#laptopLabel) {
+      const element = document.createElement("div");
+      element.className = "laptop-label-3d";
+      this.#laptopLabel = new CSS2DObject(element);
+      this.#laptopLabel.position.set((box.min.x + box.max.x) / 2, box.max.y + 0.35, (box.min.z + box.max.z) / 2);
+      this.#kit.scene.add(this.#laptopLabel);
+    }
+    const show = !this.#kit.diving && this.#kit.isWalking && !this.#arranging && (aimed || this.#laptopCalling);
+    this.#laptopLabel.visible = show;
+    const element = this.#laptopLabel.element;
+    const text = this.#laptopCalling ? "다 치웠어요 · 여기서 마무리" : "정리 끝내기";
+    if (element.textContent !== text) element.textContent = text;
+    element.dataset.calling = String(this.#laptopCalling);
+    element.dataset.aimed = String(aimed);
+  }
+
+  /** 다 치웠으면 노트북이 부른다: 화면이 천천히 밝아졌다 어두워지고 위에 이름표가 계속 뜬다. */
+  setLaptopCall(value) {
+    this.#laptopCalling = Boolean(value);
+    this.#kit.laptopCalling = this.#laptopCalling;
+  }
+
+  /** 노트북 화면 속으로 줌인(입력은 막는다). 화면이 꽉 차면 resolve(true), 노트북이 없으면 false. */
+  diveIntoLaptop() {
+    this.setSuspended(true);
+    this.#handHint.hidden = true;
+    this.#kit.laptopHover = false;
+    if (this.#laptopLabel) this.#laptopLabel.visible = false;
+    return this.#kit.diveLaptop();
+  }
+
+  /** 결과 화면에서 돌아올 때: 화면 속에서 원래 자리로 빠져나온다. */
+  surfaceFromLaptop() {
+    return this.#kit.surfaceLaptop();
+  }
+
   #updateHandHint() {
     const held = this.#store.selection.length;
     const walking = this.#kit.isWalking;
-    const bed = held === 0 && walking && this.#locked && !["card", "box", "pile"].includes(this.#crosshair.dataset.over) && this.#aimsAtBed(this.#aim(null));
-    this.#handHint.hidden = this.#arranging || !walking || (held === 0 && !bed);
+    const free = held === 0 && walking && this.#locked && !this.#suspended && !["card", "box", "pile"].includes(this.#crosshair.dataset.over);
+    const fixture = free ? this.#aimedFixture(this.#aim(null)) : null;
+    const bed = fixture === "bed", laptop = fixture === "laptop";
+    this.#kit.laptopHover = laptop;
+    this.#updateLaptopLabel(laptop);
+    this.#handHint.hidden = this.#arranging || !walking || (held === 0 && !bed && !laptop);
+    if (laptop) {
+      const message = this.#laptopCalling
+        ? `<strong>다 치웠어요</strong> <kbd>좌클릭</kbd> 노트북에서 마무리하기`
+        : `<kbd>좌클릭</kbd> 정리 끝내기 <span>· 노트북으로 들어가 결과 보기</span>`;
+      if (this.#handHint.innerHTML !== message) this.#handHint.innerHTML = message;
+      return;
+    }
     if (bed) {
       const message = `<kbd>좌클릭</kbd> 한숨 자기 <span>· ${this.#kit.isNight ? "아침으로" : "밤으로"}</span>`;
       if (this.#handHint.innerHTML !== message) this.#handHint.innerHTML = message;

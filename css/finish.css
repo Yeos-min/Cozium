@@ -10,6 +10,11 @@
 @keyframes finish-undim { from { opacity: 1; } to { opacity: 0; } }
 .finish.is-arriving .win-finish { animation: finish-win-in 0.55s cubic-bezier(.2, .9, .3, 1) 0.45s both; }
 @keyframes finish-win-in { from { opacity: 0; transform: translateY(16px) scale(0.97); } }
+/* 노트북 화면 속으로 들어왔을 때(10-20): 화면이 이미 꽉 찬 바탕화면이라 막 없이 살짝 겹쳐 바뀐다 */
+.finish.is-from-laptop.is-arriving .desk::after { content: none; }
+.finish.is-from-laptop.is-arriving { animation: finish-from-laptop 0.35s ease both; }
+.finish.is-from-laptop.is-arriving .win-finish { animation-delay: 0.25s; }
+@keyframes finish-from-laptop { from { opacity: 0; } }
 
 /* ── 아이콘 ── */
 .finish-file[data-kind="folder"] { z-index: 2; }
@@ -87,18 +92,19 @@
 .finish-links .win-link { font-size: 13px; }
 .finish-links [hidden] { display: none; }
 
-/* 방 HUD의 「정리 끝내기」: 상자 배치 단추 옆 */
+/* 노트북 화면 속으로 들어가는 동안·결과 화면 동안(10-20): HUD·이름표를 걷어 화면만 남긴다. 돌아오면 다시 보인다 */
+body.is-diving .stage-bar, body.is-diving .room-key-hints, body.is-diving .progress-hud, body.is-diving #notice,
+body.is-diving .board-viewport > :not(canvas) { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.3s ease; }
+
+/* 방 HUD 상자 배치 단추(10-18 「정리 끝내기」 단추 옆에 두려고 static. 10-20 그 단추는 빼고 노트북으로 — 자리는 그대로) */
 body.is-playing #arrange-toggle { position: static; }
-body.is-playing #finish-button { background: #514734c9; color: #fff4df; border: 1px solid #fff2cd40; pointer-events: auto; }
-body.is-playing #finish-button:hover { background: #665b42ee; }
-body.is-playing #finish-button[data-done="true"] { background: #ece1bf; color: #423d2c; border-color: #ece1bf; box-shadow: 0 0 0 3px #ece1bf40; }
 
 @media (max-width: 900px) {
   .win-finish { left: 24px; right: 24px; width: auto; top: 30px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .finish-file { transition: none; }
-  .finish.is-arriving .desk::after, .finish.is-arriving .win-finish, .finish.is-arriving .finish-ch { animation: none; }
+  .finish.is-arriving .desk::after, .finish.is-arriving .win-finish, .finish.is-arriving .finish-ch, .finish.is-from-laptop.is-arriving { animation: none; }
 }
 
 /* 가져오기 화면 Helper 창: 저장한 정리 계획 */
