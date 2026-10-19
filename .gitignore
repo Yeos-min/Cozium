@@ -1,6 +1,8 @@
 # Local experiments and preserved source history
 /_archive/
 /output/
+# Helper exe goes to GitHub Releases, never into the repository (82 MB; 10-20)
+*.exe
 /.claude/
 /.codex/
 /.agents/

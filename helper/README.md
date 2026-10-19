@@ -11,7 +11,7 @@ Node 20 이상.
 node helper/desktop-helper.mjs
 ```
 
-실행하면 랜덤 포트와 일회용 토큰을 만들고 지정한 `--app` 주소에 `?helper=PORT&token=…`를 붙여 브라우저를 연다. 기본은 첫 허용 출처의 루트이며, 새 랜딩은 연결 정보를 보존해 `app.html`로 이어 준다. 웹 페이지는 주소창에서 토큰을 지우고 메모리에만 둔다.
+실행하면 랜덤 포트와 일회용 토큰을 만들고 지정한 `--app` 주소 뒤에 `#helper=PORT&token=…`를 붙여 브라우저를 연다(v0.2.2부터 # 뒤 — 서버로 가지 않는다. 웹은 예전 `?helper=`도 받는다). 기본은 `https://yeos-min.github.io/Cozium/app.html`이며, 랜딩(index.html)으로 와도 연결 정보를 보존해 `app.html`로 이어 준다. 웹 페이지는 주소창에서 토큰을 지우고 메모리에만 둔다.
 브라우저가 안 열리면 콘솔의 포트와 토큰을 페이지에 직접 넣는다.
 
 개발용(localhost:5173 페이지 + 가짜 바탕화면):
@@ -85,5 +85,18 @@ node helper/desktop-helper.mjs --origin https://OWNER.github.io --app https://OW
 ```
 
 `--origin`에는 저장소 경로를 넣지 않는다. 배포된 HTTPS 페이지에서 localhost Helper로 연결하는 브라우저 권한 흐름은 실제 기기에서 별도 확인이 필요하다.
-지금은 `.mjs` 파일 하나다. Node가 없는 사람을 위한 단일 exe(Node SEA)와 SmartScreen·코드 서명은 다음 단계다.
-GitHub Releases에 올린다.
+기본값은 실제 배포 주소다(2026-10-19): 허용 출처 `https://yeos-min.github.io`, 여는 페이지 `https://yeos-min.github.io/Cozium/app.html`. 인자 없이 실행하면 이 페이지가 열린다.
+
+### CoziumHelper.exe (Node가 없는 사람용)
+
+```bash
+node tools/build-helper-exe.mjs --node <Windows용 node.exe 경로>
+```
+
+- `helper/exe-entry.mjs` + `desktop-helper.mjs`를 CommonJS 한 파일로 묶고(esbuild) Node 단일 실행 파일(SEA)로 만든다. 결과는 `output/helper/CoziumHelper.exe`(약 82 MB).
+- **스크립트를 돌리는 node와 `--node`의 node.exe 버전이 같아야 한다.** 10-19 빌드는 둘 다 v22.22.0(npm `node-win-x64@22.22.0`, OpenJS 서명 해시 일치 확인 후 서명을 떼고 넣음).
+- 인자는 node 실행과 같다. 테스트할 때는 `CoziumHelper.exe --desktop "<더미 폴더>"`.
+- exe 창은 시작에 실패하면 Enter를 누를 때까지 안 닫힌다(오류를 읽을 수 있게).
+- 서명이 없다 → Chrome "흔히 다운로드되지 않는 파일", SmartScreen "추가 정보 → 실행". 코드 서명은 다음 단계.
+- 저장소에는 올리지 않는다. GitHub Releases에 **`CoziumHelper.exe` 그 이름으로** 올린다. 사이트는 `releases/latest/download/CoziumHelper.exe`를 가리킨다.
+- **릴리스 설명에 SHA-256을 적는다.** 서명이 없으니 받은 파일이 우리가 만든 그 파일인지 확인할 방법이 이것뿐이다. 빌드 끝에 찍히는 값을 그대로 붙이고, 받는 사람은 PowerShell에서 `Get-FileHash .\CoziumHelper.exe`로 대조한다.

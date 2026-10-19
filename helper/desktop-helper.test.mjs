@@ -304,3 +304,32 @@ test("parseArgs reads flags", () => {
   assert.equal(options.open, false);
   assert.equal(options.idleMinutes, 3);
 });
+
+test("undo still works after a rescan dropped the moved file from the id table (10-20)", async () => {
+  const dir = await makeDesktop();
+  const session = await createDesktopSession({ desktopPath: dir });
+  const scan = await session.scan();
+  const note = scan.files.find((file) => file.name === "노트.txt");
+  const folder = scan.folders.find((entry) => entry.name === "과제");
+  const result = await session.move([note.id], folder.id);
+  assert.equal(result.moved.length, 1);
+  await session.scan(); // 바탕화면 바로 위만 다시 읽는다 — 옮긴 파일은 대응표에서 빠진다
+  const undone = await session.undo(result.batchId);
+  assert.equal(undone.restored.length, 1, JSON.stringify(undone.failed));
+  assert.equal(await fs.readFile(path.join(dir, "노트.txt"), "utf8"), "hello");
+});
+
+test("the server answers 500 instead of dying when a handler throws something unexpected (10-20)", async () => {
+  const dir = await makeDesktop();
+  const session = await createDesktopSession({ desktopPath: dir });
+  session.scan = async () => { throw new TypeError("boom"); };
+  const server = createHelperServer({ session, token: "t", allowedOrigins: ["https://example.test"] });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address();
+  const headers = { Origin: "https://example.test", Authorization: "Bearer t" };
+  const bad = await fetch(`http://127.0.0.1:${port}/v1/scan`, { headers });
+  assert.equal(bad.status, 500);
+  const hello = await fetch(`http://127.0.0.1:${port}/v1/hello`, { headers });
+  assert.equal(hello.status, 200);
+  await new Promise((resolve) => server.close(resolve));
+});

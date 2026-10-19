@@ -67,6 +67,31 @@ export function splitPlan(plan) {
 }
 
 /**
+ * 적용하기 전에 계획의 파일이 Helper가 보는 폴더 바로 위에 있는지 센다(2026-10-19).
+ * 웹 드롭은 파일이 원래 어디 있었는지 모른다 — 탐색기에서 하위 폴더를 열고 그 안 파일을 끌어 놓으면
+ * 계획에는 "바탕화면 위 파일"로 남지만 Helper는 거기서 못 찾는다. 그걸 단추를 누르기 전에 알려 주려고 쓴다.
+ * 판정은 applyPlan과 같다: 이름(대소문자 무시) + 크기.
+ * @returns {{ present: object[], missing: Array<{name, reason}>, manual: object[] }}
+ */
+export function checkPlan(plan, files) {
+  const { auto, manual } = splitPlan(plan);
+  const byName = new Map(), byLower = new Map();
+  for (const file of files) {
+    byName.set(file.name, file);
+    if (!byLower.has(lower(file.name))) byLower.set(lower(file.name), file);
+  }
+  const taken = new Set();
+  const present = [], missing = [];
+  for (const move of auto) {
+    const file = byName.get(move.name) ?? byLower.get(lower(move.name));
+    if (!file || taken.has(file.id)) missing.push({ name: move.name, reason: "이 폴더에 없음" });
+    else if (move.size > 0 && file.size !== move.size) missing.push({ name: move.name, reason: "크기가 달라 다른 파일로 봄" });
+    else { taken.add(file.id); present.push(move); }
+  }
+  return { present, missing, manual };
+}
+
+/**
  * 계획을 Helper로 실제 적용한다.
  * helper: NativeHelperProvider와 같은 모양 — scan(), files, folders, listSubfolders(id), createFolder(parentId, name), moveBatch(ids, folderId)
  * @returns {Promise<{ moved: Array<{name, to}>, failed: Array<{name, to, reason}>, manual: Array<{name, from, to}>, created: string[][], batchIds: string[] }>}

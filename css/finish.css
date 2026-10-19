@@ -62,6 +62,7 @@
 .finish-apply-box > p:last-child { margin-bottom: 0; }
 .finish-apply-head { color: var(--desk-ink) !important; font-weight: 700; font-size: 14px !important; }
 .finish-apply-ok { color: #2f6b45 !important; font-weight: 600; }
+.finish-apply-warn { color: #8a5a12 !important; font-weight: 700; font-size: 14px !important; } /* 10-19: 옮길 게 없거나 0개로 끝났을 때 */
 .finish-apply-note { color: #6c7465 !important; font-size: 12px !important; }
 .finish-apply-progress { font-variant-numeric: tabular-nums; }
 .finish-apply-row { display: flex; gap: 8px; align-items: stretch; margin: 8px 0; }

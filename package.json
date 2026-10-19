@@ -7,6 +7,7 @@
     "test": "node tools/run-tests.mjs",
     "dev": "node tools/serve.mjs 5173",
     "helper": "node helper/desktop-helper.mjs",
-    "helper:dev": "node helper/desktop-helper.mjs --dev --app http://localhost:5173/app.html"
+    "helper:dev": "node helper/desktop-helper.mjs --dev --app http://localhost:5173/app.html",
+    "helper:exe": "node tools/build-helper-exe.mjs"
   }
 }

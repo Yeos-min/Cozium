@@ -129,7 +129,7 @@ export class Onboarding {
     this.#els.webDrop.scrollIntoView({ block: "center" });
   }
 
-  /** URL의 ?helper=PORT&token=… 로도, 폼으로도 온다. */
+  /** URL의 #helper=PORT&token=…(예전 Helper는 ?helper=…)로도, 폼으로도 온다. */
   async connectHelper(port, token) {
     if (!port || !token) {
       this.#status.notice("포트와 토큰을 모두 입력하세요. Helper 창에 나옵니다.", "warn");

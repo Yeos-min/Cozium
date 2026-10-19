@@ -5,7 +5,7 @@
  * 보드는 Provider가 무엇인지 모른다. capabilities로 라벨만 바뀐다.
  *
  * URL 파라미터:
- *   ?helper=PORT&token=…    Desktop Helper가 브라우저를 열 때 붙여 준다 → 자동 연결
+ *   #helper=PORT&token=…    Desktop Helper가 브라우저를 열 때 붙여 준다 → 자동 연결 (v0.2.1까지는 ?helper=…)
  *   ?storage=memory         디스크를 건드리지 않는 샘플 (개발용)
  *   ?entry=sample|files     랜딩에서 샘플 바로 시작 / 내 파일 드롭 화면
  *   &capacity=16&refill=6   보드 정원 / 파동 임계 [임시]
@@ -520,19 +520,25 @@ async function initialize() {
         : "HTTPS 또는 localhost에서 열어야 합니다. file:// 로는 동작하지 않습니다.",
     );
   }
-  const helperPort = params.get("helper");
-  const helperToken = params.get("token");
-  if (helperPort && helperToken) {
-    // 주소창에 토큰이 남지 않게 지운다. 세션 동안은 메모리에만 있다.
+  // 연결 정보: v0.2.2부터는 주소의 # 뒤(서버로 안 감), 그 전 Helper는 ? 뒤(10-20).
+  const fromHash = new URLSearchParams(location.hash.slice(1));
+  const helperPort = fromHash.get("helper") ?? params.get("helper");
+  const helperToken = fromHash.get("token") ?? params.get("token");
+  const helperAddress = fromHash.has("helper") || fromHash.has("token") || params.has("helper") || params.has("token");
+  if (helperAddress) {
+    // 주소창에 토큰이 남지 않게 지운다(방문 기록 항목도 바뀐다). 세션 동안은 메모리에만 있다.
     const clean = new URL(location.href);
     clean.searchParams.delete("helper");
     clean.searchParams.delete("token");
+    if (fromHash.has("helper") || fromHash.has("token")) clean.hash = "";
     history.replaceState(null, "", clean);
+  }
+  if (helperPort && helperToken) {
     await onboarding.connectHelper(helperPort, helperToken);
     return;
   }
   // 불완전한 Helper 주소도 파일/샘플 진입으로 바꾸지 않는다.
-  if (params.has("helper") || params.has("token")) return;
+  if (helperAddress) return;
   if (params.get("entry") === "sample") await onboarding.startSample();
   else if (params.get("entry") === "files") onboarding.focusWebImport();
 }
@@ -586,7 +592,9 @@ function openFinish() {
   if (board.arranging) toggleArrangement();
   toggleSidePanel(false);
   board.setSuspended(true);
-  finishDesk.show(buildFinishReport());
+  // 이 탭이 이미 Helper에 붙어 있으면(Helper가 연 탭에서 웹 체험으로 정리한 경우) 포트·토큰을 다시 묻지 않는다.
+  const report = buildFinishReport();
+  finishDesk.show(report, { connected: report.modeKind === "web" ? onboarding.helperProvider : null });
   setTimeout(() => { if (finishDesk.open) board?.setPaused(true); }, 1000); // 막이 다 덮은 뒤
 }
 

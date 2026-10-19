@@ -5,7 +5,7 @@
  * 이동은 Helper가 같은 볼륨 rename으로 즉시 끝내고, 되돌리기는 rename 역방향이다.
  * 덮어쓰기 없음, 삭제 없음. 항목별 결과.
  *
- * 연결: Helper가 실행되며 만든 포트와 일회용 토큰을 URL(?helper=PORT&token=…)로 받거나 사용자가 직접 입력한다.
+ * 연결: Helper가 실행되며 만든 포트와 일회용 토큰을 URL(#helper=PORT&token=…, v0.2.1까지는 ?helper=…)로 받거나 사용자가 직접 입력한다.
  * 모든 요청에 `Authorization: Bearer <token>`. Helper는 Origin 허용 목록과 토큰을 둘 다 검사한다.
  */
 import { FileSystemProvider, ProviderError, emptyImport, folderLabel, getExtension } from "./file-system-provider.js";
@@ -30,6 +30,8 @@ export class NativeHelperProvider extends FileSystemProvider {
   #folderOrder = [];
   #desktopName = "바탕화면";
   #version = null;
+  #keepAliveMs;
+  #keepAlive = null;
 
   /**
    * @param {object} options
@@ -38,8 +40,9 @@ export class NativeHelperProvider extends FileSystemProvider {
    * @param {string} [options.host="127.0.0.1"]
    * @param {typeof fetch} [options.fetchImpl]
    */
-  constructor({ port, token, host = "127.0.0.1", fetchImpl = globalThis.fetch?.bind(globalThis) }) {
+  constructor({ port, token, host = "127.0.0.1", fetchImpl = globalThis.fetch?.bind(globalThis), keepAliveMs = 4 * 60 * 1000 }) {
     super();
+    this.#keepAliveMs = keepAliveMs;
     this.#base = `http://${host}:${Number(port)}/v1`;
     this.#token = String(token ?? "");
     this.#fetch = fetchImpl;
@@ -124,6 +127,13 @@ export class NativeHelperProvider extends FileSystemProvider {
     const hello = await this.#request("GET", "/hello");
     this.#version = hello.version ?? null;
     this.#desktopName = hello.desktopName ?? this.#desktopName;
+    // Helper는 요청이 15분 없으면 스스로 꺼진다. 방에서 오래 머물거나 결과 화면을 읽는 동안 꺼지지 않게
+    // 페이지가 열려 있는 동안만 가볍게 인사한다(10-20). 페이지가 닫히면 bye, 죽어도 Helper의 타이머가 끈다.
+    clearInterval(this.#keepAlive);
+    if (this.#keepAliveMs > 0) {
+      this.#keepAlive = setInterval(() => { this.#request("GET", "/hello").catch(() => {}); }, this.#keepAliveMs);
+      this.#keepAlive?.unref?.(); // Node(테스트)에서 프로세스를 붙잡지 않게
+    }
     return { version: this.#version, desktopName: this.#desktopName };
   }
 
@@ -234,6 +244,8 @@ export class NativeHelperProvider extends FileSystemProvider {
 
   /** 페이지가 닫힐 때 Helper에 작별 인사. 못 닿아도 Helper는 idle 타이머로 스스로 꺼진다. */
   async disconnect() {
+    clearInterval(this.#keepAlive);
+    this.#keepAlive = null;
     try {
       await this.#request("POST", "/bye", {}, { keepalive: true });
     } catch {

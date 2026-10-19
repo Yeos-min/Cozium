@@ -10,7 +10,7 @@
  */
 import { extensionOf, familyOf } from "./layout.js";
 import { enableDrag, enableResize } from "./win-frame.js";
-import { applyPlan, clearPendingPlan, pathLabel, planFileName, savePendingPlan, splitPlan, undoApplied } from "../state/cleanup-plan.js";
+import { applyPlan, checkPlan, clearPendingPlan, pathLabel, planFileName, savePendingPlan, splitPlan, undoApplied } from "../state/cleanup-plan.js";
 
 const ICONS = "./assets/landing/parts/desktop-v4/icons/";
 const ICON_BY_FAMILY = { image: "photo", design: "photo", video: "video", audio: "audio", archive: "archive" };
@@ -44,7 +44,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
   const kicker = $("#finish-kicker"), title = $("#finish-title"), lede = $("#finish-lede"), stats = $("#finish-stats");
   const folderList = $("#finish-folders"), left = $("#finish-left"), apply = $("#finish-apply");
   const back = $("#finish-back"), replay = $("#finish-replay"), clock = $("#finish-clock");
-  let report = null, helper = null, applied = null, busy = false, runId = 0;
+  let report = null, helper = null, applied = null, busy = false, runId = 0, checkRun = 0;
 
   /** 제목: 글자마다 통통 튀어 들어온다. [보통 글, 강조 글] */
   function setTitle([plain, accent]) {
@@ -356,9 +356,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
       box.append(el("p", "finish-apply-head", "Desktop Helper 연결"));
       const steps = el("ol", "howto");
       const a = el("a", null, "Desktop Helper");
-      a.href = "https://github.com/min20011009/desktop-cleanup-prototype/releases";
-      a.target = "_blank";
-      a.rel = "noopener";
+      a.href = "https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe";
       const s1 = el("li"); s1.append(a, "를 받아 실행해요. 새 탭이 열리면 거기 Helper 창에서 이 계획을 적용할 수 있어요.");
       steps.append(s1, el("li", null, "이 화면에서 하려면 Helper 창에 나온 포트와 토큰을 넣고 연결하세요."));
       const form = el("form", "helper-form");
@@ -385,11 +383,45 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
       return;
     }
     if (state === "ready") {
-      box.append(
-        el("p", "finish-apply-head", `‘${helper.desktopName ?? "바탕화면"}’에 연결됨`),
-        el("p", null, `파일 ${auto.length}개를 폴더로 옮겨요. 바탕화면에 없거나 크기가 달라진 파일, 같은 이름이 이미 있는 파일은 건너뛰어요.`),
-      );
-      const go = el("button", "win-go", `파일 ${auto.length}개 바탕화면에 적용`); go.type = "button";
+      const where = helper.desktopName ?? "바탕화면";
+      // 누르기 전에 Helper 폴더를 읽어 계획의 파일이 실제로 거기 있는지 센다(10-19: 하위 폴더 안 파일을 끌어 온 계획이 0개로 끝남).
+      if (!extra.check) {
+        box.append(el("p", "finish-apply-head", `‘${where}’에 연결됨`), el("p", "finish-apply-progress", "폴더에 파일이 있는지 확인하는 중…"));
+        const id = ++checkRun;
+        helper.scan().then(
+          () => { if (id === checkRun && apply.dataset.state === "ready") renderApply("ready", { check: checkPlan(r.plan, helper.files) }); },
+          (error) => { if (id === checkRun && apply.dataset.state === "ready") { renderApply("idle"); notice(`Helper 폴더를 읽지 못했어요: ${error?.message ?? error}`, "error"); } },
+        );
+        return;
+      }
+      const { present, missing } = extra.check;
+      const missingList = (open) => {
+        const details = el("details", "finish-problems");
+        details.open = open;
+        details.append(el("summary", null, `‘${where}’에 없는 파일 ${missing.length}개`));
+        const ul = el("ul");
+        ul.append(...missing.map((m) => el("li", null, `${m.name} — ${m.reason}`)));
+        details.append(ul);
+        return details;
+      };
+      if (!present.length) {
+        box.append(
+          el("p", "finish-apply-warn", `Helper가 보는 ‘${where}’에 이 파일들이 없어요.`),
+          el("p", null, "정리할 때 끌어 놓은 폴더와 Helper가 연 폴더가 같아야 옮길 수 있어요. 탐색기에서 하위 폴더를 열고 그 안 파일을 끌어 놓았다면 Helper는 그 파일을 찾지 못해요."),
+        );
+        if (missing.length) box.append(missingList(true));
+        if (manual.length) box.append(el("p", "finish-apply-note", `폴더 안에서 꺼낸 파일 ${manual.length}개는 Helper가 못 옮겨요 — 직접 옮겨 주세요.`));
+        const go = el("button", "win-go", "옮길 파일 없음"); go.type = "button"; go.disabled = true;
+        box.append(go);
+        return;
+      }
+      box.append(el("p", "finish-apply-head", `‘${where}’에 연결됨`));
+      box.append(missing.length
+        ? el("p", null, `파일 ${auto.length}개 중 ${present.length}개만 ‘${where}’에 있어요. 있는 ${present.length}개만 옮겨요. 같은 이름이 이미 있는 파일은 건너뛰어요.`)
+        : el("p", null, `파일 ${present.length}개를 폴더로 옮겨요. 같은 이름이 이미 있는 파일은 건너뛰어요.`));
+      if (missing.length) box.append(missingList(false));
+      if (manual.length) box.append(el("p", "finish-apply-note", `폴더 안에서 꺼낸 파일 ${manual.length}개는 Helper가 못 옮겨요 — 직접 옮겨 주세요.`));
+      const go = el("button", "win-go", `파일 ${present.length}개 적용`); go.type = "button";
       go.addEventListener("click", runApply);
       box.append(go);
       return;
@@ -400,11 +432,14 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
     }
     if (state === "applied") {
       const a = applied;
-      box.append(el("p", "finish-apply-ok", `✓ ${a.moved.length}개를 실제로 옮겼어요${a.created.length ? ` · 새 폴더 ${a.created.length}개 만듦` : ""}.`));
+      box.append(a.moved.length
+        ? el("p", "finish-apply-ok", `✓ ${a.moved.length}개를 실제로 옮겼어요${a.created.length ? ` · 새 폴더 ${a.created.length}개 만듦` : ""}.`)
+        : el("p", "finish-apply-warn", "옮긴 파일이 없어요"));
       const problems = [...a.failed.map((f) => `${f.name} — ${f.reason}`), ...a.manual.map((m) => `${m.name} — 직접 옮겨 주세요 (${pathLabel(m.from)} → ${pathLabel(m.to)})`)];
       if (problems.length) {
         const details = el("details", "finish-problems");
-        details.append(el("summary", null, `옮기지 않은 것 ${problems.length}개`));
+        details.open = !a.moved.length; // 하나도 못 옮겼으면 이유부터 보이게
+        details.append(el("summary", null, a.moved.length ? `옮기지 않은 것 ${problems.length}개` : `옮기지 않은 이유 ${problems.length}개`));
         const ul = el("ul");
         ul.append(...problems.map((text) => el("li", null, text)));
         details.append(ul);
