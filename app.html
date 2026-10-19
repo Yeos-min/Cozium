@@ -145,7 +145,6 @@
             <button class="button button-undo button-small" id="undo-button" type="button" disabled>
               <span class="undo-label">마지막 더미 되돌리기</span> <kbd>Ctrl</kbd><kbd>Z</kbd>
             </button>
-            <button class="button button-secondary button-small" id="finish-button" type="button">정리 끝내기</button>
             <button class="button button-secondary button-small" id="arrange-toggle" type="button" aria-pressed="false">파일 정리 모드 · Tab</button>
             <button class="button button-secondary button-small" id="panel-toggle" type="button" aria-pressed="false" aria-label="설정 및 기록 열기" title="설정 및 기록">
               <span aria-hidden="true">⚙</span>
@@ -227,6 +226,7 @@
                 <li>오른쪽 버튼 꾹 · 보는 방향으로 던지기 (오래 누를수록 멀리, 위를 보면 높이). 궤적 끝이 상자에 닿아 상자가 빛나면 그 상자에 들어간다. 짧게 누르면 발 앞에 내려놓기. 핀보드를 보고 누르면 다시 꽂기</li>
                 <li>더미를 보고 클릭 · 다음 무더기 꺼내기</li>
                 <li>빈손으로 침대를 보고 클릭 · 한숨 자기 (낮 ↔ 밤)</li>
+                <li>빈손으로 책상 위 노트북을 보고 클릭 · 정리 끝내기 (노트북 화면 속으로 들어가 결과 화면. 다 치우면 노트북이 부른다)</li>
                 <li><kbd>Ctrl</kbd><kbd>A</kbd> 전부 담기 · <kbd>Backspace</kbd> 칸 닫기</li>
                 <li><kbd>Ctrl</kbd><kbd>Z</kbd> · 마지막 더미 되돌리기</li>
                 <li><kbd>Tab</kbd> · 파일 정리 / 상자 배치 모드 전환</li>
@@ -265,6 +265,7 @@
                 <div><dt><i class="mouse" data-btn="left"></i><b>좌클릭</b></dt><dd>파일 담기 <span>· 누른 채 훑으면 여러 장</span></dd></div>
                 <div><dt><i class="mouse" data-btn="left"></i><b>좌클릭</b></dt><dd>상자에 넣기 <span>· 든 채로 상자를 보고</span></dd></div>
                 <div><dt><i class="mouse" data-btn="right"></i><b>우클릭 꾹</b></dt><dd>던지기 <span>· 상자가 빛나면 그 안으로</span></dd></div>
+                <div><dt><i class="mouse" data-btn="left"></i><b>노트북</b></dt><dd>정리 끝내기 <span>· 빈손으로 책상 위 노트북을 보고 클릭</span></dd></div>
                 <div><dt><kbd>Space</kbd></dt><dd>점프</dd></div>
                 <div><dt><kbd>Tab</kbd></dt><dd>상자 배치 모드</dd></div>
                 <div><dt><kbd>Ctrl</kbd><kbd>Z</kbd></dt><dd>되돌리기</dd></div>
@@ -276,7 +277,7 @@
           </div>
         </div>
       </section>
-      <!-- ───────── 정리 결과: 정리된 노트북 바탕화면 (2026-10-18). 「정리 끝내기」나 다 치웠을 때.
+      <!-- ───────── 정리 결과: 정리된 노트북 바탕화면 (2026-10-18). 방의 책상 노트북을 누르면(10-20) 그 화면 속으로 들어와 여기.
            옮긴 파일이 폴더로 날아 들어가고 남은 것만 남는다. js/ui/finish-desk.js, css/finish.css ───────── -->
       <section id="finish" class="onboarding finish" aria-labelledby="finish-title" hidden>
         <div class="desk">

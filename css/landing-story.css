@@ -47,11 +47,20 @@ canvas.gl{position:absolute;inset:0;width:100%;height:100%;display:block}
 .cta .primary{gap:10px;background:var(--cta);border-color:#2f231a33;color:var(--cta-ink);box-shadow:0 4px 12px #2f231a33} /* 10-18 사용자: CTA는 칩(--ink)과 분리, #2f231a */
 .cta .secondary{background:#faf4e3e8;color:var(--ink)}
 .cta a:focus-visible{outline:2px solid var(--cta);outline-offset:4px}
-.cue{position:absolute;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));width:22px;height:36px;margin-left:-11px;border:1.5px solid #254c4366;border-radius:12px;pointer-events:none;transition:opacity .5s}
-.cue i{position:absolute;left:9px;top:7px;width:2px;height:7px;border-radius:1px;background:#254c43aa;animation:breath 2.4s ease-in-out infinite}
+/* 스크롤 힌트(10-20 키움: 진한 초록 22×36이 밤 방에서 안 보였음). 크림색 + 옅은 그림자라 밤 방·밝은 바탕화면 둘 다 보인다.
+   첫 방에서만 아래 글 「스크롤해서 시작」(story.js cueLearned). 마우스 그림은 사용자 그림으로 바꿀 자리 — .cue-mouse 하나만 갈아 끼우면 된다. */
+.cue{position:absolute;left:50%;bottom:calc(54px + env(safe-area-inset-bottom,0px));display:block;transform:translateX(-50%);pointer-events:none;transition:opacity .5s;filter:drop-shadow(0 1px 3px #0000008c)}
+.cue-mouse{position:relative;display:block;width:26px;height:42px;box-sizing:border-box;border:2px solid #f3edd3e6;border-radius:14px}
+.cue-mouse i{position:absolute;left:50%;top:8px;width:3px;height:8px;margin-left:-1.5px;border-radius:2px;background:#f3edd3;animation:breath 2.4s ease-in-out infinite}
+.cue-text{position:absolute;left:50%;top:calc(100% + 11px);transform:translateX(-50%);color:#f3edd3;font:500 13px/1 var(--ui);letter-spacing:.12em;white-space:nowrap;transition:opacity .4s}
+.cue[data-first="false"] .cue-text{opacity:0}
+/* 첫 스크롤 뒤(노트북 바탕화면·정리된 방)는 10-20 전 그대로: 작은 초록, 아래 30px — 밝은 작업표시줄 위에서 크림색이 묻히고 아이콘을 가려서 */
+.cue[data-first="false"]{bottom:calc(30px + env(safe-area-inset-bottom,0px));filter:none}
+.cue[data-first="false"] .cue-mouse{width:22px;height:36px;border:1.5px solid #254c4366;border-radius:12px}
+.cue[data-first="false"] .cue-mouse i{top:7px;width:2px;height:7px;margin-left:-1px;border-radius:1px;background:#254c43aa}
 @keyframes breath{0%,100%{transform:translateY(0);opacity:.35}60%{transform:translateY(9px);opacity:.95}}
 .veil{position:absolute;inset:0;background:var(--paper);opacity:0;pointer-events:none;transition:opacity .22s ease;z-index:4}
-@media (prefers-reduced-motion:reduce){.cue i{animation:none;opacity:.8}.desk.tidy .name,.desk.tidy .badge{animation:none}}
+@media (prefers-reduced-motion:reduce){.cue-mouse i{animation:none;opacity:.8}.desk.tidy .name,.desk.tidy .badge{animation:none}}
 /* The site nav lives in css/site-nav.css (shared with help.html); its show/hide timing is in story.js. */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 

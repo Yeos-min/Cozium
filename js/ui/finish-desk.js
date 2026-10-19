@@ -529,7 +529,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
     runId++;
 
     root.hidden = true;
-    root.classList.remove("is-arriving");
+    root.classList.remove("is-arriving", "is-from-laptop");
   }
 
   return {
@@ -537,13 +537,15 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
       return !root.hidden;
     },
     /** report: app.js가 만든 결과. connected: 이미 연결된 Helper(가져오기 화면에서 계획을 열었을 때). */
-    show(next, { connected = null } = {}) {
+    /** from: "laptop"이면 방의 노트북 화면 속으로 들어온 것 — 어두운 막 없이 바탕화면이 바로 이어진다(10-20). */
+    show(next, { connected = null, from = null } = {}) {
       report = next;
       helper = connected ?? helper;
       applied = null;
       if (report.plan && report.modeKind === "web") savePendingPlan(report.plan);
       tick();
       root.hidden = false;
+      root.classList.toggle("is-from-laptop", from === "laptop");
       root.classList.remove("is-arriving"); void root.offsetWidth; root.classList.add("is-arriving");
       renderSummary();
       renderApply(report.variant === "plan" && helper ? "ready" : "idle");

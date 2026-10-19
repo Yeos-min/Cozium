@@ -662,3 +662,14 @@ app.html: <meta charset> 바로 아래에 CSP meta + 경고 주석. default-src 
 신규 tests/csp.test.js: importmap 지문이 맞는지(틀리면 새 값을 알려 줌 — importmap을 일부러 바꿔 실패 메시지 확인), 직접 쓴 스크립트는 importmap 하나, connect-src에 Helper만, inline onX 속성 없음.
 중요 표시: CLAUDE.md 맨 위 ⚠️ 줄 + 신규 §8-9(무엇·왜·깨지는 경우와 고치는 법), AGENTS.md 맨 위 ⚠️(Codex용), README "앱이 이상하면 먼저", app.html 주석.
 검증: 헤드리스 Chromium(SwiftShader) — 진짜 리눅스 Helper v0.2.2에 #helper=로 붙어(주소에서 토큰 지워짐 확인 — 00:54 항목의 "브라우저 # 연결 미확인"도 이걸로 확인) Helper 모드 방(room.glb·상자·텍스처) → 결과 화면, 샘플 모드까지: CSP 위반 0, 콘솔 오류 0, 실패 요청 0(CSP 없을 때와 같음). 일부러 넣은 inline 스크립트·<img onerror>·eval·외부 fetch는 막힘. npm test 177/180(실패 3 = 원래 Linux 전용 1 + 사본에 랜딩 그림 일부 없음 2). 실제 Pages·실제 GPU는 사용자 확인.
+
+2026-10-20 01:43–02:10 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 첫 화면 스크롤 힌트 + 정리 끝내기를 책상 노트북으로
+사용자(01:43): "처음 랜딩에 스크롤 해야 한다는 힌트가 너무 빈약 — 텍스트든 마우스든 보일까 말까", "정리 끝내기 버튼 너무 작고 별로, 계속 노트북으로 전환됐으니 정리 끝내기도 노트북이랑 상호작용으로". 물어봄 → 힌트 = 마우스 + 짧은 글(마우스 그림은 사용자가 GPT로 뽑음, 프롬프트는 Claude), 노트북 = 화면 속으로 줌인 + 겨누면 시각 힌트 + 조작 안내에도, HUD 단추 뺌, 다 치우면 노트북이 부름(자동으로 안 넘어감).
+- 랜딩(index.html, css/landing-story.css, js/landing-story/story.js): 첫 방에서 마우스를 크림색 26×42(옅은 그림자)로 키우고 아래 「스크롤해서 시작」(--ui 13px, 주아 아님). 한 번 넘기면 글은 안 뜨고 마우스는 예전 작은 초록 그대로(밝은 작업표시줄 위에서 크림색이 묻혀서). 마우스 그림은 .cue-mouse만 갈아 끼우면 됨.
+- 게임: 빈손으로 책상 노트북을 겨누면 화면이 밝아지고(TUNING.laptop.hoverGlow) 노트북 위 「정리 끝내기」 이름표 + 손 안내. 누르면 HUD가 걷히고(body.is-diving) 카메라가 노트북 정면을 거쳐 화면이 꽉 찰 때까지(1.5초, SceneKit#diveLaptop — 화면 메시 꼭짓점·법선으로 거리 계산) → 결과 화면이 막 없이 0.35초 겹쳐 바뀜(.finish.is-from-laptop). 「방으로 돌아가기」는 같은 길로 빠져나옴(0.9초, surfaceLaptop). 침대와 둘 다 겨누면 가까운 쪽.
+- 다 치우면 1.6초 뒤 자동 결과 화면 → 없앰. 대신 화면이 숨 쉬고(callGlow) 이름표 「다 치웠어요 · 여기서 마무리」가 계속, 알림 「N개를 전부 치웠어요. 책상 위 노트북에서 마무리하세요.」(마지막 이동 알림이 덮어쓰던 것 → 한 박자 늦게).
+- HUD 「정리 끝내기」 단추(#finish-button)와 그 CSS 뺌. 조작 안내 카드·Tab 패널에 노트북 한 줄.
+- 파일: js/three/scene-kit.js, js/three/board-3d.js, js/three/tuning.js(laptop), js/app.js, js/ui/finish-desk.js, css/finish.css, css/styles.css(.laptop-label-3d), app.html(CSP·importmap 그대로), index.html, css/landing-story.css, js/landing-story/story.js, CLAUDE.md §6-1·§10, README, docs/design-system.md(결과 화면 절·스크롤 표시. 이전 랜딩의 "스크롤 해 문구 금지"에 현재 첫 방 예외 표기).
+- 시작 전 이 채팅의 리포 사본이 D보다 낡아 있어(00:38–01:08 Helper 작업) js·css·tests·helper 전체를 D에서 다시 받아 그 위에 고침.
+백업: _archive/claude-laptop-finish-20261020/.
+검증: npm test 303/311 — 고치기 전과 같은 8개 실패(Linux 전용 1, 보관 대상 shelf-frame 1, landing-entry 6 = 00:54 #helper 변경 뒤 테스트의 가짜 location에 hash가 없어서. 이번 작업과 무관, 안 고침). 헤드리스 Chromium(SwiftShader) 샘플 모드: 실제 포인터 락으로 노트북 겨눔 → 안내·이름표·화면 밝아짐 → 클릭 → 줌인 → 결과 화면 → 방으로 돌아가기 후 카메라가 원래 자리(3.2, 3.1, 1.6), 45개 다 옮기면 노트북이 부르고 결과 화면 자동으로 안 뜸, 콘솔·CSP 오류 0. 랜딩 첫 방 글·첫 스크롤 뒤 숨김 캡처. 실제 GPU의 줌인 손맛·속도는 사용자 확인.
