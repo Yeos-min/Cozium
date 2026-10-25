@@ -1,10 +1,10 @@
 /* Cozium landing (2026-10-07): built from the reviewed animatic v9 (docs/prototypes/landing-animatic.html). Script: js/landing-story/story.js */
-@font-face{font-family:Room;src:url("../assets/landing/fonts/Fraunces.ttf") format("truetype");font-weight:600;font-display:swap}
+/* 글꼴은 css/fonts.css (10-24: 나눔스퀘어라운드 + 로고 Nunito) */
 :root{
   /* One fixed full-bleed stage. A wheel / swipe / key plays the next finished scene; one hands-on stop in the middle. */
   --ink:#254c43; --cta:#2f231a; --paper:#eae3ce; --cream:#f3edd3; --cta-ink:#faf4e3; --mark:#d9b768;
-  --display:Room,Georgia,"Times New Roman",serif;
-  --ui:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  --display:var(--font-logo);
+  --ui:var(--font-ui);
   color-scheme:light;
 }
 [hidden]{display:none!important}
@@ -39,28 +39,55 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);ove
 canvas.gl{position:absolute;inset:0;width:100%;height:100%;display:block}
 .stage[data-try="open"] canvas.gl{cursor:grab}
 .stage[data-try="open"][data-holding="true"] canvas.gl{cursor:grabbing}
-.title{position:absolute;left:876px;top:132px;width:620px;margin-left:-310px;text-align:center;pointer-events:none}
-.title h1{margin:0;font:600 112px/.9 var(--display);letter-spacing:-.078em;color:var(--ink)}
-.title p{margin:22px 0 0;font-size:15px;line-height:1.9;letter-spacing:.05em}
-.cta{display:flex;justify-content:center;gap:12px;margin-top:26px;pointer-events:auto}
+.cta{display:flex;justify-content:flex-start;gap:12px;margin-top:28px;pointer-events:auto}
+/* ── 10-25 디자인 시스템 확정(2차 투표) ──
+   첫 화면과 끝 장면은 같은 자리 — 화면 왼쪽 위 여백선(72px, 내비 아래 120px) — 에 다른 내용을 놓는다(원칙 4).
+   .world(1672×941 그림 단위) 밖에서 화면 px로 놓고, --k(story.js layoutWorld)로 작은 화면은 줄이고 4K는 바탕화면 UI와 같이 키운다.
+   3D 위 글자는 「빛」: 크림 글자 + 둘레 번짐(진하기 45, 10-24 사용자). 유리(반투명 + 흐림)는 전부 뺌(1차 메모). */
+.hero{position:absolute;left:72px;top:120px;z-index:3;zoom:var(--k,1);max-width:640px;color:#f8f1dc;text-shadow:0 1px 2px #0009,0 0 12px rgb(28 18 12 / .45),0 0 28px rgb(28 18 12 / .32);pointer-events:none}
+.hero-start[hidden],.hero-end[hidden],.end-go[hidden]{display:none}
+.hero h1{margin:0;font:900 101px/.9 var(--display);letter-spacing:-.025em;text-shadow:0 2px 0 #2a1d1255,0 0 12px rgb(28 18 12 / .45),0 0 28px rgb(28 18 12 / .32)} /* logo-hero */
+.hero-start p{margin:22px 0 0;font:700 20px/1.6 var(--ui);letter-spacing:.02em} /* lead — 10-23 교수님: 무슨 앱인지 첫 화면에서 바로 */
+.hero-end h2{margin:0;font:800 40px/1.25 var(--ui);letter-spacing:.01em} /* display */
+.hero-end p{margin:12px 0 0;font:700 20px/1.5 var(--ui);letter-spacing:.02em} /* lead */
+/* 10-25 18:25 사용자: 끝 장면 버튼도 첫 화면과 같은 디자인(원칙 3 같은 역할은 같은 모양). 예전 문제는 문구가 같았던 것이지 모양이 아니었음.
+   → 「시작해볼까요?」와 「내 바탕화면 정리하러 가기 →」 둘 다 테두리 큰 버튼(56px, 크림 1.5px, 흐림 없음). 다른 건 문구뿐 */
+.cta .start,.end-go{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 32px;border:1.5px solid #f3edd3;border-radius:999px;background:transparent;color:#f8f1dc;box-shadow:0 0 26px rgb(28 18 12 / .27);text-shadow:inherit;text-decoration:none;font:700 16px/1 var(--ui);letter-spacing:.04em;overflow:hidden;cursor:pointer;transition:background .2s}
+.cta .start:hover,.cta .start:focus-visible,.end-go:hover,.end-go:focus-visible{background:rgb(243 237 211 / .14)}
+.end-go{margin-top:28px;pointer-events:auto}
+.end-go:focus-visible{outline:2px solid #f3edd3;outline-offset:4px}
+/* 끝 장면 노트북: 화면 빛만 숨 쉬듯(2.6초, 하나만). 노트북을 눌러도 들어간다(story.js) */
+.screen-glow{position:absolute;left:0;top:0;width:0;height:0;border-radius:50%;background:radial-gradient(closest-side,rgb(255 230 170 / .55),rgb(255 220 150 / .17) 55%,rgb(255 220 150 / 0));mix-blend-mode:screen;opacity:0;pointer-events:none;transition:opacity .6s ease}
+.screen-glow[data-on="true"]{opacity:1;animation:screen-breathe 2.6s ease-in-out infinite}
+@keyframes screen-breathe{0%,100%{opacity:.55}50%{opacity:1}}
+.stage[data-hot="true"]{cursor:pointer}
+/* 단계 표시 — 10-25 16:26 사용자: 위 단계 줄은 빼고 「쪽지에 1. 2. 3. 적고 텍스트」. 쪽지는 늘 오른쪽 아래 같은 자리 */
+/* 10-25 사용자 C 선택: 줄 쳐진 인덱스 카드 — 크림 바탕, 옅은 파란 가로줄, 왼쪽 여백의 빨간 세로줄, 번호는 여백에 */
+.story-note{position:absolute;right:72px;bottom:96px;z-index:3;zoom:var(--k,1);box-sizing:border-box;display:flex;align-items:baseline;width:320px;margin:0;padding:22px 24px 20px 0;background:#fbf7ec linear-gradient(90deg,transparent 52px,#d98b80 52px,#d98b80 54px,transparent 54px) 0 0/100% 100% no-repeat;border-radius:2px;box-shadow:0 10px 28px rgb(40 26 14 / .3);color:#2f231a;font:800 24px/32px var(--ui);letter-spacing:.01em;white-space:pre-line;pointer-events:none;opacity:0;transform:translateY(-8px) rotate(-2deg);transition:opacity .25s ease,transform .25s ease}
+.story-note::after{content:"";position:absolute;inset:0;border-radius:inherit;background:repeating-linear-gradient(180deg,transparent 0,transparent 31px,#bcd0de 31px,#bcd0de 32px) 0 22px/100% calc(100% - 22px) no-repeat;pointer-events:none;z-index:-1}
+.story-n{flex:none;width:52px;text-align:center;font:900 24px/32px var(--display);letter-spacing:-.02em;color:#b5574a} /* 단계 번호: 로고 글꼴(Nunito 900), 여백 빨강 */
+.story-t{padding-left:16px}
+.story-note::before{content:"";position:absolute;left:50%;top:-12px;width:84px;height:24px;margin-left:-42px;background:#d9b768;opacity:.6;transform:rotate(3deg)}
+.story-note[data-on="true"]{opacity:1;transform:rotate(-2deg);transition:opacity .45s cubic-bezier(.2,.7,.2,1),transform .45s cubic-bezier(.2,.7,.2,1)}
+/* 「건너뛰고 바로 시작 →」 = 고스트(도구). 10-25 17:01 사용자: 더 위 오른쪽 구석, 글자 더 작게 → 화면 모서리 16·20px, 13px(디자인 시스템 최소).
+   이야기 중에는 내비가 내려오지 않는다(story.js). 터치 화면은 내비가 늘 떠 있어서 그 아래 */
+.skip{position:absolute;right:20px;top:16px;z-index:3;zoom:var(--k,1);min-height:30px;padding:0 10px;border:0;border-radius:999px;background:transparent;color:#f8f1dc;text-shadow:0 1px 2px #0009,0 0 12px rgb(28 18 12 / .45);font:700 13px/1 var(--ui);letter-spacing:.02em;cursor:pointer;opacity:.5;transition:background .2s,color .3s,opacity .2s}
+.skip:hover,.skip:focus-visible{opacity:1} /* 10-25 18:11 사용자: 올리기 전까진 더 옅게 */
+@media (hover:none),(pointer:coarse){.skip{top:76px}}
+.skip:hover{background:rgb(243 237 211 / .16)}
+.stage[data-tone="ink"] .skip{color:#2f231a;text-shadow:none}
+.stage[data-tone="ink"] .skip:hover{background:rgb(47 35 26 / .08)}
+@media (prefers-reduced-motion:reduce){.screen-glow[data-on="true"]{animation:none;opacity:.8}.story-note,.story-note[data-on="true"]{transform:rotate(-2deg);transition:opacity .3s}}
 .cta a{display:inline-flex;align-items:center;text-decoration:none;min-height:46px;padding:0 20px;border:1px solid #254c4333;border-radius:5px;font:13px/1.4 var(--ui);letter-spacing:.025em;cursor:pointer}
-.cta .primary{gap:10px;background:var(--cta);border-color:#2f231a33;color:var(--cta-ink);box-shadow:0 4px 12px #2f231a33} /* 10-18 사용자: CTA는 칩(--ink)과 분리, #2f231a */
-.cta .secondary{background:#faf4e3e8;color:var(--ink)}
 .cta a:focus-visible{outline:2px solid var(--cta);outline-offset:4px}
-/* 스크롤 힌트(10-20 키움: 진한 초록 22×36이 밤 방에서 안 보였음). 크림색 + 옅은 그림자라 밤 방·밝은 바탕화면 둘 다 보인다.
-   첫 방에서만 아래 글 「스크롤해서 시작」(story.js cueLearned). 마우스 그림은 사용자 그림으로 바꿀 자리 — .cue-mouse 하나만 갈아 끼우면 된다. */
-.cue{position:absolute;left:50%;bottom:calc(54px + env(safe-area-inset-bottom,0px));display:block;transform:translateX(-50%);pointer-events:none;transition:opacity .5s;filter:drop-shadow(0 1px 3px #0000008c)}
-.cue-mouse{position:relative;display:block;width:26px;height:42px;box-sizing:border-box;border:2px solid #f3edd3e6;border-radius:14px}
-.cue-mouse i{position:absolute;left:50%;top:8px;width:3px;height:8px;margin-left:-1.5px;border-radius:2px;background:#f3edd3;animation:breath 2.4s ease-in-out infinite}
-.cue-text{position:absolute;left:50%;top:calc(100% + 11px);transform:translateX(-50%);color:#f3edd3;font:500 13px/1 var(--ui);letter-spacing:.12em;white-space:nowrap;transition:opacity .4s}
-.cue[data-first="false"] .cue-text{opacity:0}
-/* 첫 스크롤 뒤(노트북 바탕화면·정리된 방)는 10-20 전 그대로: 작은 초록, 아래 30px — 밝은 작업표시줄 위에서 크림색이 묻히고 아이콘을 가려서 */
-.cue[data-first="false"]{bottom:calc(30px + env(safe-area-inset-bottom,0px));filter:none}
-.cue[data-first="false"] .cue-mouse{width:22px;height:36px;border:1.5px solid #254c4366;border-radius:12px}
-.cue[data-first="false"] .cue-mouse i{top:7px;width:2px;height:7px;margin-left:-1px;border-radius:1px;background:#254c43aa}
+/* 10-23 사용자: 스크롤로 넘기는 이야기를 버리고 첫 화면 버튼 하나 「시작해볼까요?」 → 누르면 이야기가 저절로 흐른 뒤 노트북으로 걸어 들어감.
+   10-25 사용자: 빗자루·쓰레받기 애니메이션은 「싼티 난다」 → 폐기. 올리면 바탕만 살짝 밝아진다. */
+.cta .start:focus-visible{outline-color:#f3edd3}
+.cta .start[data-waiting="true"]{pointer-events:none;opacity:.85}
+.skip:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 @keyframes breath{0%,100%{transform:translateY(0);opacity:.35}60%{transform:translateY(9px);opacity:.95}}
 .veil{position:absolute;inset:0;background:var(--paper);opacity:0;pointer-events:none;transition:opacity .22s ease;z-index:4}
-@media (prefers-reduced-motion:reduce){.cue-mouse i{animation:none;opacity:.8}.desk.tidy .name,.desk.tidy .badge{animation:none}}
+@media (prefers-reduced-motion:reduce){.desk.tidy .name,.desk.tidy .badge{animation:none}}
 /* The site nav lives in css/site-nav.css (shared with help.html); its show/hide timing is in story.js. */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
@@ -72,10 +99,9 @@ canvas.room{position:absolute;inset:0;width:100%;height:100%;display:block;will-
 .loading i{position:absolute;inset:0;width:40%;background:#254c43aa;animation:load 1.3s ease-in-out infinite}
 @keyframes load{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 .stage[data-room="ready"] .loading{opacity:0}
-.stage:not([data-room="ready"]) .cue{opacity:0!important}
 
 /* review panel */
-.lab{position:fixed;left:14px;bottom:14px;z-index:20;font:12px/1.4 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;color:#254c43}
+.lab{position:fixed;left:14px;bottom:14px;z-index:20;font:12px/1.4 var(--font-ui);color:#254c43}
 .lab-toggle{height:32px;padding:0 14px;border:1px solid #254c4340;border-radius:16px;background:#faf4e3f2;color:#254c43;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 2px 0 #254c4326}
 .lab[data-open="true"] .lab-toggle{background:#254c43;color:#faf4e3}
 .lab-body{display:none;margin-bottom:8px;width:min(372px,calc(100vw - 28px));max-height:calc(100vh - 80px);overflow:auto;padding:12px 12px 10px;border:1px solid #254c4333;border-radius:10px;background:#faf4e3f7;box-shadow:0 4px 0 #254c431f}
@@ -94,10 +120,6 @@ canvas.room{position:absolute;inset:0;width:100%;height:100%;display:block;will-
 .lab-foot button{min-height:26px;padding:0 10px;border:1px solid #254c43;border-radius:5px;background:#254c43;color:#faf4e3;font:inherit;cursor:pointer}
 .lab-foot .lab-reset{background:#fffaf0;color:#254c43}
 @media (max-width:520px){.lab-row{grid-template-columns:1fr}.lab-checks{margin-left:0}}
-/* the title now sits under a dark timber ceiling, not a pale painted wall: cream type */
-.title h1{color:#f6efd9;text-shadow:0 2px 0 #2a1d1255,0 0 24px #2a1d1240}
-.title p{color:#f6efd9;text-shadow:0 1px 0 #2a1d1280,0 0 12px #2a1d1266}
-.stage[data-scene="room"] .cta .secondary{background:#faf4e3f2}
 /* a failed load says so instead of leaving the still image looking live */
 .stage[data-room="failed"] .loading{opacity:1;width:auto;height:auto;left:16px;right:16px;margin:0;padding:8px 12px;background:#faf4e3f2;border:1px solid #254c4340;border-radius:6px;color:#254c43;font:12px/1.5 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;text-align:center;overflow:visible}
 /* walk-in to app.html: only shown by the review copy, which has no app.html */

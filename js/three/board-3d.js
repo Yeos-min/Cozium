@@ -317,6 +317,9 @@ export class Board3D {
     return this.#placement;
   }
 
+  /** 입력이 막혀 있는가(정리 시작 화면·설정 창 등). app.js가 Esc로 락이 풀린 것과 일부러 푼 것을 가른다(10-25) */
+  get suspended() { return this.#suspended; }
+
   get arranging() { return this.#arranging; }
   get canUndoArrangement() { return !!this.#boxPlacement.lastMove; }
 
@@ -1035,7 +1038,7 @@ export class Board3D {
     this.#lockPrompt.hidden = !walking || this.#locked || this.#suspended;
     this.#lockPrompt.disabled = this.#pointerLock.pending;
     const title = this.#pointerLock.pending ? "시점 연결 중…" : this.#lockDenied ? "마우스 시점 다시 연결" : this.#pointerLock.hasLocked ? "게임으로 돌아가기" : "방 둘러보기";
-    const detail = this.#lockDenied ? "클릭해서 재시도 · 안 되면 빈손 우클릭 드래그로 둘러보기" : "클릭하면 마우스 시점 복귀 · Esc 커서";
+    const detail = this.#lockDenied ? "클릭해서 재시도 · 안 되면 빈손 우클릭 드래그로 둘러보기" : "클릭하면 마우스 시점 복귀 · Esc 설정";
     this.#lockPrompt.querySelector("strong").textContent = title;
     this.#lockPrompt.querySelector("small").textContent = detail;
     if (!walking) this.#handHint.hidden = true;

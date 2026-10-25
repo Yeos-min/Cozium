@@ -12,7 +12,7 @@
   display: grid;
   place-items: center;
   color: var(--ri-ink);
-  font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  font-family: var(--font-ui);
   user-select: none;
   word-break: keep-all;
 }
@@ -29,7 +29,7 @@
 .intro-loading,
 .intro-ready { position: relative; z-index: 2; grid-area: 1 / 1; zoom: var(--intro-scale, 1); display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.45s ease, transform 0.45s ease; }
 
-.intro-mark { margin: 0; font: 600 46px/1 Room, Georgia, serif; letter-spacing: -0.055em; color: #fff8e8; text-shadow: 0 2px 18px #00000040; }
+.intro-mark { margin: 0; font: 900 41px/1 var(--font-logo); letter-spacing: -0.025em; color: #fff8e8; text-shadow: 0 2px 18px #00000040; }
 .intro-kicker { display: block; margin-top: 10px; color: var(--ri-muted); font-size: 13px; letter-spacing: 0.08em; }
 
 /* ── 로딩 ── */

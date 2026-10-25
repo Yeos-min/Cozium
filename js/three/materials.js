@@ -33,7 +33,7 @@ export function surfaceMaterial(params = {}) {
   return new THREE.MeshToonMaterial({ gradientMap: toonGradient(), ...rest });
 }
 
-/** 불러온 모델의 재질 하나를 툰으로. 이름·텍스처·투명·양면·깊이 보정은 그대로 둔다. */
+/** 불러온 모델의 재질 하나를 툰으로. 이름·텍스처·투명·양면·깊이 보정은 그대로 둔다(노멀맵만 뺌). */
 export function toonFrom(material) {
   if (!isToon() || !material || material.isMeshToonMaterial || material.isMeshBasicMaterial || material.isShaderMaterial) return material;
   const out = new THREE.MeshToonMaterial({
@@ -42,7 +42,7 @@ export function toonFrom(material) {
     color: material.color?.clone() ?? new THREE.Color("#ffffff"),
     emissive: material.emissive?.clone() ?? new THREE.Color("#000000"),
     emissiveMap: material.emissiveMap ?? null,
-    normalMap: material.normalMap ?? null,
+    // 노멀맵은 넘기지 않는다(10-25): 3단 툰 경계에 회벽 요철이 섞여 벽에 들쭉날쭉한 명암 얼룩이 생겼다. 랜딩(room-layer.js)도 안 넘김
     transparent: material.transparent,
     opacity: material.opacity,
     alphaTest: material.alphaTest,

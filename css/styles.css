@@ -1,4 +1,4 @@
-@font-face { font-family: Room; src: url("../assets/landing/fonts/Fraunces.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+/* 글꼴은 css/fonts.css (10-24: 나눔스퀘어라운드 + 로고 Nunito, Fraunces 뺌) */
 
 :root {
   color-scheme: dark;
@@ -27,7 +27,7 @@
   --family-archive: #c9c4a7;
   --family-code: #9fe8d8;
   --family-other: #a8b29f;
-  font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-synthesis: none;
 }
 
@@ -63,7 +63,7 @@ kbd { padding: 1px 5px; color: var(--text); background: #122219; border: 1px sol
   border-bottom: 1px solid var(--line-soft);
 }
 .topbar-left { display: flex; align-items: center; gap: 28px; }
-.brand { display: flex; align-items: baseline; color: inherit; text-decoration: none; font: 600 25px/1 Room, Georgia, serif; letter-spacing: -0.055em; }
+.brand { display: flex; align-items: baseline; color: inherit; text-decoration: none; font: 900 23px/1 var(--font-logo); letter-spacing: -0.025em; }
 .brand span { display: inline-block; margin-left: 5px; font-size: 19px; font-family: Georgia, serif; transform: rotate(-12deg); }
 .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; color: var(--accent-ink); background: var(--accent); border-radius: 9px; font-weight: 900; }
 .brand strong, .brand small { display: block; }
@@ -101,7 +101,7 @@ footer { width: min(1600px, 94vw); margin: 0 auto; padding: 0 0 28px; display: f
 
 .onboarding-head { display: grid; grid-template-columns: 1.2fr 0.8fr; align-items: end; gap: 60px; margin-bottom: 28px; }
 .onboarding h1 { margin: 0; font-size: clamp(44px, 5vw, 72px); line-height: 0.96; letter-spacing: -0.05em; font-weight: 650; }
-.onboarding h1 em { color: var(--accent); font-family: Georgia, serif; font-weight: 400; }
+.onboarding h1 em { color: var(--accent); font-family: inherit; font-weight: inherit; }
 .intro-copy { max-width: 520px; margin: 0 0 6px; color: var(--muted); font-size: 14px; line-height: 1.8; }
 .intro-copy strong { color: var(--text); }
 .support-state { margin-bottom: 16px; padding: 14px; border: 1px solid var(--danger); border-radius: 12px; color: #f2c4b8; background: rgba(232, 144, 127, 0.08); font-size: 13px; }
@@ -196,13 +196,7 @@ footer { width: min(1600px, 94vw); margin: 0 auto; padding: 0 0 28px; display: f
   32% { transform: translate(-50%, -60%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -190%) scale(0.96); }
 }
-.stage-side { min-width: 0; }
-.stage-side .notice { margin-top: 0; }
-.help { margin-top: 14px; padding: 14px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface); }
-.help h3, .log-head h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
-.help-lead { margin: 0 0 8px; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.help ul { margin: 0; padding: 0; list-style: none; }
-.help li { padding: 4px 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.log-head h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .log-head { display: flex; align-items: baseline; justify-content: space-between; margin: 16px 0 8px; }
 .log-head small { color: #7d8c78; font-size: 10px; }
 .log { margin: 0; padding: 0; list-style: none; max-height: 520px; overflow-y: auto; }
@@ -519,13 +513,6 @@ body.is-playing .board-viewport.is-3d {
   border: 0; border-radius: 0; box-shadow: none;
 }
 body.is-playing .progress-hud { top: 64px; }
-body.is-playing .stage-side {
-  position: absolute; top: 0; right: 0; bottom: 0; z-index: 35;
-  width: 340px; padding: 62px 16px 16px; overflow-y: auto;
-  background: rgba(17, 32, 26, 0.94); border-left: 1px solid var(--line);
-  transform: translateX(100%); transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-body.is-playing .stage-side[data-open="true"] { transform: none; }
 
 /* 모드 선택 */
 .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -588,7 +575,7 @@ body.is-playing {
 }
 body.is-playing .stage-bar { z-index: 40; padding: 22px 28px; background: none; align-items: flex-start; }
 .room-brand { color: #fff8e8; text-shadow: 0 2px 12px #51442b80; }
-.room-brand strong { display: block; font: 600 27px/1 Room, Georgia, serif; letter-spacing: -.055em; }
+.room-brand strong { display: block; font: 900 24px/1 var(--font-logo); letter-spacing: -.025em; }
 .room-brand small { display: block; margin-top: 5px; font-size: 11px; letter-spacing: .12em; }
 body.is-playing #panel-toggle { width: 42px; height: 42px; padding: 0; border: 1px solid #fff3d633; background: #554c3899; border-radius: 12px; font-size: 25px; color: #fff8e8; }
 body.is-playing #undo-button { position: fixed; bottom: 20px; right: 24px; padding: 10px 13px; border-radius: 10px; color: #fff4df; background: #514734b8; border-color: #fff2cd26; }
@@ -625,14 +612,10 @@ body.is-playing kbd { color: #fff6e5; background: #37362966; border-color: #d7cb
 .board-viewport.is-3d .board-overlay[data-walking="true"] .breadcrumb { bottom: 60px; background: #51473499; color: #fff4df; border: 0; }
 .hover-label { background: #f3ebd9f0; color: #3d4433; border-color: #c6bea8; box-shadow: 0 5px 18px #40331d26; }
 .hover-label small { color: #75755e; }
-body.is-playing .stage-side { background: #34382eef; border-color: #8c846d; backdrop-filter: blur(14px); padding: 80px 22px 22px; width: 365px; }
-.room-settings-title { font-size: 19px; margin: 0 0 14px; }
-.room-settings-controls { display: grid; gap: 12px; margin: 22px 0; }
-.room-settings-controls .control { justify-content: space-between; }
-.room-settings-controls input[type="range"] { width: 116px; min-width: 64px; accent-color: #c9b782; }
-.room-settings-controls output { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
 .arrange-hint { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); max-width: 80%; padding: 12px 20px; border: 1px solid #d8dcc09c; border-radius: 12px; background: #3e4939e8; color: #fff7e5; font-size: 14px; text-align: center; }
-body.is-playing #arrange-toggle { position: fixed; right: 86px; top: 24px; background: #514734c9; color: #fff4df; border: 1px solid #fff2cd40; pointer-events: auto; }
+body.is-playing :is(#arrange-toggle, #log-toggle) { background: #514734c9; color: #fff4df; border: 1px solid #fff2cd40; pointer-events: auto; } /* 10-25: 기록 버튼도 같은 모양, 둘 다 위 막대 안에 나란히 */
+body.is-playing #log-toggle[aria-pressed="true"] { background: #6a5e45e8; }
+body.is-playing .new-folder-form input { height: 34px; color: #fff4df; background: #3a352899; border-color: #fff2cd40; }
 body.is-playing #arrange-toggle[aria-pressed="true"] { background: #64734de8; border-color: #d4dfb5; }
 .board-viewport[data-arranging="true"] .hover-label { display: none; }
 .board-viewport[data-arranging="true"] .breadcrumb { display: none; }
@@ -645,3 +628,53 @@ body.is-playing #arrange-toggle[aria-pressed="true"] { background: #64734de8; bo
   .hand-hint { bottom: 62px; }
   .board-viewport.is-3d .board-overlay[data-walking="true"] .breadcrumb { bottom: 104px; }
 }
+
+/* ── 10-25 설정·기록 창 ──
+   사용자: 오른쪽 패널은 설정 화면이라 보기 어렵다 → ⚙ 「설정」, 「기록」 버튼이 각각 방 위에 창을 띄운다.
+   모양은 정리 시작 화면의 조작 안내 카드(room-intro.css .intro-controls)와 같게(사용자). 흐림 없음. Esc·바깥 클릭·×로 닫힘(app.js). */
+.room-sheet { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse 70% 75% at 50% 48%, #1d1b14a6 0%, #17150fd9 100%); color: #f7f1e4; font-family: var(--font-ui); word-break: keep-all; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.25s ease, visibility 0s linear 0.25s; }
+.room-sheet[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.25s ease; } /* 닫히는 0.25초 동안에도 클릭은 바로 뒤로 통과 */
+.sheet-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; align-items: flex-start; }
+.sheet-card { box-sizing: border-box; width: 440px; max-width: calc(100vw - 48px); max-height: calc(100vh - 48px); overflow: auto; padding: 15px 22px 18px; border: 1px solid #fff3d624; border-radius: 11px; background: #2c2a21e6; text-align: left; box-shadow: 0 12px 40px #0000004d; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; min-height: 32px; margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid #fff3d624; }
+.sheet-head h3 { margin: 0; color: #9d9479; font-size: 13px; font-weight: 700; letter-spacing: 0.16em; }
+/* 10-25 18:47 사용자: × 가 가운데가 아님 → 글자 × 대신 선 두 개(SVG)를 원 가운데에 */
+.sheet-close { display: grid; place-items: center; flex: none; width: 32px; height: 32px; margin: 0 -6px 0 12px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: #c9bfa6; cursor: pointer; }
+.sheet-close svg { display: block; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.sheet-close:hover { background: #f7f1e414; color: #f7f1e4; }
+.sheet-close:focus-visible { outline: 2px solid #f7f1e4; outline-offset: 2px; }
+.sheet-rows { display: grid; gap: 14px; }
+/* 설정 한 장: 왼쪽 「화면」, 오른쪽 「조작」 두 칸(10-25 18:47 사용자: 레이아웃이 별로 — 높이 다른 카드 두 장 → 창 하나) */
+.sheet-settings { width: 920px; }
+.sheet-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+.sheet-sec { min-width: 0; }
+.sheet-sec:first-child { padding-right: 28px; }
+.sheet-sec + .sheet-sec { padding-left: 28px; border-left: 1px solid #fff3d624; }
+.sheet-sec h4 { margin: 0 0 14px; color: #9d9479; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; }
+@media (max-width: 980px) { .sheet-cols { grid-template-columns: 1fr; } .sheet-sec:first-child { padding: 0 0 20px; } .sheet-sec + .sheet-sec { padding: 20px 0 0; border-left: 0; border-top: 1px solid #fff3d624; } }
+.sheet-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 48px; align-items: center; column-gap: 12px; row-gap: 6px; color: #c9bfa6; font-size: 14px; font-weight: 700; }
+.sheet-row select { grid-column: 2 / -1; width: 100%; }
+.sheet-row select { min-width: 0; height: 34px; padding: 0 30px 0 10px; border: 1px solid #e9dfc46b; border-radius: 6px; background: #f7f1e414 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23f7f1e4' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center; color: #f7f1e4; font: 400 14px/1 var(--font-ui); appearance: none; cursor: pointer; }
+.sheet-row select option { background: #2c2a21; color: #f7f1e4; }
+.sheet-row select:focus-visible, .sheet-row input:focus-visible { outline: 2px solid #f7f1e4; outline-offset: 2px; }
+.sheet-row input[type="range"] { width: 100%; accent-color: #eee0a8; }
+.sheet-row input:disabled { opacity: 0.4; }
+.sheet-row output { min-width: 44px; color: #f7f1e4; font-size: 13px; font-weight: 400; text-align: right; font-variant-numeric: tabular-nums; }
+.sheet-row #render-quality-state { grid-column: 2 / -1; min-width: 0; color: #9d9479; text-align: left; }
+.sheet-row #render-quality-state:not(:empty)::before { content: "지금 "; }
+.sheet-keys { display: grid; gap: 9px; margin: 0; }
+.sheet-keys > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 12px; }
+.sheet-keys dt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.sheet-keys dd { margin: 0; color: #f7f1e4; font-size: 14px; }
+.sheet-keys dd span { color: #9d9479; font-size: 13px; }
+.room-sheet kbd { display: inline-grid; place-items: center; min-width: 23px; height: 23px; padding: 0 6px; border: 1px solid #e9dfc46b; border-radius: 4px; background: #f7f1e414; box-shadow: 0 1px 0 #00000059; color: #fff6e5; font: 700 12px/1 var(--font-ui); white-space: nowrap; }
+.sheet-log { width: 480px; }
+.sheet-log .stage-summary { margin: 0 0 12px; color: #c9bfa6; font-size: 13px; white-space: normal; }
+.sheet-log .notice { margin: 0 0 12px; border-color: #fff3d624; background: #f7f1e40d; color: #f7f1e4; font-size: 13px; }
+.sheet-log .plan-panel { margin: 0; padding: 0; border: 0; background: none; }
+.sheet-log h4 { margin: 0 0 8px; color: #9d9479; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; }
+.sheet-log .plan li { border-color: #fff3d61a; color: #f7f1e4; font-size: 13px; }
+.sheet-log .log-head { margin: 18px 0 8px; }
+.sheet-log .log-head small { color: #9d9479; font-size: 13px; }
+.sheet-log .log { max-height: 46vh; }
+@media (prefers-reduced-motion: reduce) { .room-sheet, .room-sheet[data-open="true"] { transition: none; } }

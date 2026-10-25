@@ -86,17 +86,17 @@ function drawPaperFace(ctx, ink, item, color, width, height) {
   for (let line = 0; line < 5; line++) ctx.fillRect(159, 41 + line * 14, line === 4 ? 48 : 82, 5);
   ctx.fillStyle = "#3b3c32";
   ctx.textBaseline = "middle";
-  ctx.font = "600 25px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.font = "600 25px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   wrap(ctx, item.name, width - 40, 2).forEach((line, index) => drawText(ctx, ink, line, 20, 153 + index * 29));
   const ext = extLabel(item);
-  ctx.font = "700 17px 'Segoe UI', system-ui, sans-serif";
+  ctx.font = "700 17px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
   const chipWidth = ctx.measureText(ext).width + 16;
   ctx.fillStyle = color;
   roundRect(ctx, width - chipWidth - 20, height - 32, chipWidth, 24, 4); ctx.fill();
   ctx.fillStyle = "#494935";
   drawText(ctx, ink, ext, width - chipWidth - 12, height - 19);
   ctx.fillStyle = "#888575";
-  ctx.font = "16px 'Segoe UI', system-ui, sans-serif";
+  ctx.font = "16px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
   drawText(ctx, ink, formatSize(item.size), 20, height - 19);
 }
 
@@ -117,15 +117,15 @@ function drawImageCardFace(ctx, ink, item, color, bitmap, width, height) {
   ctx.restore();
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#3b3c32";
-  ctx.font = "600 24px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.font = "600 24px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   drawText(ctx, ink, wrap(ctx, item.name, width - 40, 1)[0] ?? item.name, 20, height - 47);
   ctx.fillStyle = "#637c96";
   roundRect(ctx, width - 83, height - 31, 63, 24, 4); ctx.fill();
   ctx.fillStyle = "#fff9ed";
-  ctx.font = "700 16px 'Segoe UI', system-ui, sans-serif";
+  ctx.font = "700 16px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
   drawText(ctx, ink, extLabel(item), width - 77, height - 18);
   ctx.fillStyle = "#888575";
-  ctx.font = "16px 'Segoe UI', system-ui, sans-serif";
+  ctx.font = "16px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
   drawText(ctx, ink, formatSize(item.size), 20, height - 18);
 }
 
@@ -155,7 +155,7 @@ function drawPhotoFace(ctx, ink, item, bitmap, width, height) {
     ctx.lineTo(width / 2 + 20, photoHeight / 2 + 4);
     ctx.lineTo(width / 2 + 28, photoHeight / 2 + 22);
     ctx.stroke();
-    ctx.font = "15px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+    ctx.font = "15px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
     ctx.fillStyle = "#77796d";
     ctx.textBaseline = "middle";
     ctx.textAlign = "center";
@@ -164,10 +164,10 @@ function drawPhotoFace(ctx, ink, item, bitmap, width, height) {
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#393c32";
-  ctx.font = "600 24px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.font = "600 24px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   drawText(ctx, ink, wrap(ctx, item.name, width - 36, 1)[0] ?? item.name, 18, height - 46);
   ctx.fillStyle = "#797a6e";
-  ctx.font = "16px 'Segoe UI', system-ui, sans-serif";
+  ctx.font = "16px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
   drawText(ctx, ink, formatSize(item.size), 18, height - 19);
   ctx.textAlign = "right";
   drawText(ctx, ink, extLabel(item), width - 18, height - 19);
@@ -185,11 +185,11 @@ function drawNoteFace(ctx, ink, item, width, height) {
 
   ctx.fillStyle = "#494334";
   ctx.textBaseline = "middle";
-  ctx.font = "500 32px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.font = "500 32px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   const lines = wrap(ctx, item.name, width - 64, 4);
   lines.forEach((line, index) => drawText(ctx, ink, line, 32, 120 + index * 40));
   ctx.fillStyle = "#81734d";
-  ctx.font = "17px 'Segoe UI', system-ui, sans-serif";
+  ctx.font = "17px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
   drawText(ctx, ink, `${extLabel(item)} · ${formatSize(item.size)}`, 32, height - 38);
 
   // 접힌 귀퉁이. 지오메트리의 잘린 모서리와 UV 위치를 맞춘다.
@@ -227,12 +227,12 @@ function drawBookFace(ctx, ink, item, width, height) {
   ctx.fill();
   ctx.fillStyle = "#3a3226";
   ctx.textBaseline = "middle";
-  ctx.font = "700 30px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.font = "700 30px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   const lines = wrap(ctx, item.name, width - 130, 3);
   const top = 46 + (height - 120) / 2 - (lines.length - 1) * 19;
   lines.forEach((line, index) => drawText(ctx, ink, line, 74, top + index * 38));
   ctx.fillStyle = "#f3ead3";
-  ctx.font = "600 19px 'Segoe UI', system-ui, sans-serif";
+  ctx.font = "600 19px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
   drawText(ctx, ink, `${extLabel(item)} · ${formatSize(item.size)}`, 60, height - 38);
 }
 
@@ -327,12 +327,12 @@ export function makeBoxTexture(THREE, { index, name, subtitle, accent, bodyColor
   roundRect(ctx, 54, 107, 404, 103, 6);
   ctx.fill();
   ctx.fillStyle = "#484737";
-  ctx.font = "700 34px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.font = "700 34px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
   drawText(ctx, ink, wrap(ctx, name, 368, 1)[0] ?? name, width / 2, 143);
   ctx.fillStyle = "#827b65";
-  ctx.font = "500 20px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.font = "500 20px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   drawText(ctx, ink, `${index} · ${subtitle}`, width / 2, 180);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -375,12 +375,12 @@ export function makeBoxLabelTexture(THREE, { index, name, subtitle, accent }) {
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
   ctx.fillStyle = "#3d3426";
-  ctx.font = "700 40px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.font = "700 40px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   const lines = wrap(ctx, name, width - 60, 2);
   const top = lines.length > 1 ? 122 : 140;
   lines.forEach((line, i) => drawText(ctx, ink, line, 30, top + i * 46));
   ctx.fillStyle = "#7d6f55";
-  ctx.font = "500 24px 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+  ctx.font = "500 24px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
   drawText(ctx, ink, subtitle, 54, 59);
 
   const texture = new THREE.CanvasTexture(canvas);

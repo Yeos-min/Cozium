@@ -29,10 +29,13 @@ const beamFrag = /* glsl */`
   }
   void main() {
     float facing = pow(abs(dot(normalize(vN), normalize(vView))), 1.6);  // soft at the silhouette
-    float along = smoothstep(0.0, 0.08, vUv.y) * mix(0.22, 1.0, pow(1.0 - vUv.y, 0.8)); // bright at the glass, thin at the floor
+    float along = smoothstep(0.0, 0.16, vUv.y) * mix(0.22, 1.0, pow(1.0 - vUv.y, 0.8)); // bright at the glass, thin at the floor
     float floorFade = smoothstep(1.0, 0.86, vUv.y);
     float rays = mix(0.55, 1.15, streaks(vUv.x));
-    float a = strength * facing * along * floorFade * rays;
+    // 10-25 사용자: "god ray 너무 날카로우니까 가장자리 부드럽게" — 네 판이 만나는 모서리(빛기둥의 윤곽)로 갈수록 옅게
+    float fu = fract(vUv.x * 4.0);
+    float edge = smoothstep(0.0, 0.2, fu) * smoothstep(1.0, 0.8, fu);
+    float a = strength * facing * along * floorFade * rays * edge;
     gl_FragColor = vec4(tint * a, 1.0);
   }`;
 

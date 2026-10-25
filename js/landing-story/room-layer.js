@@ -12,6 +12,7 @@ import { VertexSnapEffect } from "../three/vertex-snap.js";
 import { TUNING, directionFromAngles } from "../three/tuning.js";
 import { RenderQuality, detectDeviceTier, renderPixelRatio } from "../three/render-quality.js";
 import { GodRays, findSkylight } from "../three/godrays.js";
+import { SkyDome } from "../three/sky-dome.js";
 import { toonGradient } from "../three/materials.js";
 import { setInk } from "./outline-ink.js";
 import { TEXT_LAYER } from "../three/text-overlay.js";
@@ -22,6 +23,20 @@ const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (a, b, t) => { const x = clamp((t - a) / (b - a)); return x * x * (3 - 2 * x); };
 const inOut = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// CSS cubic-bezier(x1, y1, x2, y2) as a function of t (0…1), for the walk-in (10-24).
+function cubicBezier(x1, y1, x2, y2) {
+  const bx = (u) => 3 * x1 * u * (1 - u) ** 2 + 3 * x2 * u * u * (1 - u) + u ** 3;
+  const by = (u) => 3 * y1 * u * (1 - u) ** 2 + 3 * y2 * u * u * (1 - u) + u ** 3;
+  const dx = (u) => 3 * x1 * (1 - u) ** 2 + 6 * (x2 - x1) * u * (1 - u) + 3 * (1 - x2) * u * u;
+  return (t) => {
+    const x = clamp(t); let u = x;
+    for (let i = 0; i < 6; i++) { const d = dx(u); if (Math.abs(d) < 1e-6) break; u = clamp(u - (bx(u) - x) / d); }
+    return by(u);
+  };
+}
+const GO_EASE = cubicBezier(.7, 0, .18, 1);  // 몸: 천천히 떼고, 가운데 붙고, 화면 앞 긴 감속
+const Q_EASE = cubicBezier(.5, 0, .25, 1);   // 고개: 같은 결, 덜 세게
+const smooth01 = (a, b, t) => clamp((t - a) / (b - a)); // 범위만 자름(곡선은 위 이징이 맡음)
 function rng(seed) { return () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const DEG = Math.PI / 180;
 
@@ -31,7 +46,10 @@ const DEG = Math.PI / 180;
 export const CAMERAS = {
   A: { label: "원화 구도", p: [-3.05, 1.5, -1.05], yaw: -93, hfov: 60, shift: .2 },
   B: { label: "책상 가까이", p: [-1.35, 1.48, .35], yaw: -89, hfov: 58, shift: .18 },
-  C: { label: "넓게", p: [-3.15, 1.55, 2.4], yaw: -72, hfov: 70, shift: .2 },
+  // 10-24 사용자 블렌더 카메라(Location -0.9003, 2.7516, 1.0385 · Rotation 93.677°, 0°, -142.78° · 25.7 mm, Shift 0):
+  // 천창이 글자 왼쪽으로 빠지고 갓레이가 바닥에 떨어지는 구도. 블렌더 (x, y, z) → 여기 (x, z, -y), Z 회전 = yaw,
+  // X 회전 − 90° = pitch(위로 +). 25.7 mm / 36 mm 센서 = 가로 70°. 옛 C: p [-3.15, 1.55, 2.4], yaw -72, shift .2
+  C: { label: "천창 대각", p: [-0.9003, 1.0385, -2.7516], yaw: -142.78, pitch: 3.677, hfov: 78.58, shift: 0 }, // 10-24 사용자: 22 mm(가로 78.58°)
 };
 const END_HFOV = 38;      // lens at the end of the walk-in, when the screen fills the frame
 // Mouse parallax (user, 10-13): standing in the room the camera leans a little towards the pointer — turns (deg) and
@@ -73,6 +91,8 @@ export class RoomLayer {
     this._last = 0;
     this.lookTarget = new THREE.Vector2(); this.lookNow = new THREE.Vector2(); // pointer, −1…1 (x right, y down)
     this.scene = new THREE.Scene();
+    this.sky = new SkyDome({ radius: 40 }); this.scene.add(this.sky.mesh);
+    { this.sky.uniforms.dayLow.value.set("#f1dcc2"); this.sky.uniforms.dayTop.value.set("#9dbfd6"); this.sky.uniforms.cloudLit.value.set("#fff0d8"); this.sky.uniforms.cloudShade.value.set("#d9c9bc"); } // 10-25 천창 너머 그림 하늘(밤 별, 낮 구름). 랜딩 낮은 늦은 오후라 지평선 쪽을 노을빛으로
     this.camera = new THREE.PerspectiveCamera(50, 16 / 9, .04, 60);
     this.camera.rotation.order = "YXZ";
     this.outline = new OutlineEffect(this.renderer, { ...TUNING.outline }, { ...TUNING.dithering, levels: { ...TUNING.dithering.levels } });
@@ -104,6 +124,7 @@ export class RoomLayer {
       try { globalThis.createImageBitmap = undefined; return loader.parseAsync(bytes.buffer, ""); }
       finally { globalThis.createImageBitmap = cib; }
     };
+    boxUrl ??= "./models/box.glb"; // 10-25 사용자 A+B: 정리된 방에 상자 넷(10-11의 「바닥만 깨끗이」를 되돌림 — 텅 비어 보였음)
     const [room, box] = await Promise.all([get(roomUrl), boxUrl ? get(boxUrl) : null]);
     this.room = room.scene;
     this.scene.add(this.room);
@@ -118,7 +139,7 @@ export class RoomLayer {
     this.#buildRays();
     this.steam = steamFromMug(this.room, this.scene); // 10-13: 책상 머그잔의 김
     this.#buildFiles();
-    if (box) this.#buildBoxes(box.scene); // the tidied room shows a clear floor now; boxes only on request (10-11)
+    if (box) this.#buildBoxes(box.scene); // the tidied room: four labelled boxes under the cork board + pinned photos (10-25)
     this.room.traverse((o) => { if (o.isMesh) this.meshes.push(o); });
     for (const g of [this.files, this.boxes].filter(Boolean)) g.traverse((o) => { if (o.isMesh) this.meshes.push(o); });
     for (const o of this.meshes) o.userData.orig = o.material;
@@ -135,9 +156,11 @@ export class RoomLayer {
     for (const st of ["tidy", "messy"]) {
       this.state = st; this.#applyLight();
       this.files.visible = st === "messy";
+      if (this.boxes) this.boxes.visible = st === "tidy";
       try { this.renderer.compile(this.scene, this.camera); } catch { /* compile is an optimisation */ }
     }
     this.state = keep; this.#applyLight(); this.files.visible = keep === "messy";
+    if (this.boxes) this.boxes.visible = keep === "tidy";
   }
 
   // The screen plate's corners from its own vertices and UVs (glTF: u right, v down → TL is uv 0,0).
@@ -171,8 +194,9 @@ export class RoomLayer {
     };
     // afternoon sun through the skylight on the +x slope; the roof shades everything else
     {
-      const sun = shadowed(new THREE.DirectionalLight("#ffd9a0", 3.8)); sun.position.set(9.5, 11, -3.2); sun.target.position.set(0, 0, .4);
-      add("sun", new THREE.HemisphereLight("#fff3dc", "#8a6844", 1.7), new THREE.AmbientLight("#f6e2c6", .5), sun, sun.target);
+      // 10-25 사용자 A+B: 낮이 휑함 → 늦은 오후. 햇빛은 주황으로 세게, 방은 조금 어둡게(예전 "#ffd9a0" 3.8, 반구 "#fff3dc"/"#8a6844" 1.7, 주변 .5)
+      const sun = shadowed(new THREE.DirectionalLight("#ffbf78", 4.6)); sun.position.set(9.5, 11, -3.2); sun.target.position.set(0, 0, .4);
+      add("sun", new THREE.HemisphereLight("#ffe2bd", "#5e3f26", 1.15), new THREE.AmbientLight("#f0c9a0", .3), sun, sun.target);
       L.sun.userData = { bg: "#cfe5ef", exposure: 1 };
     }
     // the game's light rig (TUNING.light), directions only; the room is in metres, the game in half metres
@@ -217,7 +241,7 @@ export class RoomLayer {
     const sun = this.lights.sun.children.find((c) => c.isDirectionalLight);
     if (!corners || !sun) { console.info("landing: no skylight found, no god rays"); return; }
     this.skylight = corners;
-    this.rays = new GodRays(corners, sun.target.position.clone().sub(sun.position));
+    this.rays = new GodRays(corners, sun.target.position.clone().sub(sun.position), { tint: "#ffc985", strength: .46 }); // 10-25 늦은 오후 빛기둥(예전 기본 "#ffd9a0" .3)
   }
 
   // The messy room: the same kinds of things as the desktop inside the laptop, in a few piles on the open floor,
@@ -277,11 +301,30 @@ export class RoomLayer {
         o.material = [].concat(o.material).map((m) => { const c = m.clone(); if (m.name === "box_body") c.color.set(tones[i]); return c; });
         if (o.material.length === 1) o.material = o.material[0];
       });
-      // front (+Z) turned to the room (−x); one neat row from the door-side wall, just left of the rug
-      // (the final model put a plant in the bed–desk gap, 10-11; two high was nearly as tall as the bed)
-      b.rotation.y = -Math.PI / 2;
-      b.position.set(1.15, 0, -2.55 + i * .56);
+      // 10-25 사용자 A+B: 코르크 보드 아래 두 줄로 두 개씩, 앞면(이름표)이 방 쪽. 이름은 이야기 속 상자와 같은 넷
+      b.rotation.y = Math.PI + [.03, -.04, -.02, .05][i];
+      b.position.set(i < 2 ? -.33 : .27, (i % 2) * .495, 2.5 + (i % 2) * .02);
+      const cv = document.createElement("canvas"); cv.width = 256; cv.height = 112;
+      const x = cv.getContext("2d"); x.fillStyle = "#fbf5e4"; x.fillRect(0, 0, 256, 112);
+      x.fillStyle = "#2f231a"; x.font = "800 46px NanumSquareRound, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
+      x.fillText(["사진", "음악·영상", "문서", "압축파일"][i], 128, 58);
+      const lt = new THREE.CanvasTexture(cv); lt.colorSpace = THREE.SRGBColorSpace;
+      const tag = new THREE.Mesh(new THREE.PlaneGeometry(.26, .114), new THREE.MeshStandardMaterial({ map: lt }));
+      tag.position.set(0, .2, .345); b.add(tag);
       this.boxes.add(b);
+    }
+    // 코르크 보드에 꽂힌 사진(게임 attic-room.js ATTIC_PINBOARD를 m로: x −0.7…0.7, y 1.33…2.25, 판 앞 z 2.862, 앞면 −z).
+    // 칸에 맞추되 손으로 꽂은 것처럼 조금씩 어긋나고 기울게(사용자: 너무 반듯하면 안 됨)
+    const R = rng(20261025);
+    const tex = new THREE.CanvasTexture(this.faceCanvas("photo")); tex.colorSpace = THREE.SRGBColorSpace;
+    const [w, d] = FILE_SIZE.photo, g = new THREE.BoxGeometry(w * .75, .006, d * .75);
+    const side = new THREE.MeshStandardMaterial({ color: EDGE.photo }), top = new THREE.MeshStandardMaterial({ map: tex });
+    const mats = [side, side, top, side, side, side];
+    for (const c of [0, 1, 3, 4, 6, 7, 8, 10, 12, 13, 15, 17, 18]) {
+      const col = c % 5, row = Math.floor(c / 5), m = new THREE.Mesh(g, mats);
+      m.rotation.set(-Math.PI / 2, 0, (R() - .5) * .42);
+      m.position.set(.7 - (col + .5) * .28 + (R() - .5) * .09, 2.25 - (row + .5) * .23 + (R() - .5) * .07, 2.862 - R() * .004);
+      this.boxes.add(m);
     }
     this.boxes.visible = false;
   }
@@ -302,6 +345,7 @@ export class RoomLayer {
     for (const [k, g] of Object.entries(this.lights)) g.visible = k === key;
     const L = this.lights[key].userData;
     this.scene.background = new THREE.Color(L.bg);
+    this.sky.night = key === "lamp" ? 1 : 0;
     this.renderer.toneMapping = { none: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, agx: THREE.AgXToneMapping }[s.tone] ?? THREE.NoToneMapping;
     this.renderer.toneMappingExposure = L.exposure;
     this.renderer.shadowMap.type = key === "game" ? THREE.BasicShadowMap : THREE.PCFShadowMap;
@@ -382,7 +426,7 @@ export class RoomLayer {
   // ── camera ──
   startPose(key = this.style.cam) {
     const c = CAMERAS[key];
-    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, c.yaw * DEG, 0, "YXZ"));
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler((c.pitch || 0) * DEG, c.yaw * DEG, 0, "YXZ"));
     return { pos: new THREE.Vector3(...c.p), q, hfov: c.hfov, shift: c.shift };
   }
 
@@ -400,13 +444,16 @@ export class RoomLayer {
   // (as the 2D zoom did), the head turns to the screen early, the lens shift and the wide lens give way to the end lens.
   poseAt(t) {
     const S = this.startPose(), E = this.endPose();
-    const e = inOut(clamp(t));
+    // 10-24 사용자: 06:33 "너무 갑자기 꺾임" → 06:44 "평면적, 직선 느낌, 쫀득한 맛이 없음". 키프레임 이징처럼:
+    // 천천히 떼고 → 가운데서 붙고 → 화면 앞에서 길게 감속. 고개(Q_EASE)가 몸(GO_EASE)보다 살짝 먼저 돌지만 꺾이지 않게
+    // 범위를 넓게 줌. 곡선 모양은 CSS cubic-bezier와 같은 값이라 그대로 비교·조정 가능.
+    const go = GO_EASE(t);
     const dS = S.pos.distanceTo(this.screenCenter), dE = E.d;
-    const dir = S.pos.clone().sub(this.screenCenter).normalize().lerp(this.screenNormal, inOut(smooth(0, .85, t))).normalize();
-    const dist = Math.exp(lerp(Math.log(dS), Math.log(dE), e));
+    const dir = S.pos.clone().sub(this.screenCenter).normalize().lerp(this.screenNormal, GO_EASE(smooth01(0, .92, t))).normalize();
+    const dist = Math.exp(lerp(Math.log(dS), Math.log(dE), go));
     const pos = this.screenCenter.clone().addScaledVector(dir, dist);
-    const q = S.q.clone().slerp(E.q, inOut(smooth(0, .7, t)));
-    return { pos, q, hfov: lerp(S.hfov, E.hfov, smooth(0, .8, t)), shift: lerp(S.shift, 0, smooth(0, .7, t)) };
+    const q = S.q.clone().slerp(E.q, Q_EASE(smooth01(0, .82, t)));
+    return { pos, q, hfov: lerp(S.hfov, E.hfov, GO_EASE(smooth01(.04, .92, t))), shift: lerp(S.shift, 0, smooth(0, .7, t)) };
   }
 
   #applyPose(P, plateW, plateH) {
@@ -451,6 +498,7 @@ export class RoomLayer {
     this._last = now;
     this.#applyPose(this.#lookPose(this.poseAt(t), t, dt), plateW, plateH);
     this.steam?.update(now / 1000);
+    this.sky.update(this.camera, now / 1000);
     this.snap.prepare(this.scene);
     this.outline.render(this.scene, this.camera);
     this.rays?.render(this.renderer, this.camera, performance.now() / 1000, this.renderer.getPixelRatio());

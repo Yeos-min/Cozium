@@ -4,12 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#eae3ce">
-<title>Cozium — 흩어진 하루가 제자리를 찾는 곳</title>
+<title>Cozium — 바탕화면 정리 게임</title>
+<meta name="description" content="어질러진 바탕화면을 방 치우듯 정리하는 3D 웹 게임. 파일을 집어 상자(폴더)에 넣어 정리해요.">
 <script src="./js/entry-route.js"></script>
-<!-- 첫 화면에 필요한 것만: 같은 카메라의 정지 이미지, 제목 글꼴, 방 모델. tests/landing/preload.test.mjs가 잠근다. -->
+<!-- 첫 화면에 필요한 것만: 같은 카메라의 정지 이미지, 로고·문구 글꼴(10-24 Nunito 900 + 나눔스퀘어라운드 B), 방 모델. tests/landing/preload.test.mjs가 잠근다. -->
 <link rel="preload" href="./assets/landing/room-3d/poster-C.webp" as="image" type="image/webp">
 <link rel="preload" href="./models/room.glb" as="fetch" type="model/gltf-binary" crossorigin>
-<link rel="preload" href="./assets/landing/fonts/Fraunces.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="./assets/fonts/nunito/Nunito-900-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="./assets/fonts/nanum-square-round/NanumSquareRoundB.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./css/fonts.css">
 <link rel="stylesheet" href="./css/landing-story.css">
 <link rel="stylesheet" href="./css/site-nav.css">
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script>
@@ -22,7 +25,7 @@
     <a class="go" href="./app.html">정리방 들어가기</a>
   </nav>
 </header>
-<main class="stage" id="stage" data-try="closed" data-scene="room" data-room="loading" aria-label="Cozium: 어질러진 바탕화면의 파일이 방의 물건이 되어 상자로 정리되는 이야기">
+<main class="stage" id="stage" data-try="closed" data-scene="room" data-room="loading" aria-label="Cozium: 어질러진 바탕화면의 파일이 방의 물건이 되어 상자로 정리되는 이야기. 시작해볼까요 버튼을 누르면 이야기가 시작되고, 바닥의 파일 더미를 직접 상자에 넣어 볼 수 있습니다">
   <canvas class="room" id="room" aria-hidden="true"></canvas>
   <img class="poster" id="poster" src="./assets/landing/room-3d/poster-C.webp" alt="">
   <canvas class="gl" id="gl" hidden aria-hidden="true"></canvas>
@@ -31,19 +34,29 @@
       <img src="./assets/landing/parts/desktop-v4/wallpaper.webp" alt="">
       <div class="icons" id="deskIcons"></div>
     </div>
+    <span class="screen-glow" id="screenGlow" aria-hidden="true"></span>
     <div class="plate" id="deskChrome" style="opacity:0">
       <img src="./assets/landing/parts/desktop-v4/taskbar.webp" alt="" style="left:19px;top:846px;width:1634px;height:60px">
       <img src="./assets/landing/parts/desktop-v4/monitor-frame.svg" alt="">
     </div>
-    <div class="title" id="title">
+  </div>
+  <!-- 10-25 디자인 시스템 확정: 첫 화면과 끝 장면은 같은 자리(왼쪽 위 여백선)에 다른 내용. 화면 px로 놓으려고 .world 밖 -->
+  <div class="hero" id="title">
+    <div class="hero-start" id="heroStart">
       <h1>Cozium</h1>
-      <p>흩어진 하루가<br>제자리를 찾는 곳.</p>
-      <nav class="cta" id="cta" aria-label="정리방 시작" hidden>
-        <a class="primary" href="./app.html">정리방 들어가기 →</a>
+      <p>당신의 어질러진 바탕화면을<br>방 치우듯 정리해 보세요</p>
+      <nav class="cta" id="cta" aria-label="정리방 시작">
+        <a class="start" href="./app.html"><span class="start-label">시작해볼까요?</span></a>
       </nav>
     </div>
+    <div class="hero-end" id="heroEnd" hidden>
+      <h2>방이 깨끗해졌어요</h2>
+      <p>이번엔 진짜 내 바탕화면 차례예요</p>
+      <a class="end-go" id="endGo" href="./app.html" hidden>내 바탕화면 정리하러 가기 <span aria-hidden="true">→</span></a>
+    </div>
   </div>
-  <span class="cue" id="cue" aria-hidden="true" data-first="true"><span class="cue-mouse"><i></i></span><b class="cue-text">스크롤해서 시작</b></span>
+  <p class="story-note" id="storyCap" data-on="false" aria-hidden="true"><b class="story-n"></b><span class="story-t"></span></p>
+  <button class="skip" id="skip" type="button" hidden>건너뛰고 바로 시작 →</button>
   <div class="loading" aria-hidden="true"><i></i></div>
   <div class="veil" id="veil" aria-hidden="true"></div>
   <p class="sr-only" id="sceneStatus" aria-live="polite"></p>
