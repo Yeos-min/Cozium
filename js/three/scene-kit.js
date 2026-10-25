@@ -16,6 +16,7 @@ import { ATTIC_BOX, ATTIC_FLOOR, ATTIC_HALF, ATTIC_OBSTACLES, ATTIC_SCALE, ATTIC
 import { wallShelfSlots } from "./folder-shelves.js";
 import { surfaceMaterial, toonFrom } from "./materials.js";
 import { GodRays, findSkylight } from "./godrays.js";
+import { SkyDome } from "./sky-dome.js";
 import { STEAM, steamFromMug } from "./steam.js";
 import { groundAt, moveWalker, safeWalkPosition, stepVertical } from "./walk-collision.js";
 import { LookInput } from "./look-input.js";
@@ -108,6 +109,8 @@ export class SceneKit {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(TUNING.light.background ?? TUNING.desk.background);
     this.scene.fog = null;
+    this.sky = new SkyDome({ radius: 80 }); // 10-25 천창 너머 그림 하늘(랜딩과 같은 것): 밤엔 별, 낮엔 구름
+    this.scene.add(this.sky.mesh);
 
     this.camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 100);
     this.camera.rotation.order = "YXZ";
@@ -411,6 +414,7 @@ export class SceneKit {
     mix(this.keyLight.color, day.key.color, N.key.color);
     this.keyLight.intensity = lerp(day.key.intensity, N.key.intensity);
     mix(this.scene.background, day.background ?? TUNING.desk.background, N.background);
+    this.sky.night = k;
     // 스탠드는 해가 반쯤 졌을 때부터 켜진다
     const lit = Math.min(1, Math.max(0, (k - 0.35) / 0.65));
     this.lampLight.intensity = N.lamp.intensity * lit;
@@ -753,6 +757,7 @@ export class SceneKit {
     const profile = this.renderQuality.profile;
     if (this.frameIndex++ % profile.shadowEvery === 0) this.renderer.shadowMap.needsUpdate = true;
     this.steam?.update(this.clock.elapsedTime);
+    this.sky.update(this.camera, this.clock.elapsedTime);
     this.vertexSnap.prepare(this.scene);
     this.outlineEffect.render(this.scene, this.camera);
     if (this.rays && TUNING.render.rays && profile.rays) {

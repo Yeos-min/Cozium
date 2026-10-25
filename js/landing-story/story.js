@@ -11,7 +11,7 @@ import { RoomLayer, StyledPass, TEXT_LAYER } from "./room-layer.js";
 import { GLTFLoader } from "../../vendor/three/addons/loaders/GLTFLoader.js";
 import { toonGradient } from "../three/materials.js";
 import { initLab } from "./render-lab.js";
-import { deskScale } from "../ui/desk-scale.js";
+import { deskScale, DESK_BASE } from "../ui/desk-scale.js";
 
 // ───────────── helpers ─────────────
 const $ = (s) => document.querySelector(s);
@@ -106,8 +106,11 @@ const cameBack = location.hash === "#end";
 // The 3D room. Its file things use the same faces as the floor scene inside the laptop (drawFace, below).
 const room = new RoomLayer(roomCanvas, { faceCanvas: (k) => drawFace(k) });
 const desk = $("#desk"), deskIcons = $("#deskIcons"), deskChrome = $("#deskChrome");
-const title = $("#title"), cta = $("#cta"), cue = $("#cue"), veil = $("#veil"), sceneStatus = $("#sceneStatus");
-let cueLearned = false; // 한 번이라도 스크롤로 넘겼는지(첫 화면 안내 글)
+const caption = $("#storyCap"), capN = caption.querySelector(".story-n"), capT = caption.querySelector(".story-t"), heroStart = $("#heroStart"), heroEnd = $("#heroEnd"), endGo = $("#endGo"), screenGlow = $("#screenGlow"), title = $("#title"), cta = $("#cta"), startLink = cta.querySelector(".start"), startLabel = cta.querySelector(".start-label"), skipBtn = $("#skip"), veil = $("#veil"), sceneStatus = $("#sceneStatus");
+let pendingTo = null;   // 방 모델이 오기 전에 가려던 곳 — 준비되는 순간 이어서 간다(10-23)
+// 10-23 사용자: 스크롤로 넘기는 이야기는 버림. 첫 화면 「시작해볼까요?」를 누르면 이야기가 저절로 끝까지 흐르고(직접 담기도 시연)
+// 정리된 방에서 노트북으로 걸어 들어가 app.html. 흐르는 동안 「건너뛰고 바로 시작 →」. null = 멈춰 있음.
+let auto = null;
 let deskMode = "messy";
 function buildDesk(mode, counts = []) {
   deskMode = mode;
@@ -238,6 +241,10 @@ function layoutWorld() {
   cover = Math.max(vw / W0, vh / H0);
   du = deskScale(vw, vh) / cover; // 큰 화면(4K)에서는 바탕화면 UI도 같은 비율로 커진다(js/ui/desk-scale.js, 가져오기·결과 화면과 같은 숫자)
   world.style.transform = `translate(${(vw - W0 * cover) / 2}px,${(vh - H0 * cover) / 2}px) scale(${cover})`;
+  // 10-25 디자인 시스템: 히어로·단계 줄·쪽지·건너뛰기는 화면 px(디자인 시스템 크기 그대로). 1280×720보다 작으면 줄이고(최소 .65),
+  // 1600×900보다 크면 바탕화면 UI와 같은 배율로 키운다(deskScale).
+  const uiK = vw >= DESK_BASE.w && vh >= DESK_BASE.h ? deskScale(vw, vh) : clamp(Math.min(vw / 1280, vh / 720), .65, 1);
+  stage.style.setProperty("--k", uiK.toFixed(3));
   crop = { x: Math.max(0, (W0 - vw / cover) / 2), y: Math.max(0, (H0 - vh / cover) / 2) };
   // the grid moves in by the crop, but no further than its far edge allows (a phone: it simply doesn't fit)
   const gridR = (GRID0.x + COLS * CELL.w) * du, gridB = (GRID0.y + ROWS * CELL.h) * du, below = (CHROME.barBottom + CHROME.bar + 10) * du;
@@ -365,6 +372,36 @@ function shadedBox(w, h, d, color, { top, front, opacity = 1, fiber = false, ink
   return mesh;
 }
 
+// A box has six faces = six draw calls per file. The four edges share one material, so put them in one group:
+// three draw calls per file (10-23, the files → things moment dropped frames). Groups: 0 = edges, 1 = top face, 2 = back.
+function sidesInOneGroup(g) {
+  const src = g.index.array, out = [], groups = [];
+  const take = (faces, materialIndex) => {
+    const start = out.length;
+    for (const f of faces) { const gr = g.groups[f]; for (let i = 0; i < gr.count; i++) out.push(src[gr.start + i]); }
+    groups.push({ start, count: out.length - start, materialIndex });
+  };
+  take([0, 1, 4, 5], 0); take([2], 1); take([3], 2); // BoxGeometry order: +x −x +y −y +z −z
+  g.setIndex(out); g.clearGroups();
+  for (const gr of groups) g.addGroup(gr.start, gr.count, gr.materialIndex);
+  return g;
+}
+
+// Draw the whole floor world once, out of sight, right after it is built (10-23). Otherwise every shader program and
+// texture is first needed in the middle of the fall — desktop → floor, then icons → things, then folders → boxes —
+// and each first use stalls a frame (measured: 8 → 11 programs, 69 → 86 textures compiled/uploaded mid-animation).
+function warmGL() {
+  if (!renderer || !insidePass) return;
+  const shown = [];
+  scene.traverse((o) => { shown.push([o, o.visible]); o.visible = true; });
+  try {
+    setCamera(POSE_FLOOR());
+    renderer.compile(scene, camera);
+    insidePass.render(renderer, scene, camera); // the effect pass and the text layer have their own programs
+  } catch { /* warming is an optimisation */ }
+  for (const [o, v] of shown) o.visible = v;
+}
+
 function shadowTex() {
   return canvasTex(makeCanvas(128, 128, (g) => {
     const grd = g.createRadialGradient(64, 64, 6, 64, 64, 62);
@@ -412,6 +449,8 @@ const slotX = [-3.45, -1.15, 1.15, 3.45];
 
 async function buildGL() {
   const iconKinds = ["document", "photo", "video", "audio", "archive", "folder-sand"];
+  // 10-24: 이름표·상자 이름은 캔버스에 한 번 그려 두는 글자라 나눔스퀘어라운드가 오기 전에 그리면 시스템 글꼴로 굳는다
+  await (document.fonts?.load ? Promise.all(["400 12px NanumSquareRound", "700 12px NanumSquareRound"].map((f) => document.fonts.load(f))).catch(() => {}) : null);
   await Promise.all(iconKinds.map(async (k) => { iconImages[k] = await loader(`${DESK}/icons/${k}.webp`); }));
   const [wallImg, floorImg, plasterImg, boxModel] = await Promise.all([
     loader(`${DESK}/wallpaper.webp`), loader("./assets/landing/room-3d/attic-floor.webp"), loader("./assets/landing/room-3d/attic-plaster.webp"),
@@ -484,11 +523,11 @@ async function buildGL() {
   for (const it of files) {
     const [w, d] = OBJECT_SIZE[it.kind];
     const t = .032;
-    geo[it.kind] ??= new THREE.BoxGeometry(w, t, d);
+    geo[it.kind] ??= sidesInOneGroup(new THREE.BoxGeometry(w, t, d));
     const side = basic({ color: EDGE[it.kind], transparent: true });
     const face = basic({ map: textures["face:" + it.kind], transparent: true });
     const backMat = basic({ map: textures.back, transparent: true });
-    const thing = new THREE.Mesh(geo[it.kind], [side, side, face, backMat, side, side]);
+    const thing = new THREE.Mesh(geo[it.kind], [side, face, backMat]);
     thing.position.y = t / 2;
     const icon = new THREE.Mesh(new THREE.PlaneGeometry(w, w), basic({ map: textures["icon:" + it.kind], transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     icon.rotation.x = -Math.PI / 2; icon.position.y = 0.004; icon.renderOrder = 2;
@@ -589,7 +628,7 @@ const mixPose = (a, b, t) => Object.fromEntries(Object.keys(a).map((k) => [k, le
 // the in-between frames are never a place to stop.
 let prog = 0, gateOpen = false, blocked = 0, gateSince = 0, lastNudge = 0, nudges = 0, demoTimer = 0;
 const RESTS = [0, B.dive[1], GATE, B.back[1], 1]; // the cleared floor runs straight on into the tidy desktop
-const SEG_MS = [2800, 3800, 4900, 1900];           // RESTS[i] → RESTS[i + 1]; the dive was 1.7 s, felt rushed next to the intro video (2026-10-08)
+const SEG_MS = [3000, 3800, 4900, 1900];           // RESTS[i] → RESTS[i + 1]; the dive was 1.7 s, felt rushed next to the intro video (2026-10-08); 10-24 2.8 → 3.6 → 3.0 s (사용자: 휙휙 → 1.2배 빠르게)
 const BACK_MS = 1450;                              // empty floor → tidy desktop
 let tween = null, arrivedAt = 0, autoClearAt = 0;
 const atRest = () => !tween && RESTS.some((r) => Math.abs(r - prog) < 1e-4);
@@ -603,7 +642,10 @@ function travelMs(a, b) {
   return b < a ? ms * .7 : ms;
 }
 function goTo(to, durMs = 0) {
-  if (to == null || noGL || !room.ready) return;
+  if (to == null || noGL) return;
+  // 10-23 교수님 피드백("스크롤 안내가 가끔 안 뜬다"): room.glb(3 MB)가 오기 전엔 안내도 없고 스크롤도 먹지 않았다.
+  // 이제 안내는 처음부터 뜨고, 그사이 스크롤하면 기억했다가 준비되면 바로 넘어간다.
+  if (!room.ready) { if (to > prog) pendingTo = to; return; }
   if (!gateOpen && to > GATE) {
     if (prog >= GATE - 1e-4) { blockedAttempt(); return; }
     to = GATE;
@@ -653,34 +695,7 @@ function step(dir) {
   const list = dir > 0 ? RESTS : [...RESTS].reverse();
   goTo(list.find((r) => (dir > 0 ? r > prog + 1e-4 : r < prog - 1e-4)) ?? null);
 }
-// Wheel: one gesture = one step. A trackpad's momentum tail keeps arriving after the move ends,
-// so the wheel re-arms only after a short quiet gap.
-let wheelAcc = 0, lastWheel = 0, armed = true;
-addEventListener("wheel", (e) => {
-  if (e.target instanceof Element && e.target.closest(".lab")) return;
-  e.preventDefault();
-  const now = performance.now(), d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-  if (now - lastWheel > 180) { wheelAcc = 0; armed = true; }
-  lastWheel = now;
-  if (!armed || !d) return;
-  wheelAcc += d;
-  if (tween && Math.sign(wheelAcc) === Math.sign(tween.to - tween.from)) { wheelAcc = 0; return; }
-  if (Math.abs(wheelAcc) >= 24) { armed = false; const dir = Math.sign(wheelAcc); wheelAcc = 0; step(dir); }
-}, { passive: false });
-let touchY = null, touchUsed = false;
-stage.addEventListener("touchstart", (e) => { if (!tryActive()) { touchY = e.touches[0].clientY; touchUsed = false; } }, { passive: true });
-stage.addEventListener("touchmove", (e) => {
-  if (touchY == null || touchUsed) return;
-  const dy = touchY - e.touches[0].clientY;
-  if (Math.abs(dy) > 36) { touchUsed = true; step(Math.sign(dy)); }
-}, { passive: true });
-stage.addEventListener("touchend", () => { touchY = null; });
-addEventListener("keydown", (e) => {
-  if (e.target instanceof HTMLInputElement || e.target.closest?.("a,button,select,input,.lab") || e.repeat) return;
-  if (e.key === "Enter" && Math.abs(prog - GATE) < 1e-4 && !gateOpen && !demoTimer && !demoNext && !hand.active && tryActive()) { e.preventDefault(); nudge(); autoDemo(); return; }
-  if (["ArrowDown", "PageDown", " "].includes(e.key)) { e.preventDefault(); step(1); }
-  if (["ArrowUp", "PageUp"].includes(e.key)) { e.preventDefault(); step(-1); }
-});
+// 스크롤·휠·화살표 키로 넘기기는 10-23에 없앰 — 이야기는 「시작해볼까요?」 버튼이 끝까지 틀어 준다(아래 autoplayTick).
 
 // ───────────── the hands-on stop ─────────────
 const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -829,8 +844,7 @@ function nudge() {
   nudgeCluster = counts.indexOf(Math.max(...counts));
   nudgeT0 = performance.now(); nudges++;
 }
-// Passive viewers (scrolling at the stop) are shown the same gesture: a pile gathers into the hand and goes into its box,
-// pile after pile until the floor is empty.
+// The gesture shown for you (Enter at the stop): a pile gathers into the hand and goes into its box. One pile per call.
 function autoDemo() {
   const list = floorFree().filter((o) => o.cluster === nudgeCluster);
   if (!list.length) { if (!floorFree().length) { openGate(); autoClearAt = performance.now() + FLOOR_LOOK; } return; }
@@ -842,7 +856,7 @@ function autoDemo() {
     demoTimer = 0;
     const held = hand.list; hand.list = [];
     depositInto(held, box);
-    if (floorFree().length) demoNext = setTimeout(() => { demoNext = 0; if (!gateOpen && tryActive() && !hand.active) { nudge(); autoDemo(); } }, 1100);
+    // one pile per Enter (10-23: no more pile-after-pile show — the visitor does the rest)
   }, 750);
 }
 function resetTry() {
@@ -940,7 +954,7 @@ function wrapName(g, text, max) {
 }
 function nameLabel(name, hx, hz) {
   const cv = makeCanvas(NAME_W * NAME_RES, NAME_H * NAME_RES, (g, w) => {
-    g.font = `500 ${12 * NAME_RES}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif`;
+    g.font = `500 ${12 * NAME_RES}px ${getComputedStyle(document.documentElement).getPropertyValue("--ui")}`;
     g.textAlign = "center"; g.textBaseline = "top";
     wrapName(g, name, w - 4 * NAME_RES).forEach((line, i) => {
       const y = i * 15.6 * NAME_RES;
@@ -1127,7 +1141,7 @@ const lab = initLab({ room, insidePass, seek: (v) => jump(v), get progress() { r
 // One button on the tidied room. It plays the walk-in once more, into the tidied laptop; when the screen fills the
 // frame the browser goes to app.html. Before leaving, this page's address becomes #end, so the browser's back button
 // returns to the tidied room rather than to the start of the story. A modified click (new tab) is left alone.
-const ENTER_MS = 1900;
+const ENTER_MS = 2500; // 10-24 사용자 "이렇게까지 스피디하게?" 1.9 → 3.0 s → "1.2배 빠르게" 2.5 s
 const APP_MISSING = stage.dataset.app === "missing"; // the claude.ai review copy has no app.html
 let enter = null;
 function enterU(now) {
@@ -1135,15 +1149,86 @@ function enterU(now) {
   const t = enter.dur ? clamp((now - enter.t0) / enter.dur) : 1;
   return enter.back ? 1 - t : t;
 }
+function startEnter() {
+  if (enter) return;
+  enter = { t0: performance.now(), dur: reduced ? 0 : ENTER_MS, href: startLink.href };
+  if (reduced) veil.style.opacity = "1";
+}
 cta.addEventListener("click", (e) => {
   const a = e.target.closest("a");
   if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-  if (!room.ready || tween || Math.abs(prog - 1) > 1e-4) return; // no 3D room: a plain link
+  if (noGL || stage.dataset.room === "failed") return; // no 3D room: a plain link straight to app.html
   e.preventDefault();
-  if (enter) return;
-  enter = { t0: performance.now(), dur: reduced ? 0 : ENTER_MS, href: a.href };
-  if (reduced) veil.style.opacity = "1";
+  if (enter || auto) return;
+  if (Math.abs(prog - 1) < 1e-4 && !tween) { startEnter(); return; } // back on the tidied room (#end): just walk in
+  auto = { t0: performance.now(), kick: 0 };
+  if (topNav && matchMedia("(hover: hover) and (pointer: fine)").matches) navSet(false); // 10-25: 이야기가 시작되면 내비를 접는다
 });
+// 10-25 끝 장면: 「내 바탕화면 정리하러 가기 →」 또는 노트북을 눌러 걸어 들어간다
+let endQuad = null; // the laptop screen on the tidied room (plate px), only while resting there
+const restingAtEnd = () => !enter && !auto && !tween && Math.abs(prog - 1) < 1e-4;
+endGo.addEventListener("click", (e) => {
+  if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  if (noGL || stage.dataset.room === "failed") return;
+  e.preventDefault();
+  if (restingAtEnd()) startEnter();
+});
+function onScreen(e) {
+  if (!endQuad || !restingAtEnd()) return false;
+  const r = stage.getBoundingClientRect();
+  const x = (e.clientX - r.left - (vw - W0 * cover) / 2) / cover, y = (e.clientY - r.top - (vh - H0 * cover) / 2) / cover;
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const [ax, ay] = endQuad[i], [bx, by] = endQuad[(i + 1) % 4], c = Math.sign((bx - ax) * (y - ay) - (by - ay) * (x - ax));
+    if (c && sign && c !== sign) return false;
+    sign ||= c;
+  }
+  return true;
+}
+stage.addEventListener("pointermove", (e) => { const hot = onScreen(e); if (!!stage.dataset.hot !== hot) { if (hot) stage.dataset.hot = "true"; else delete stage.dataset.hot; } });
+stage.addEventListener("click", (e) => { if (!e.target.closest("a,button") && onScreen(e)) startEnter(); });
+skipBtn.addEventListener("click", () => {
+  if (!auto) return;
+  auto = null;
+  if (demoTimer) { clearTimeout(demoTimer); demoTimer = 0; }
+  if (demoNext) { clearTimeout(demoNext); demoNext = 0; }
+  hand.active = false; hand.list = [];
+  jump(1);
+  requestAnimationFrame(() => requestAnimationFrame(startEnter)); // the tidied room is drawn once, then the walk-in
+});
+// 10-23 20:40 사용자: 장면 사이 이동은 저절로, 담기는 방문자가 직접("여전히 사용자 참여가 중요").
+// 바탕화면(문구) → 방(문구, 더미가 통통 튐 — 시연 없음) → 다 넣으면 정리된 바탕화면(문구) → 정리된 방 + 버튼.
+const CAP_READ = 2300; // 문구 하나 읽을 시간
+function autoplayTick(now) {
+  if (!auto || enter || tween || veilBusy || !room.ready) return;
+  const at = (r) => Math.abs(prog - r) < 1e-4, dwell = now - arrivedAt;
+  if (at(0)) goTo(B.dive[1]);
+  else if (at(B.dive[1]) && dwell > CAP_READ) goTo(GATE);
+  // at the stop nothing is done for you: the loop's nudges bounce the piles, the visitor puts them away, and the
+  // last deposit's autoClearAt rises to the tidy desktop
+  else if (at(GATE)) { if (gateOpen && !autoClearAt && dwell > 900) goTo(B.back[1]); } // reduced motion: the veil opened the stop
+  else if (at(B.back[1]) && dwell > CAP_READ) goTo(1);
+  else if (at(1) && dwell > 300) auto = null; // the tidied room with the button again: walking in is the visitor's click
+}
+// Keyboard: Enter at the stop puts one pile away for you (the canvas has no keyboard grab).
+addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.repeat || e.target.closest?.("a,button,input,textarea,select")) return;
+  if (Math.abs(prog - GATE) > 1e-4 || tween || gateOpen || !tryActive() || demoTimer || demoNext || hand.active) return;
+  nudge(); autoDemo();
+});
+// On-screen words for the three stops (10-23 사용자 문구).
+// 10-25 디자인 시스템: 문구는 늘 오른쪽 아래 종이 쪽지 한 장, 앞에 단계 번호(16:26 사용자: 위 단계 줄 대신 「쪽지에 1. 2. 3.」).
+const CAPTIONS = [[B.dive[1], "1.", "당신의 파일을\n방으로 옮겨요"], [GATE, "2.", "파일들을\n상자에 넣어봐요"], [B.back[1], "3.", "바탕화면이\n깨끗해졌어요!"]];
+function frameCaption(p) {
+  let hit = null;
+  if (!enter) for (const c of CAPTIONS) if (Math.abs(p - c[0]) < 2e-3 && !(c[0] === GATE && gateOpen)) { hit = c; break; }
+  const on = String(!!hit);
+  if (hit && capT.textContent !== hit[2]) { capN.textContent = hit[1]; capT.textContent = hit[2]; }
+  if (caption.dataset.on !== on) caption.dataset.on = on;
+  // the desktop and the floor scene are bright (cream wallpaper, pale wall): the skip button turns dark there
+  const tone = p > B.dive[0] + (B.dive[1] - B.dive[0]) * .7 && p < B.out[0] + .01 ? "ink" : "light";
+  if (stage.dataset.tone !== tone) stage.dataset.tone = tone;
+}
 function finishEnter(now) {
   if (!enter || enter.done || (enter.dur && now - enter.t0 < enter.dur)) return;
   if (enter.back) { enter = null; return; }
@@ -1226,24 +1311,36 @@ function frameDOM(p, counts) {
       const quad = q3.map((pt, i) => [lerp(pt[0], FULL[i][0], w), lerp(pt[1], FULL[i][1], w)]);
       desk.style.transform = deskChrome.style.transform = quadMatrix(W0, H0, quad); featherDesk(quad);
     }
+    // 10-25 끝 장면(확정 A): 노트북은 화면 빛만 숨 쉬고, 눌러도 들어간다
+    endQuad = q3 && out >= 1 && !enter && !tween ? q3 : null;
+    if (endQuad) {
+      const cx = endQuad.reduce((a, q) => a + q[0], 0) / 4, cy = endQuad.reduce((a, q) => a + q[1], 0) / 4;
+      const sw = Math.hypot(endQuad[1][0] - endQuad[0][0], endQuad[1][1] - endQuad[0][1]), sh = Math.hypot(endQuad[3][0] - endQuad[0][0], endQuad[3][1] - endQuad[0][1]);
+      const gw = sw * 1.5, gh = sh * 1.7;
+      screenGlow.style.cssText = `left:${(cx - gw / 2).toFixed(1)}px;top:${(cy - gh / 2).toFixed(1)}px;width:${gw.toFixed(1)}px;height:${gh.toFixed(1)}px`;
+    }
     desk.hidden = false; desk.style.opacity = String(Math.max(1 - smooth(.86, 1, out) * .15, smooth(0, .2, eu)));
     deskChrome.style.opacity = String(Math.max(1 - smooth(.1, .3, out), smooth(.55, .9, eu)));
     fitChrome(Math.max(1 - smooth(0, .2, out), smooth(.8, 1, eu)));
   }
-  if (p < B.out[0]) tidyBuilt = false;
+  if (p < B.out[0]) { tidyBuilt = false; endQuad = null; }
+  const glowOn = String(!!endQuad && !auto);
+  if (screenGlow.dataset.on !== glowOn) screenGlow.dataset.on = glowOn;
+  if (!endQuad && stage.dataset.hot) delete stage.dataset.hot;
   // title: visible on the first room, back with the buttons on the last
   const tIn = (p < .5 ? 1 - smooth(.012, .05, p) : smooth(.72, .92, out)) * (1 - smooth(0, .2, enterU(performance.now())));
   title.style.opacity = String(tIn);
   title.style.visibility = tIn < .01 ? "hidden" : "visible";
-  cta.hidden = !(noGL || (p >= B.out[0] && out > .7));
-  cta.inert = !!enter;
-  // the scroll cue appears only on a finished scene that a scroll can leave (not at the hands-on stop)
-  const atStop = Math.abs(p - GATE) < 1e-4 && (!gateOpen || autoClearAt);
-  const cueOn = !noGL && atRest() && p < 1 - 1e-4 && !atStop && !hand.active && (p < 1e-4 || performance.now() - arrivedAt > 1300);
-  cue.style.opacity = cueOn ? "1" : "0";
-  // 10-20 사용자: 첫 화면에서 스크롤해야 한다는 힌트가 빈약 → 첫 방에서만 「스크롤해서 시작」 글이 같이 뜬다. 한 번 넘기면 다시 안 뜸.
-  if (p > 1e-3) cueLearned = true;
-  cue.dataset.first = String(!cueLearned);
+  // 10-25 디자인 시스템(원칙 4): 같은 자리, 다른 내용 — 첫 방은 로고 + 「시작해볼까요?」(테두리), 정리된 방(#end)은
+  // 「방이 깨끗해졌어요」 + 「내 바탕화면 정리하러 가기 →」(채움). 이야기가 흐르는 동안은 버튼 없음.
+  const atEnd = !noGL && p >= .5;
+  if (heroStart.hidden !== atEnd) { heroStart.hidden = atEnd; heroEnd.hidden = !atEnd; }
+  cta.hidden = !(noGL || (p < 1e-3 && !auto));
+  endGo.hidden = !(atEnd && p >= B.out[0] && out > .7 && !auto);
+  cta.inert = endGo.inert = !!enter;
+  skipBtn.hidden = !auto || !!enter;
+  const waiting = !!auto && !room.ready && !noGL;
+  if (startLink.dataset.waiting !== String(waiting)) { startLink.dataset.waiting = String(waiting); startLabel.textContent = waiting ? "방을 불러오는 중…" : "시작해볼까요?"; }
 }
 
 // ───────────── loop ─────────────
@@ -1254,11 +1351,11 @@ function jump(v) {
 }
 // Screen-reader description of each finished scene (the visible page stays wordless).
 const SCENE_TEXT = new Map([
-  [0, "밤의 다락방. 스탠드가 켜진 책상 위에 노트북이 있고 바닥에 파일이 흩어져 있습니다. 아래로 스크롤하면 노트북 화면으로 들어갑니다."],
-  [B.dive[1], "파일 아이콘이 가득한 바탕화면. 계속 스크롤하면 아이콘이 방바닥의 물건이 되고 폴더는 벽 수납장의 상자가 됩니다."],
-  [GATE, "바닥에 종류별로 모인 파일 더미 네 개와 수납장의 상자 네 개. 더미를 누르면 통째로 집히고, 상자를 누르면 그 안에 들어갑니다. 키보드에서는 Enter를 누르면 시연이 재생됩니다."],
-  [B.back[1], "더미가 모두 상자에 들어가고, 상자는 정리된 바탕화면의 폴더 네 개가 되었습니다."],
-  [1, "아침 해가 드는 정리된 방. 바닥에 흩어져 있던 파일이 모두 치워졌습니다. 정리방 들어가기 버튼을 누르면 노트북 화면으로 들어갑니다."],
+  [0, "밤의 다락방. 스탠드가 켜진 책상 위에 노트북이 있고 바닥에 파일이 흩어져 있습니다. 시작해볼까요 버튼을 누르면 정리하는 이야기가 시작됩니다."],
+  [B.dive[1], "파일 아이콘이 가득한 바탕화면. 당신의 파일을 방으로 옮겨요. 곧 아이콘이 방바닥의 물건이 되고 폴더는 상자가 됩니다."],
+  [GATE, "파일들을 상자에 넣어봐요. 바닥에 종류별로 모인 파일 더미 네 개와 상자 네 개. 더미를 누르면 통째로 집히고, 상자를 누르면 그 안에 들어갑니다. 키보드에서는 Enter를 누를 때마다 더미 하나가 상자에 들어갑니다."],
+  [B.back[1], "바탕화면이 깨끗해졌어요! 더미가 모두 상자에 들어가고, 상자는 바탕화면의 폴더 네 개가 되었습니다."],
+  [1, "아침 해가 드는 정리된 방. 바닥에 흩어져 있던 파일이 모두 치워졌습니다. 「내 바탕화면 정리하러 가기」 버튼이나 노트북을 누르면 노트북 화면으로 들어가 정리방이 열립니다."],
 ]);
 let announced = -1;
 function announce(p) {
@@ -1268,6 +1365,7 @@ function announce(p) {
 }
 
 function loop(now) {
+  autoplayTick(now);
   if (tween) {
     const { t, p: tp } = tweenAt(tween, now);
     prog = clamp(tp, tween.lo, tween.hi);
@@ -1289,6 +1387,7 @@ function loop(now) {
   // The WebGL room only exists between the desktop hand-off and the pull-back; skip it elsewhere.
   const counts = glReady && p >= B.fall[0] && p < B.out[0] ? frameGL(p, now) : glReady ? boxCounts(p) : FOLDERS.map(() => 0);
   frameDOM(p, counts);
+  frameCaption(p);
   finishEnter(now);
   stage.dataset.scene = p < .1 || p >= B.out[0] + .03 ? "room" : "inside";
   announce(p);
@@ -1310,11 +1409,16 @@ room.onQuality = (q) => { insidePass?.setEffects(q.profile.effects); resize(); }
 new ResizeObserver(resize).observe(stage);
 resize();
 if (noGL) stage.dataset.still = "true";
-else buildGL().then(() => { glReady = true; fitFloor(); }).catch((e) => console.error("landing GL", e));
+else buildGL().then(() => {
+  glReady = true; fitFloor();
+  // after the first room is on screen, while the visitor reads it (the canvas is still hidden, nothing flashes)
+  (globalThis.requestIdleCallback ?? ((f) => setTimeout(f, 300)))(() => { if (prog < B.fall[0]) warmGL(); }, { timeout: 1500 });
+}).catch((e) => console.error("landing GL", e));
 // room.glb (4 MB); the poster shows the same camera until they are in, then fades out
 facesReady.then(() => room.load("./models/room.glb")).then(() => {
   room.setStyle(lab.style);
   stage.dataset.room = "ready";
+  if (pendingTo != null) { const to = pendingTo; pendingTo = null; arrivedAt = 0; goTo(to); } // scrolled while it loaded
   if (cameBack) restAtEnd();
   setTimeout(() => { poster.style.opacity = "0"; }, 60);
   setTimeout(() => room.warm(), 400); // after the first frames, before anyone reaches the last room
@@ -1339,7 +1443,7 @@ if (topNav && matchMedia("(hover: hover) and (pointer: fine)").matches) {
   navCloseLater(NAV_HOLD);
   addEventListener("pointermove", (e) => {
     if (e.pointerType !== "mouse") return;
-    if (!navOpen()) { if (e.clientY <= NAV_EDGE && !hand.active && !hand.list.length) navSet(true); }
+    if (!navOpen()) { if (e.clientY <= NAV_EDGE && !hand.active && !hand.list.length && !auto) navSet(true); } // 10-25: 이야기 중엔 안 내려옴(오른쪽 위 「건너뛰고」를 가리지 않게)
     else if (e.clientY > topNav.offsetHeight + 24 && !navTimer) navCloseLater(NAV_LEAVE);
   }, { passive: true });
   topNav.addEventListener("pointerenter", () => { if (navOpen()) { clearTimeout(navTimer); navTimer = 0; } });
@@ -1359,4 +1463,4 @@ if (!reduced && matchMedia("(hover: hover) and (pointer: fine)").matches) {
   addEventListener("blur", () => room.setLook(0, 0));
 }
 
-window.__coziumLanding = window.__animatic = { get navState() { return topNav?.dataset.state; }, seek: (v) => jump(v), step, holdEnter: (u) => { enter = u == null ? null : { t0: performance.now() - u * 1e9, dur: 1e9, href: "" }; }, get progress() { return prog; }, get moving() { return !!tween; }, objects, folders, camera, canvas, hand, room, get gateOpen() { return gateOpen; }, get floorR() { return floorR; } };
+window.__coziumLanding = window.__animatic = { get navState() { return topNav?.dataset.state; }, seek: (v) => jump(v), step, start: () => startLink.click(), get autoplaying() { return !!auto; }, holdEnter: (u) => { enter = u == null ? null : { t0: performance.now() - u * 1e9, dur: 1e9, href: "" }; }, get progress() { return prog; }, get moving() { return !!tween; }, objects, folders, camera, canvas, hand, room, get gateOpen() { return gateOpen; }, get floorR() { return floorR; } };

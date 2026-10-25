@@ -1,0 +1,12 @@
+/* Cozium 글꼴 (2026-10-24 사용자 결정, 디자인 시스템 ①): 한글·본문은 나눔스퀘어라운드 하나, 로고 「Cozium」만 Nunito 900.
+   주아(배민)·Fraunces(세리프)·시스템 고딕은 더 안 쓴다. 굵기는 400 / 700 / 800 세 벌 — CSS의 500은 400, 600은 700,
+   900은 800으로 잡힌다. 파일은 한글 11,172자 전부(바탕화면 파일 이름에 어떤 글자가 올지 몰라서). 둘 다 OFL 1.1.
+   index.html · app.html · help.html 이 다른 CSS보다 먼저 읽는다. */
+@font-face{font-family:"NanumSquareRound";src:url("../assets/fonts/nanum-square-round/NanumSquareRoundR.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"NanumSquareRound";src:url("../assets/fonts/nanum-square-round/NanumSquareRoundB.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:"NanumSquareRound";src:url("../assets/fonts/nanum-square-round/NanumSquareRoundEB.woff2") format("woff2");font-weight:800;font-style:normal;font-display:swap}
+@font-face{font-family:"Nunito";src:url("../assets/fonts/nunito/Nunito-900-latin.woff2") format("woff2");font-weight:900;font-style:normal;font-display:swap}
+:root{
+  --font-ui:"NanumSquareRound","Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  --font-logo:"Nunito","NanumSquareRound",system-ui,sans-serif; /* 「Cozium」 — Fraunces 자리의 0.9배 크기, 자간 -0.025em */
+}

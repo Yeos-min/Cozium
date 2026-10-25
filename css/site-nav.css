@@ -4,18 +4,18 @@
    (js/landing-story/story.js). On the help page it simply stays. Dark bar with cream type, no blur, no shadow (user request
    2026-10-09: the ivory bar was too light). Colour: the monitor frame's wood #463529 (2026-10-18 user: the main colour is
    brown now, not green; green stays only where it is needed, e.g. the landing's call to action). Was #182c24. */
-@font-face{font-family:Room;src:url("../assets/landing/fonts/Fraunces.ttf") format("truetype");font-weight:600;font-display:swap}
+/* 글꼴은 css/fonts.css (10-24) */
 .site-nav{
   --nav-ink:#f3edd3; --nav-paper:#2f231af7; --nav-line:#f3edd31f;
   position:fixed;top:0;left:0;right:0;z-index:20;height:64px;padding:0 36px;box-sizing:border-box;
   display:flex;align-items:center;justify-content:flex-start;gap:40px;
   background:var(--nav-paper);border-bottom:1px solid var(--nav-line);color:var(--nav-ink);
-  font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  font-family:var(--font-ui);
   transform:translateY(0);transition:transform .45s cubic-bezier(.2,.8,.2,1);
 }
 .site-nav[data-state="closed"]{transform:translateY(calc(-100% - 2px));pointer-events:none}
 .site-nav a{color:var(--nav-ink);text-decoration:none}
-.site-nav .brand{font:600 25px/1 Room,Georgia,serif;letter-spacing:-.055em;display:flex;align-items:baseline}
+.site-nav .brand{font:900 23px/1 var(--font-logo);letter-spacing:-.025em;display:flex;align-items:baseline}
 .site-nav .brand span{display:inline-block;margin-left:5px;font-size:19px;font-family:Georgia,serif;transform:rotate(-12deg)}
 .site-nav .links{display:flex;align-items:center;gap:26px}
 .site-nav .links a{font-size:15px;font-weight:500;line-height:1}

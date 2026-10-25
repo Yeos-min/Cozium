@@ -36,14 +36,14 @@
 .win-finish .win-body > * { flex: none; }
 .win-finish.is-resizing { user-select: none; }
 .finish-kicker { margin: 0 0 8px; color: #6c7465; font-size: 12px; letter-spacing: 0.04em; }
-.win-finish h1 { margin: 0 0 10px; font: 400 34px/1.15 var(--desk-heading); letter-spacing: -0.01em; color: var(--desk-ink); }
+.win-finish h1 { margin: 0 0 10px; font: 800 32px/1.2 var(--desk-heading); letter-spacing: -0.01em; color: var(--desk-ink); }
 .win-finish h1 em { font-family: inherit; font-weight: inherit; font-style: normal; color: #8a6a2f; }
 .finish-lede { margin: 0 0 14px; color: #4d5f55; font-size: 13.5px; line-height: 1.6; }
 .finish-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin: 0 0 12px; }
 .finish-stats > div { padding: 9px 12px 8px; border: 1px solid #46352920; border-radius: 8px; background: #fffaf0; }
 .finish-stats dt { color: #6c7465; font-size: 11px; }
-.finish-stats dd { margin: 4px 0 0; color: var(--desk-ink); font: 400 24px/1.1 var(--desk-heading); font-variant-numeric: tabular-nums; } /* 숫자도 주아(10-18: 세리프는 로고 말고 안 쓴다) */
-.finish-stats dd small { margin-left: 4px; font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif; font-size: 11px; font-weight: 500; color: #6c7465; }
+.finish-stats dd { margin: 4px 0 0; color: var(--desk-ink); font: 800 23px/1.1 var(--desk-heading); font-variant-numeric: tabular-nums; } /* 숫자도 제목 글꼴(10-24: 주아 → 나눔스퀘어라운드 EB) */
+.finish-stats dd small { margin-left: 4px; font-family: var(--font-ui); font-size: 11px; font-weight: 500; color: #6c7465; }
 .finish-folders {
   flex: 1 1 auto !important; min-height: 76px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); align-content: start; gap: 2px 10px;
   margin: 0 0 10px; padding: 0 4px 0 0; overflow-x: hidden; overflow-y: auto; list-style: none; scrollbar-width: thin; scrollbar-color: #c9bb98 transparent;

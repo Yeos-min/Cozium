@@ -54,7 +54,6 @@ const elements = {
   summary: $("#stage-summary"),
   newFolderForm: $("#new-folder-form"),
   newFolderName: $("#new-folder-name"),
-  placement: $("#placement"),
   renderQuality: $("#render-quality"),
   outlineThickness: $("#outline-thickness"),
   dithering: $("#dithering"),
@@ -65,7 +64,9 @@ const elements = {
   panelToggle: $("#panel-toggle"),
   arrangeToggle: $("#arrange-toggle"),
   finish: $("#finish"),
-  stageSide: $(".stage-side"),
+  stageSide: $("#settings-sheet"), // 10-25: ⚙ 설정 창(옛 오른쪽 패널)
+  logSheet: $("#log-sheet"),
+  logToggle: $("#log-toggle"),
   progressHud: $("#progress-hud"),
   progressDone: $("#progress-done"),
   progressTotal: $("#progress-total"),
@@ -290,7 +291,6 @@ function updateBar() {
   elements.arrangeToggle.hidden = !board?.setArranging;
   elements.arrangeToggle.textContent = arranging ? "상자 배치 모드 · Tab" : "파일 정리 모드 · Tab";
   elements.arrangeToggle.setAttribute("aria-pressed", String(!!arranging));
-  elements.placement.disabled = !!arranging;
   elements.undoButton.disabled = pending > 0 || (arranging ? !board.canUndoArrangement : !last);
   elements.undoButton.querySelector(".undo-label").textContent = arranging ? "상자 배치 되돌리기" : last
     ? `마지막 더미 되돌리기 (${last.fileIds.length}개)`
@@ -372,7 +372,6 @@ async function startWith(nextProvider) {
     roomIntro.track(board);
   }
   if (board.renderQuality) updateRenderQuality(board.renderQuality);
-  if (board.placement) elements.placement.value = board.placement;
   store.addFiles(provider.files); // 보드가 붙은 뒤에 넣어야 쏟아지는 연출이 보인다
   updateBar();
   status.notice(
@@ -406,6 +405,14 @@ const onboarding = new Onboarding({
 
 store.subscribe(updateBar);
 
+// 10-25 가져오기 화면 「← 처음으로」: 랜딩에서 들어왔으면 브라우저 뒤로(랜딩이 정리된 방에서 기다린다), 아니면 링크대로 랜딩 첫 화면
+document.getElementById("go-home")?.addEventListener("click", (event) => {
+  if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  let fromLanding = false;
+  try { const r = new URL(document.referrer); fromLanding = r.origin === location.origin && /(\/|index\.html)$/.test(r.pathname); } catch { /* 주소 없음 */ }
+  if (fromLanding && history.length > 1) { event.preventDefault(); history.back(); }
+});
+
 elements.newFolderForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const name = elements.newFolderName.value;
@@ -413,7 +420,6 @@ elements.newFolderForm.addEventListener("submit", (event) => {
   createFolder(name);
   elements.newFolderName.value = "";
 });
-elements.placement.addEventListener("change", (event) => board?.setPlacement(event.target.value));
 function updateRenderQuality({ mode, active, profile, effects: on, scale = 1 }) {
   const effects = profile ? profile.effects : on ?? active !== "low";
   elements.renderQuality.value = mode;
@@ -437,23 +443,79 @@ elements.vertexWobble.addEventListener("change", (event) => {
 
 elements.undoButton.addEventListener("click", undoLastBatch);
 
+// 10-25: 오른쪽 패널 → 방 위에 뜨는 창 둘. ⚙ = 설정(그래픽 + 조작 표), 「기록」 = 정리 계획 + 한 일. 하나만 열린다.
+function setSheet(sheet, button, open, label) {
+  sheet.dataset.open = String(open);
+  button.setAttribute("aria-pressed", String(open));
+  if (label) button.setAttribute("aria-label", open ? `${label} 닫기` : `${label} 열기`);
+  if (open && document.pointerLockElement) document.exitPointerLock();
+  if (open) sheet.querySelector("[data-close]")?.focus({ preventScroll: true });
+}
 function toggleSidePanel(force) {
   const open = force ?? elements.stageSide.dataset.open !== "true";
-  elements.stageSide.dataset.open = String(open);
-  elements.panelToggle.setAttribute("aria-pressed", String(open));
-  elements.panelToggle.setAttribute("aria-label", open ? "설정 및 기록 닫기" : "설정 및 기록 열기");
-  if (open && document.pointerLockElement) document.exitPointerLock();
+  if (open) setSheet(elements.logSheet, elements.logToggle, false);
+  setSheet(elements.stageSide, elements.panelToggle, open, "설정");
+  suspendForSheets();
 }
-elements.panelToggle.addEventListener("click", () => toggleSidePanel());
+function toggleLog(force) {
+  const open = force ?? elements.logSheet.dataset.open !== "true";
+  if (open) setSheet(elements.stageSide, elements.panelToggle, false, "설정");
+  setSheet(elements.logSheet, elements.logToggle, open);
+  suspendForSheets();
+}
+const sheetOpen = () => elements.stageSide.dataset.open === "true" || elements.logSheet.dataset.open === "true";
+// 창이 떠 있는 동안은 걷기·집기를 막는다(정리 시작 화면과 같은 방식). 닫으면 방을 다시 클릭해 시점을 잡는다
+let sheetSuspended = false;
+function suspendForSheets() {
+  const open = sheetOpen();
+  if (open === sheetSuspended || !board?.setSuspended || roomIntro.active) return;
+  sheetSuspended = open;
+  board.setSuspended(open);
+}
+function closeSheets() { toggleSidePanel(false); toggleLog(false); }
+// 10-25 사용자: 「Esc 누르면 설정 창, 설정 창 닫으면 바로 화면 조작」.
+// 클릭으로 닫으면(사용자 동작 안이라 브라우저가 허락) 곧바로 마우스 시점을 다시 잡는다. Esc로 닫으면 브라우저가 Esc를
+// 사용자 동작으로 치지 않아 시점을 못 잡으므로 방을 한 번 클릭해야 한다. Esc로 락이 풀린 직후 1초쯤은 크롬이 다시 잡기를
+// 거절하므로 그만큼 기다렸다가 잡는다(클릭의 사용자 동작은 몇 초 유지된다).
+let unlockedAt = 0;
+function resumeAfterSheet() {
+  if (sheetOpen() || !board?.enter || roomIntro.active || finishDesk.open || diving || board.arranging) return;
+  const wait = Math.max(0, unlockedAt + 1100 - performance.now());
+  setTimeout(() => { if (!sheetOpen() && !document.pointerLockElement) board.enter(); }, wait);
+}
+elements.panelToggle.addEventListener("click", () => { toggleSidePanel(); resumeAfterSheet(); });
+elements.logToggle.addEventListener("click", () => { toggleLog(); resumeAfterSheet(); });
+for (const sheet of [elements.stageSide, elements.logSheet]) {
+  // 바깥(어두운 막)이나 ×를 누르면 닫히고 바로 조작으로 돌아간다
+  sheet.addEventListener("click", (event) => { if (event.target === sheet || event.target.closest("[data-close]")) { closeSheets(); resumeAfterSheet(); } });
+}
+// Esc로 마우스 시점이 풀리면(브라우저가 Esc를 먼저 가져가 keydown이 안 올 수 있다) 설정 창을 띄운다.
+// 일부러 푼 경우(정리 시작 화면·노트북 들어가기·결과 화면·상자 속·배치 모드·창 열기·다른 창으로 전환)는 띄우지 않는다.
+let sheetAutoOpenedAt = 0;
+document.addEventListener("pointerlockchange", () => {
+  if (document.pointerLockElement) return;
+  unlockedAt = performance.now();
+  if (elements.stage.hidden || !board || board.suspended || roomIntro.active || finishDesk.open || diving || interior.active || board.arranging || sheetOpen()) return;
+  if (document.visibilityState !== "visible" || !document.hasFocus()) return;
+  sheetAutoOpenedAt = performance.now();
+  toggleSidePanel(true);
+});
 elements.boardRoot.addEventListener("arrangementchange", updateBar);
 function toggleArrangement() {
   if (pending > 0 || interior.active || !board?.setArranging) return;
-  toggleSidePanel(false);
+  closeSheets();
   board.setArranging(!board.arranging);
 }
 elements.arrangeToggle.addEventListener("click", toggleArrangement);
 
 window.addEventListener("keydown", (event) => {
+  // 설정·기록 창이 떠 있으면 Esc로 닫고, 방 조작 키는 받지 않는다(10-25)
+  if (!elements.stage.hidden && sheetOpen()) {
+    // 락이 풀리며 방금 저절로 연 창을 같은 Esc가 바로 닫지 않게
+    if (event.key === "Escape") { event.preventDefault(); if (performance.now() - sheetAutoOpenedAt > 400) closeSheets(); }
+    else if (event.key === "Tab" && !event.target.closest?.(".room-sheet")) event.preventDefault();
+    return;
+  }
   const target = event.target;
   const isEditing =
     target instanceof HTMLElement &&
@@ -487,8 +549,9 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     // 1인칭에서 Esc는 브라우저가 마우스를 풀어 주는 키다. 들고 있던 카드까지 내려놓지 않는다.
     if (board?.locked) return;
-    if (store.level !== null) store.leaveFolder();
-    else store.clearSelection();
+    if (store.level !== null) { store.leaveFolder(); return; }
+    store.clearSelection();
+    toggleSidePanel(true); // 10-25: 마우스가 풀린 상태에서 Esc도 설정 창
     return;
   }
   if (event.key === "Backspace" && store.level !== null) {
@@ -513,11 +576,11 @@ async function initialize() {
     );
   }
   // 연결 정보: v0.2.2부터는 주소의 # 뒤(서버로 안 감), 그 전 Helper는 ? 뒤(10-20).
-  const fromHash = new URLSearchParams(location.hash.slice(1));
+  const fromHash = new URLSearchParams((location.hash ?? "").slice(1)); // 테스트의 가짜 location엔 hash가 없다
   const helperPort = fromHash.get("helper") ?? params.get("helper");
   const helperToken = fromHash.get("token") ?? params.get("token");
   const helperAddress = fromHash.has("helper") || fromHash.has("token") || params.has("helper") || params.has("token");
-  if (helperAddress) {
+  if (helperPort && helperToken) {
     // 주소창에 토큰이 남지 않게 지운다(방문 기록 항목도 바뀐다). 세션 동안은 메모리에만 있다.
     const clean = new URL(location.href);
     clean.searchParams.delete("helper");

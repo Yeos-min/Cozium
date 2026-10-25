@@ -161,7 +161,8 @@ export class OutlineEffect {
         scene.traverse(object => {
           if (!object.visible || !object.material) return;
           const materials = Array.isArray(object.material) ? object.material : [object.material];
-          if (!object.isMesh || materials.every(m => !m.visible || (m.transparent && m.opacity === 0))) {
+          // userData.noOutline: the painted sky dome (sky-dome.js) — not a model, no edges (10-25)
+          if (!object.isMesh || object.userData.noOutline || materials.every(m => !m.visible || (m.transparent && m.opacity === 0))) {
             object.visible = false;
             hidden.push(object);
           }

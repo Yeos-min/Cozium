@@ -673,3 +673,154 @@ app.html: <meta charset> 바로 아래에 CSP meta + 경고 주석. default-src 
 - 시작 전 이 채팅의 리포 사본이 D보다 낡아 있어(00:38–01:08 Helper 작업) js·css·tests·helper 전체를 D에서 다시 받아 그 위에 고침.
 백업: _archive/claude-laptop-finish-20261020/.
 검증: npm test 303/311 — 고치기 전과 같은 8개 실패(Linux 전용 1, 보관 대상 shelf-frame 1, landing-entry 6 = 00:54 #helper 변경 뒤 테스트의 가짜 location에 hash가 없어서. 이번 작업과 무관, 안 고침). 헤드리스 Chromium(SwiftShader) 샘플 모드: 실제 포인터 락으로 노트북 겨눔 → 안내·이름표·화면 밝아짐 → 클릭 → 줌인 → 결과 화면 → 방으로 돌아가기 후 카메라가 원래 자리(3.2, 3.1, 1.6), 45개 다 옮기면 노트북이 부르고 결과 화면 자동으로 안 뜸, 콘솔·CSP 오류 0. 랜딩 첫 방 글·첫 스크롤 뒤 숨김 캡처. 실제 GPU의 줌인 손맛·속도는 사용자 확인.
+
+2026-10-23 08:54–09:20 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 스크롤 안내가 안 뜨던 것, 아이콘→물건 전환 프레임 드랍, landing-entry 테스트 회귀
+교수님 피드백(사용자 전달): 웹·게임은 생략보다 명시 — 첫 히어로에 바탕화면 정리 앱이라고 밝히고, 가끔 스크롤 안내가 안 뜨는 것 고칠 것. 사용자(09:07): 히어로 문구는 A안(로고 + 설명 한 줄, 제일 심플) 바탕에 'Cozy' 느낌으로 다시 → 문구는 사용자 확인 대기, 아직 안 바꿈. 노트북 화면 파일들이 실제 파일로 "촤라라락" 바뀔 때 프레임 드랍이 심함.
+① 스크롤 안내(헤드리스로 재현): room.glb(3 MB)가 오기 전엔 안내가 꺼져 있고(.stage:not([data-room=ready]) .cue) 스크롤도 무시(goTo의 !room.ready) — 첫 방문·느린 망에서 몇 초 동안 아무 안내 없음. 또 한 번 내렸다 첫 방으로 돌아오면 안내가 작은 진초록(data-first=false)이라 밤 바닥에 묻힘. → 안내는 처음부터 뜨고(실패 때만 숨김), 불러오는 중 스크롤하면 기억했다가(pendingTo) 준비되는 순간 이어 감 + 글이 「방을 불러오는 중…」, 모양은 장면 기준(data-look: 방=크림 큰 안내, 노트북 바탕화면=작은 초록). js/landing-story/story.js, css/landing-story.css.
+② 프레임 드랍(측정): 바탕화면→바닥 전환 첫 프레임과 아이콘→물건·폴더→상자 순간에 셰이더 8→11개·텍스처 69→86개가 애니메이션 도중 처음 컴파일·업로드됨(첫 GL 프레임 850 ms 튐, SwiftShader). 파일 하나가 상자 6면 = 그리기 6번. → warmGL(): 바닥 세계가 다 만들어지면 첫 방에 머무는 동안(유휴 시간, 캔버스는 숨긴 채) 전부 보이게 한 번 그려 미리 컴파일·업로드 / sidesInOneGroup(): 가장자리 4면을 한 그룹으로 → 파일당 그리기 3번. 결과: 전환 중 새 셰이더 0개, 그리기 436 → 268(-39%), 첫 GL 프레임 튐 사라짐. 실제 GPU 손맛은 사용자 확인.
+③ js/app.js: 10-20 00:54의 #helper 변경이 tests/landing-entry.test.js 6개를 깨뜨리고 있었음(가짜 location에 hash 없음 → slice 오류, 그리고 불완전한 Helper 주소도 주소를 지우던 것). (location.hash ?? "") + 포트·토큰 둘 다 있을 때만 주소 정리(예전 동작). landing-entry 11/11, entry-route 통과.
+백업: _archive/claude-landing-cue-perf-20261023/.
+검증: 헤드리스로 room.glb 6초 지연 → 안내 보임 → 스크롤 → 「방을 불러오는 중…」 → 준비되자 노트북 바탕화면(p .22)으로 넘어감 → 다시 첫 방으로 → 크림색 안내. 콘솔 오류 0. renderer.info로 셰이더·그리기 수 측정.
+
+2026-10-23 09:51–11:30 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 첫 화면 문구 교체(교수님 피드백)
+사용자: 문구 A안(로고 + 설명, 제일 심플) → '게임'이라는 말 대신 게임 기호(게임패드 실루엣을 코지하게)로 암시하자 → 최종 문구 「당신의 어질러진 바탕화면을 / 방 치우듯 정리해 보세요」, 메인 아이콘과 Cozium 그림 글자는 사용자가 뽑음(Claude가 프롬프트).
+index.html: 소개 문구 교체(옛 「흩어진 하루가 제자리를 찾는 곳.」), 탭 제목 「Cozium — 바탕화면 정리 게임」, meta description 추가. css/landing-story.css .title p 15px → 19px 600(또렷하게). help.html 꼬리의 옛 문구는 범위 밖이라 그대로.
+검토만 하고 안 넣은 것(캡처로 보여 줌): 게임 HUD 숫자, WASD 키캡, 조준선 하이라이트, 게임패드 3안(기본·폴더 십자키·종이상자) — 아이콘은 사용자 그림 대기.
+백업: _archive/claude-hero-copy-20261023/.
+검증: 헤드리스 1440×900 첫 화면 캡처.
+
+2026-10-23 12:16–12:22 KST — Claude (Cowork, claude-opus-5-5) — 완료: Cozium 글자 자간
+사용자: GPT로 뽑은 아이콘·그림 글자 "별론데"(Claude 의견: 모바일 스티커 결이라 방 그림체와 안 맞음 → 아이콘은 SVG 시안 제안, 글자는 Fraunces 유지 제안) → "자간 너무 좁잖아". 네 값 캡처 비교 후 사용자 -0.02 선택.
+css/landing-story.css .title h1 letter-spacing -.078em → -.02em, css/site-nav.css .brand -.055em → -.02em(랜딩·이용 안내 상단 바). 앱 화면 로고는 범위 밖이라 그대로.
+백업: _archive/claude-wordmark-tracking-20261023/.
+검증: 헤드리스 첫 화면 캡처 비교.
+
+2026-10-23 12:22–12:45 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩을 스크롤 이야기 → 「시작해볼까요?」 버튼 + 자동 재생으로
+사용자: 게임패드는 콘솔이 떠오름 → "스크롤 인터렉티브를 버리고 「시작해볼까요?」, 호버하면 라인 아트 빗자루·쓰레받기가 먼지 쓰는 애니메이션 살짝". 물어봄 → 이야기는 버튼 누르면 자동 재생 후 입장, 누르면 노트북으로 걸어 들어가기.
+index.html: 첫 방 CTA = a.primary.start(빗자루·쓰레받기 SVG 선 + 「시작해볼까요?」 + 먼지 3점), 스크롤 안내(.cue) 빼고 「건너뛰고 바로 시작 →」(#skip). css/landing-story.css: .cue 규칙 지우고 .start(둥근 진갈색, 올리면 양옆이 벌어지며 빗자루가 흔들고 먼지가 쓰레받기로, 동작 줄이기면 멈춤)·.skip(오른쪽 위 — 아래 가운데는 노트북 작업표시줄과 겹침). js/landing-story/story.js: 휠·터치·화살표 키 넘기기 삭제, cue 코드 삭제, autoplayTick(장면마다 잠깐 머물고 다음, 직접 담기는 autoDemo로 더미를 하나씩 — 방문자가 집어도 됨, 동작 줄이기면 막 전환), startEnter() 분리, 버튼: 첫 방이면 재생 시작·정리된 방(#end)이면 바로 걸어 들어감·3D 없으면 그냥 링크, 방 모델 전이면 「방을 불러오는 중…」 후 시작, 건너뛰기 = 정리된 방으로 jump 후 걸어 들어감. 화면 읽기 문구 갱신. docs/design-system.md 현재 랜딩에 우선 규칙.
+백업: _archive/claude-landing-start-20261023/.
+검증: npm test 189/191(실패 2 = 원래 Linux 전용 1 + 사본에 랜딩 그림 일부 없음 1). 헤드리스: 휠 무시, 방 모델 4초 지연 중 누름 → 「방을 불러오는 중…」 → 바탕화면 → 바닥 → 시연으로 더미 4개 → 정리된 바탕화면 → 정리된 방 → 걸어 들어가 app.html, 건너뛰기 위치, #end에서 버튼 → app.html, 콘솔 오류 0. 실제 시간은 약 24초(SwiftShader는 더 느림) — 줄일지 사용자에게 물음.
+
+2026-10-23 20:20–20:40 KST — Claude (Cowork, claude-opus-5-5) — 완료: 「시작해볼까요?」 버튼 채움 → 크림 테두리
+사용자: "굳이 솔리드 버튼일 필요가 있을까?" → 실제 첫 방 위에 ①채움 ②크림 테두리 ③글자+밑줄 비교 캡처 → 밝은 물건 앞에서 글자가 묻혀 ②③ 보강판 다시 캡처 → "2번으로".
+css/landing-story.css .cta .start: 진갈색 채움(--cta)·그림자 빼고 크림 1.5px 테두리 + 반투명 갈색 바탕(#2a1d1438, 올리면 55) + 뒤 흐림 8px + 글자 그림자. 키보드 초점 테두리도 크림. 빗자루·먼지 연출과 크기는 그대로. 다른 CTA(.primary)는 안 건드림.
+백업: _archive/claude-landing-outline-20261023/.
+검증: 헤드리스 1440×900 캡처 — 첫 방(밤)·올렸을 때·#end(낮)·방 모델 실패 그림 대체, 넷 다 글자 읽힘. 실기기 GPU에서의 흐림 성능은 미확인.
+
+2026-10-23 20:40–21:15 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 이야기 — 장면 이동은 저절로, 담기는 방문자가 직접 + 장면 문구
+사용자: "모든 걸 자동화했구나" → 버튼 → 노트북 화면 「당신의 파일을 방으로 옮겨요」 → 3D 「파일들을 상자에 넣어봐요」(더미 통통 튀던 것 그대로) → 다 넣으면 「바탕화면이 깨끗해졌어요!」 + 노트북 화면. "여전히 사용자 참여가 중요".
+js/landing-story/story.js: autoplayTick — 바탕화면에서 2.3초 → 방, 담기 자리에서는 아무것도 대신 안 함(자동 시연 없앰, 기존 통통 튀는 안내만), 다 넣으면 원래대로 정리된 바탕화면 2.3초 → 정리된 방에서 멈추고 버튼(걸어 들어가기는 방문자가 누를 때, 전엔 자동). 키보드: 담기 자리에서 Enter 한 번 = 더미 하나 넣어 줌(캔버스는 키보드로 못 집어서). autoDemo는 한 번에 더미 하나만. 화면 낭독 문구 갱신. 문구 frameCaption + CAPTIONS.
+index.html: #storyCap(aria-hidden, 낭독은 기존 sceneStatus). css/landing-story.css .story-cap: 테두리 없는 반투명 갈색 판 + 뒤 흐림, 크림 26px 600, 바탕화면 두 장면은 가운데, 방은 위쪽 28px(상자와 안 겹침), 0.45초 페이드 + 살짝 떠오름.
+「건너뛰고 바로 시작 →」은 그대로(누르면 바로 정리방).
+백업: _archive/claude-landing-participate-20261023/.
+검증: npm test 189/191(원래 실패 2 그대로). 헤드리스 1440×900: 버튼 → 바탕화면 문구 → 방 문구 → 9초 손대지 않아도 그대로 멈춤(더미 56개 그대로) → 마우스로 더미 하나 집어 상자 → Enter로 나머지 → 깨끗해졌어요 → 정리된 방 + 버튼, 3초 더 둬도 안 들어감. 방 문구는 1280×720·1920×1080에서도 상자와 안 겹침. 콘솔 오류 0. 실기기 미확인.
+
+2026-10-24 05:07–05:40 KST — Claude (Cowork, claude-opus-5-5) — 완료: 디자인 시스템 다시 잡기 준비(현재 상태 보드) — 코드 변경 없음
+사용자: 10-23 문구 판 시안 A/B/C를 보고 "날 잡고 디자인 시스템 다시 잡아야겠네" → "디자인 시스템만 파도록 새 채팅에서 작업하자, 준비해".
+신규 docs/design-audit-20261024/: 랜딩·앱(샘플)·이용 안내 화면 18장 캡처(webp) + 한 장 보드(00-board.webp) + tokens.md(CSS 8개에서 뽑은 색 212개·글자 크기 30종·둥글기 21종·그림자 37종·CSS 변수 58개) + README(캡처 목록, 못 찍은 화면, Claude 진단: 주 버튼 4가지 모양, 재질 혼재, 갈색·녹색 경쟁, 한글 글꼴 미정, 안내 문법 제각각, 정할 순서).
+프로젝트 claude/handoff.md 맨 위에 「다음 채팅: 디자인 시스템」 절.
+검증: 헤드리스 1440×900(SwiftShader) 캡처라 실제 GPU·Windows 글꼴과 다를 수 있음 — README에 적음.
+
+2026-10-24 05:23–06:20 KST — Claude (Cowork, claude-opus-5-5) — 완료: 디자인 시스템 ① 글꼴 결정(코드 미반영) + 랜딩 카메라 교체
+디자인 시스템(코드 변경 없음, 결정만 — 프로젝트 claude/design-system-decisions.md): 한글 = 나눔스퀘어라운드(사용자, 시안 5개 중), 로고 「Cozium」 = Nunito 900(사용자, 상자 점 버전 아님), 낮 히어로 가독성 = 글자 둘레 번짐 진하기 45(사용자). 주아 범위는 답 대기. 시안은 claude.ai 아티팩트 3개.
+랜딩 카메라(사용자 블렌더 값, "구도는 양보 못 함 — 갓레이가 예쁘게 떨어짐"): js/landing-story/room-layer.js CAMERAS.C → p [-0.9003, 1.0385, -2.7516], yaw -142.78, pitch 3.677(새 칸, startPose가 씀), hfov 70, shift 0(옛 C: [-3.15, 1.55, 2.4], yaw -72, shift .2, 주석에 남김). 블렌더 Location (-0.9003, 2.7516, 1.0385) · Rotation (93.677°, 0°, -142.78°) · 25.7 mm → (x, z, -y), Z 회전 = yaw, X 회전 - 90° = pitch. assets/landing/room-3d/poster-C.webp를 새 구도 밤 장면으로 다시 렌더(1254×706, 81 → 32 KB, 글자·내비 숨기고 캔버스만).
+백업: _archive/claude-camera-20261024/.
+검증: 헤드리스 1600×900(SwiftShader)로 밤 첫 방·#end 낮 방 캡처 → 사용자 블렌더 뷰포트 캡처와 겹쳐 보니 책상·핀보드·천창 위치 일치. #end에서 걸어 들어가기 6단계(0.15–0.9) 가구 안 뚫고 노트북 화면까지, 콘솔 오류 0. npm test는 안 돌림(바뀐 건 상수와 Euler 한 줄). 실기기 GPU·갓레이 모양 미확인. 남은 것: 낮 방에서 로고 앞부분이 천창 하늘 위에 걸림 → 글자 둘레 번짐(디자인 시스템 반영 때).
+
+2026-10-24 06:33–06:45 KST — Claude (Cowork, claude-opus-5-5) — 완료: 랜딩 카메라 22 mm + 노트북 진입을 느리고 부드럽게
+사용자(실기기에서 보고): "카메라 움직임이 너무 휙휙, 노트북 화면으로 너무 갑자기 꺾임, 이렇게까지 스피디해야 하나" / "화각 너무 좁다, 22 mm로" / 한글은 나눔스퀘어라운드만(주아 안 씀) — 글꼴 결정 끝.
+js/landing-story/room-layer.js: CAMERAS.C hfov 70 → 78.58(22 mm, 36 mm 센서 가로). poseAt 곡선: 거리 inOut(t) → smooth(0,1,t), 방향 inOut(smooth(0,.85)) → smooth(0,.9), 고개 돌림 inOut(smooth(0,.7)) → smooth(0,.85), 렌즈 smooth(0,.8) → smooth(.1,.9). 가운데가 가팔랐던 겹친 곡선을 한 겹으로.
+js/landing-story/story.js: 노트북 진입 ENTER_MS 1900 → 3000, 이야기 첫 구간(방 → 노트북) SEG_MS[0] 2800 → 3600. 고개 돌림 최고 속도 약 1/6, 다가가는 속도 약 1/3.
+assets/landing/room-3d/poster-C.webp: 22 mm로 다시 렌더.
+벽 디더 "밀림": 원인 = 화면에 고정된 4×4 Bayer 디더(gl_FragCoord) 위로 방이 패럴랙스·이동으로 미끄러짐 + 스탠드 빛 그라데이션을 16단계로 나눠 동심 띠. 고치지 않고 사용자에게 선택지 물음(랜딩만 디더 끔 / 단계 올림 / 그대로). 헤드리스(SwiftShader, dpr 1)에서는 재현 안 됨.
+백업: _archive/claude-camera22-20261024/(06:20판).
+검증: 헤드리스 1600×900 22 mm 밤 첫 방, #end 진입 6단계 캡처, 콘솔 오류 0. npm test 안 돌림. 22 mm에서 낮 방 로고가 천창 하늘에 더 걸림 — 사용자에게 알림. 실기기 손맛 미확인.
+
+2026-10-24 06:44–07:05 KST — Claude (Cowork, claude-opus-5-5) — 완료: 노트북 진입 이징 + 진입 1.2배 + 글꼴 반영(나눔스퀘어라운드·Nunito·글자 둘레 번짐)
+사용자: 디더는 "못 고치는 버그로 두자(라이팅과 엮인 듯)" / 진입이 "평면적, 직선 느낌, 쫀득한 맛 없음" + "1.2배 빠르게" / "텍스트는 다 정한 것 아니었나" → 반영.
+진입: js/landing-story/room-layer.js poseAt — 몸 cubic-bezier(.7, 0, .18, 1)(천천히 떼고 가운데 붙고 화면 앞 긴 감속), 고개 cubic-bezier(.5, 0, .25, 1) 0–82%, 방향 0–92%, 렌즈 4–92%. story.js ENTER_MS 3000 → 2500, SEG_MS[0] 3600 → 3000. 백업 _archive/claude-walk-ease-20261024/.
+글꼴: 신규 css/fonts.css(나눔스퀘어라운드 R 400·B 700·EB 800 = 한글 11,172자 woff2, Nunito 900 latin, --font-ui·--font-logo), assets/fonts/nanum-square-round/·nunito/(OFL·README). index·app·help.html이 fonts.css를 먼저 읽음. 바꾼 곳: styles·site-nav·room-intro·finish·onboarding·help·landing-story.css의 시스템 고딕 → var(--font-ui), 주아 @font-face·--desk-heading → 나눔스퀘어라운드 EB(창 제목 32px·결과 숫자 23px·이용 안내 제목 40/27px), Fraunces(Room) @font-face 삭제·로고 5곳 → Nunito 900 0.9배·자간 -0.025em(랜딩 101px, 내비 23, 방 HUD 24, 시작 화면 41, 이용 안내 꼬리 20). js/three/card-face.js 캔버스 글자 앞에 NanumSquareRound. js/landing-story/story.js 이름표 글꼴을 --ui로, buildGL이 글꼴 로드를 기다린 뒤 캔버스에 그림. index.html preload Fraunces → Nunito 900 + 나눔스퀘어라운드 B, tests/landing/preload.test.mjs 같이 고침. 랜딩 히어로 글자 둘레 번짐(진하기 45: 0 0 12px rgb(28 18 12/.45), 0 0 28px /.32, 버튼 바탕 .38·둘레 0 0 26px) — 밤·낮 다 켬.
+안 쓰게 된 파일(지우지 않음, 사용자 판단): assets/fonts/jua/, assets/landing/fonts/Fraunces.ttf.
+백업: _archive/claude-fonts-20261024/.
+검증: preload·csp 테스트 9/9. 헤드리스 1600×900: 랜딩 밤·낮, 가져오기, 시작 화면, 이용 안내에서 document.fonts 로드 확인(NanumSquareRound 400·700, Nunito 900), 콘솔 오류 0. 전체 npm test 안 돌림. 낮 방 문구 앞부분이 천창 하늘 위에서 아직 약함. 실기기·Windows 렌더 미확인.
+
+## 2026-10-25 14:10–14:50 Claude — 디자인 시스템 2차 투표 반영: 랜딩 히어로·끝 장면·단계 표시
+사용자 투표(2차): 원칙·버튼 위계 좋아, 끝 장면 A(왼쪽 위 한 묶음, 노트북은 빛만) + 메모 「히어로도 같은 자리」, 단계 표시 B(위 단계 줄 + 오른쪽 아래 쪽지). 1차 메모 「글래스모피즘 빼기」.
+index.html: .title을 .world 밖 .hero(화면 px)로 옮김 — 첫 화면(#heroStart: 로고·문구·「시작해볼까요?」)과 끝 장면(#heroEnd: 「방이 깨끗해졌어요」·「이번엔 진짜 내 바탕화면 차례예요」·채움 버튼 「내 바탕화면 정리하러 가기 →」 a#endGo href ./app.html)이 같은 자리(왼쪽 72px, 위 120px). .story-cap → ol#storyRail(파일 옮기기·상자에 넣기·정리 끝) + p#storyCap.story-note(종이 쪽지). .world 안 span#screenGlow. 시작 링크 class primary 뺌.
+css/landing-story.css: .title·.story-cap·.cta .primary/.secondary 규칙 삭제 → .hero/.hero-start/.hero-end, .cta .start 테두리 버튼(56px, 흐림·반투명 판 없음), .end-go 크림 채움, .screen-glow(2.6초 숨쉬기, 화면 빛만), .story-rail(종이 띠, 지금 단계 진하게·지난 단계 꿀색 점), .story-note(종이 + 꿀색 테이프, -2°, 오른쪽 72px 아래 96px, 24px 800), .skip 고스트(34px, 흐림 없음, 밝은 장면은 stage[data-tone=ink]로 진한 글자). zoom:var(--k).
+js/landing-story/story.js: layoutWorld가 --k(1280×720 아래는 줄임 최소 .65, 1600×900 위는 deskScale) 설정. frameDOM이 p≥.5면 끝 묶음, 첫 방에만 시작 버튼, #end에 채움 버튼. 끝 장면에서 노트북 화면 사각형(endQuad)에 빛을 놓고, 그 위를 누르면 걸어 들어감(커서 pointer). frameCaption → 쪽지 문구 두 줄 + 단계 줄(stepAt: try 전 1, back 전 2, 그 뒤 3) + data-tone. 끝 장면 읽어 주기 문구 고침. desk-scale.js에서 DESK_BASE import.
+tests/landing/preload.test.mjs: 끝 장면 버튼도 ./app.html로 가는지 확인 한 줄.
+투표안과 다른 점: 단계 줄을 빛 글자 대신 종이 띠로 — 첫 바탕화면은 맨 윗줄까지 아이콘이라 글자만 두면 겹쳐 안 읽혔음(헤드리스 캡처). 사용자 확인 필요.
+백업: _archive/claude-ds-landing-20261025/.
+검증: preload·csp 테스트 9/9. 헤드리스 1280×720·1440×900·1920×1080에서 장면별 캡처, 시작 → 건너뛰기 → app.html, #end에서 노트북 클릭 → app.html, 콘솔 오류 0. 실기기 확인 아님.
+
+## 2026-10-25 16:26–16:40 Claude — 랜딩 단계 줄 빼고 쪽지에 번호
+사용자: 「상단에 이상한 네비게이터가 있었네, 그냥 쪽지에 1. 2. 3. 적고 텍스트 하면 되잖아」.
+index.html: ol#storyRail 삭제, p#storyCap 안을 b.story-n(번호) + span.story-t(문구)로.
+css/landing-story.css: .story-rail 규칙 전부 삭제. .story-note를 flex(번호 + 문구), 폭 300 → 320px. .story-n = Nunito 900 28px, #8a6a2f.
+js/landing-story/story.js: rail·railSteps·stepAt 삭제, CAPTIONS에 번호(1. 2. 3.) 칸, frameCaption은 번호·문구만 넣고 건너뛰기 버튼용 data-tone은 그대로.
+쪽지 종이 그림: 사용자가 GPT로 뽑은 사진풍 찢어진 종이는 사이트와 안 맞음(사용자) → 아직 CSS 종이. 다시 뽑을 프롬프트·참고 그림 전달.
+백업: _archive/claude-ds-note-20261025/ (14:50 버전).
+검증: 헤드리스 1280×720에서 세 쪽지(1·2·3) 캡처, 콘솔 오류 0. 실기기 미확인.
+
+## 2026-10-25 16:37–17:05 Claude — 방 벽 명암 얼룩 원인·수정
+사용자: 정리방 벽의 명암 얼룩이 「버그라고 하기엔 형태가 넘 이상, 그냥 넘어갈 수 없음」(디더 Off 상태 스크린샷).
+원인: js/three/materials.js toonFrom이 room.glb의 노멀맵(Room_Normal: 회벽 요철)을 MeshToonMaterial에 넘김. 3단 툰 경계(NearestFilter 그라데이션)에 요철이 섞여 경계선이 들쭉날쭉한 섬 모양 얼룩이 됨. 랜딩 room-layer.js는 노멀맵을 안 넘겨서 벽이 매끈했음. 벽 디더(화면 고정 Bayer)와는 다른 문제.
+확인: 랜딩 방에 노멀맵만 임시로 넣어 같은 카메라로 헤드리스 렌더 → 사용자 스크린샷과 같은 얼룩 재현, 빼면 사라짐(임시 수정은 되돌림).
+수정: js/three/materials.js toonFrom에서 normalMap 줄 삭제(주석으로 이유). 다른 파일 안 바꿈.
+백업: _archive/claude-normalmap-20261025/materials.js.
+검증: node --check. 정리방 화면은 헤드리스에서 밤 전환·시점이 불안정해 비교 캡처는 랜딩 방으로만 함. 실기기 확인 필요. 전체 npm test 안 돌림(노멀맵 관련 테스트 없음).
+
+## 2026-10-25 17:05–17:40 Claude — 정리방 오른쪽 패널 → 설정 창 + 기록 창
+사용자: 「오른쪽은 설정 화면이라 보기 어렵다, 폴더 배치는 이제 필요 없다」, 디더링·PS1 흔들림은 그래픽 설정이니 남김, 「설정 창도 조작 방법 창 같은 디자인으로」, 「로그를 볼 수 있는 버튼을 따로 빼서 거기서 띄워야지」.
+app.html: aside.stage-side 삭제 → div#settings-sheet.room-sheet(카드 둘: 「설정」 화면 품질·외곽선 굵기·디더링·PS1 흔들림 / 「조작」 키캡 표 13줄) + div#log-sheet.room-sheet(「기록」: #stage-summary, #notice, 정리 계획 #plan, 한 일 #log). 폴더 배치 select#placement 삭제(보드 기본값 벽면 수납장 그대로). 위 막대에 button#log-toggle 「기록」 추가, ⚙ aria-label 「설정 열기」. form#new-folder-form을 위 막대(파일 정리 모드 왼쪽)로 옮김. 옛 긴 조작 설명 section.help 삭제(내용은 조작 카드로).
+css/styles.css: .stage-side·.help·.room-settings-* 규칙 삭제. .room-sheet(방 위 어두운 막, 가운데 정렬) + .sheet-card(정리 시작 화면 .intro-controls와 같은 어두운 카드, 흐림 없음), .sheet-row(118px 이름 칸), .sheet-keys, kbd. #log-toggle은 파일 정리 모드 버튼과 같은 모양. 새 폴더 입력칸 어두운 색.
+js/app.js: elements.placement 관련 4곳 삭제. stageSide = #settings-sheet, logSheet·logToggle 추가. setSheet/toggleSidePanel/toggleLog/closeSheets — 하나만 열림, 열면 포인터 락 풀고 board.setSuspended(true)(걷기·집기 멈춤), 닫으면 풀림. 바깥·×·Esc로 닫힘. 창이 열려 있으면 방 단축키(Tab 등) 안 받음. 상자 배치 모드 전환 때 창 닫힘.
+백업: _archive/claude-room-sheets-20261025/.
+검증: csp 테스트 4/4, node --check. 헤드리스 1440×900 샘플 방에서 ⚙ → 설정 창, Esc로 닫힘, 「기록」 → 기록 창, 바깥 클릭으로 닫힘, 콘솔 오류 0. 전체 npm test 안 돌림. 실기기(포인터 락 오가기) 미확인.
+
+## 2026-10-25 17:01–17:30 Claude — Esc = 설정 창, 닫으면 바로 조작 / 랜딩 「건너뛰고」 오른쪽 위 구석
+사용자: 「정리방에서 esc 누르면 그냥 설정창 뜨고 설정창 닫으면 바로 화면 조작 할 수 있게」, 「건너뛰고 바로 시작 위치랑 크기가 안 좋음, 더 상단 오른쪽 구석, 폰트 작게」.
+js/app.js: pointerlockchange로 락이 풀리면(Esc) 설정 창을 엶 — 단 일부러 푼 경우(board.suspended·정리 시작 화면·결과 화면·노트북 들어가는 중·상자 속·배치 모드·창 열림·다른 창 전환)는 안 엶. 락이 없는 상태에서 Esc keydown도 설정 창(상자 속이면 먼저 나오기). 같은 Esc가 방금 연 창을 바로 닫지 않게 400ms 무시. ×·바깥 클릭·⚙/기록 버튼으로 닫으면 resumeAfterSheet → board.enter()로 바로 시점 잡기(락 풀린 뒤 1.1초 안이면 그만큼 기다림 — 크롬이 Esc 직후 재요청을 거절). Esc로 닫으면 브라우저가 Esc를 사용자 동작으로 치지 않아 시점은 못 잡음 → 방 한 번 클릭.
+js/three/board-3d.js: get suspended() 추가, 락 안내 문구 「Esc 커서」 → 「Esc 설정」.
+app.html: 힌트·조작 표의 Esc 설명을 「설정」으로, 정리 시작 화면 꼬리말 「Esc나 오른쪽 위 ⚙ 설정에서」.
+css/landing-story.css: .skip right 72 → 20px, top 75 → 16px, 14 → 13px(디자인 시스템 최소), 높이 34 → 30. 터치 화면은 내비가 늘 떠 있어 top 76px.
+js/landing-story/story.js: 이야기가 시작되면 내비를 접고(마우스 화면만), 이야기 중엔 위 가장자리에 마우스가 가도 내비가 안 내려옴(건너뛰기를 가리지 않게).
+쪽지 B(크라프트지 꼬리표)·C(줄 쳐진 인덱스 카드) 시안: 코드에 안 넣고 헤드리스 캡처로만 보여 줌.
+백업: _archive/claude-esc-settings-20261025/.
+검증: csp 4/4·preload 5/5, 헤드리스 — 랜딩 시작 후 내비 closed·건너뛰기 오른쪽 위, 정리방 Esc로 열림/닫힘·× 닫으면 입력 풀림. 헤드리스에선 포인터 락이 안 돼 Esc로 락 풀림 → 창 열림, 닫자마자 시점 잡기는 실기기 확인 필요.
+
+## 2026-10-25 17:17–18:00 Claude — 그림 하늘(밤 별·낮 구름), 빛기둥 가장자리, 쪽지 C, 시작 버튼 애니 폐기, 가져오기 「← 처음으로」
+사용자: 「C로 가자」, 「하늘에 별이 보였으면, HDRI 없이, 낮엔 구름」, 「god ray 너무 날카로우니까 가장자리 부드럽게」, 「히어로 청소 쓰레받기 애니메이션 버튼은 폐기, 싼티 난다」, 「가져오기 화면에서 뒤로 가고 싶을 때가 있는데 없음」.
+신규 js/three/sky-dome.js: SkyDome — 카메라를 따라다니는 공 안쪽에 그리는 셰이더 하늘(깊이 안 씀, renderOrder -1000, userData.noOutline·noSnap). night 0 = 하늘색 그라데이션 + fbm 구름(천천히 흐름), 1 = 남색 + 3겹 해시 별(반짝임). 사이 값은 섞임.
+js/landing-story/room-layer.js: SkyDome(반지름 40) 추가, #applyLight에서 lamp = 밤, 나머지 = 낮, render마다 update. js/three/scene-kit.js: SkyDome(반지름 80), #applyNight(k)로 밤 정도, #renderWebGL에서 update. js/three/outline-effect.js: 노멀 패스에서 userData.noOutline 물체는 숨김(하늘에 외곽선 안 생기게).
+js/three/godrays.js: 빛기둥 네 판이 만나는 모서리 쪽으로 갈수록 옅게(fract(u·4) 양끝 20%), 유리 쪽 시작도 0.08 → 0.16으로 부드럽게.
+index.html·css/landing-story.css: 「시작해볼까요?」 빗자루·쓰레받기·먼지 SVG와 sweep/dust 애니메이션, 올리면 넓어지는 padding 삭제(올리면 바탕만 밝아짐). .story-note를 C 인덱스 카드로: 크림 #fbf7ec, 파란 가로줄 32px 간격(::after), 왼쪽 52px 빨간 세로줄, 번호는 여백에 빨강(#b5574a), 문구 줄 간격 32px, 테이프 유지.
+app.html·css/onboarding.css·js/app.js: 가져오기 창 아래 줄 .win-foot — 왼쪽 a#go-home 「← 처음으로」(href ./index.html), 오른쪽 기존 샘플 링크. 랜딩에서 왔으면(같은 출처 referrer) history.back()으로 정리된 방, 아니면 링크대로.
+백업: _archive/claude-sky-20261025/.
+검증: csp·preload 9/9. 헤드리스 — 랜딩 밤 천창에 별, 끝 장면 낮 구름·빛기둥 가장자리 흐려짐, 쪽지 C 바탕화면 장면, 정리방 낮 구름·밤 별(밤 전환 15초 뒤), 가져오기 창 「← 처음으로」 → index.html, 콘솔 오류 0. 실제 GPU에서 별 크기·빛기둥 세기 미확인(헤드리스는 더 흐림).
+
+## 2026-10-25 18:11–18:15 Claude — 랜딩 「건너뛰고 바로 시작」 평소엔 옅게
+사용자: 「건너뛰기 텍스트 버튼은 호버하기 전까지 투명도를 더 줘야 함」.
+css/landing-story.css: .skip opacity .5, :hover·:focus-visible에서 1(0.2초 전환). 다른 곳 안 바꿈.
+백업: _archive/claude-skip-opacity-20261025/landing-story.css.
+검증: CSS만. 실기기 미확인.
+
+## 2026-10-25 18:25–18:30 Claude — 끝 장면 버튼을 첫 화면 버튼과 같은 테두리로
+사용자: 끝 장면 「내 바탕화면 정리하러 가기」가 왜 채움인지, 예전 문제는 문구가 같았던 것이지 모양이 아니었다, 같은 역할은 같은 디자인이어야 한다(디자인 시스템 원칙 3). Claude가 「처음과 끝이 같아 보였다」를 버튼 모양 문제로 잘못 읽어 채움으로 갈랐던 것.
+css/landing-story.css: .cta .start와 .end-go를 한 규칙으로 — 테두리 큰 버튼(56px, 크림 1.5px, 투명 바탕, 빛 글자, 흐림 없음), 올리면 바탕 14%. 다른 건 문구뿐.
+백업: _archive/claude-end-button-20261025/landing-story.css.
+검증: CSS만. 실기기 미확인.
+
+## 2026-10-25 18:47–19:05 Claude — 설정 창 × 가운데·레이아웃 정리
+사용자: 「x 버튼이 가운데가 아니고 레이아웃이 별로임」(설정 창 스크린샷).
+app.html: 설정 창을 높이가 다른 카드 두 장 → 창 한 장(.sheet-settings)으로. 머리 「설정」 + ×, 안에 두 칸 .sheet-cols — 왼쪽 「화면」(화면 품질·외곽선 굵기·디더링·PS1 흔들림), 오른쪽 「조작」(키 표, 칸 사이 세로줄). × 를 글자 대신 SVG 선 두 개로(설정·기록 둘 다).
+css/styles.css: .sheet-close 32px 원 + grid 가운데 정렬, SVG 14px 선. .sheet-settings 920px, .sheet-cols 1 : 1.2, 980px 아래는 위아래로. .sheet-row 칸 96px / 1fr / 48px — 선택칸은 2~3칸 다 써서 폭이 같게, 슬라이더 옆에만 값. 화면 품질 상태 앞에 「지금」. .sheet-sec h4. 닫힌 창은 pointer-events: none(닫히는 0.25초 동안 투명한 창이 위 버튼 클릭을 막던 문제, 헤드리스에서 발견).
+백업: _archive/claude-settings-layout-20261025/.
+검증: csp 4/4, 헤드리스 1440×900 설정·기록 창 캡처, 닫은 뒤 「기록」 버튼이 클릭을 받음. 실기기 미확인.
+
+## 2026-10-25 19:43–20:30 Claude — 랜딩 끝 장면 낮: 상자 넷 + 핀보드 사진 + 늦은 오후 빛
+사용자: 「밤은 괜찮은데 낮은 엄청 헐빈한 느낌」 → 시안 넷(지금·A 상자+핀보드·B 늦은 오후·A+B) 중 「오른쪽 아래(A+B) 맘에 든다」.
+js/landing-story/room-layer.js: load가 box.glb도 읽음(10-11 「정리된 방은 바닥만 깨끗이, 상자는 요청 시」를 되돌림 — 결과가 안 보여 텅 비어 보였음). #buildBoxes: 상자 넷을 코르크 보드 아래 두 줄로 두 개씩(x −0.33/0.27, 앞면 −z), 앞면에 크림 이름표(사진·음악·영상·문서·압축파일, 나눔스퀘어라운드 800) + 코르크 보드에 사진 13장(게임 ATTIC_PINBOARD를 m로, 시드 20261025로 조금씩 어긋나고 기울게). warm()이 상자 셰이더도 미리 컴파일. sun 조명: 해 "#ffbf78" 4.6, 반구 "#ffe2bd"/"#5e3f26" 1.15, 주변 "#f0c9a0" .3, 빛기둥 "#ffc985" .46. 하늘(SkyDome) 낮 색을 노을 쪽으로(dayLow "#f1dcc2", dayTop "#9dbfd6", 구름 "#fff0d8"/"#d9c9bc"). 첫 방(밤)은 그대로.
+백업: _archive/claude-day-ab-20261025/room-layer.js.
+검증: preload 5/5, node --check, 헤드리스 1600×900 #end 캡처(상자·이름표·사진·빛기둥), 콘솔 오류 0. 실제 GPU 색감 미확인.
