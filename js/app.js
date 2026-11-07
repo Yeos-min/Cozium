@@ -15,7 +15,7 @@
  */
 import { MemoryProvider } from "./providers/memory-provider.js";
 import { SAMPLE_FOLDERS } from "./providers/sample-desktop.js";
-import { NativeHelperProvider } from "./providers/native-helper-provider.js";
+import { NativeHelperProvider, waitForHelper } from "./providers/native-helper-provider.js";
 import { WebDropProvider } from "./providers/web-drop-provider.js";
 import { MAX_BOXES, SessionStore } from "./state/session-store.js";
 import { Board3D } from "./three/board-3d.js";
@@ -384,14 +384,33 @@ async function startWith(nextProvider) {
 
 const roomIntro = mountRoomIntro({ root: $("#room-intro"), onEnter: () => { session.startedAt = performance.now(); board?.enter(); } });
 
+// 가져오기 화면의 Helper 창이 열려 있는 동안 Helper를 찾다가, 켜지면 저절로 붙는다(v0.2.3, 고정 포트).
+// 창을 열었을 때만 찾는다 — 처음 찾을 때 Chrome이 「이 기기의 다른 앱 및 서비스에 액세스」를 묻기 때문에 맥락 없이 띄우지 않는다.
+let stopHelperWait = null;
+function helperWindowChanged(open) {
+  stopHelperWait?.();
+  stopHelperWait = null;
+  if (!open) return;
+  // 이 함수는 desk를 만드는 도중에도 불린다. onboarding이 아직 없을 수 있어 다음 틈에 본다.
+  queueMicrotask(() => {
+    if (onboarding.helperProvider || stopHelperWait) return;
+    const state = document.querySelector("#helper-state");
+    if (state && !state.textContent) state.textContent = "Helper를 기다리는 중… 켜면 저절로 연결돼요.";
+    stopHelperWait = waitForHelper(({ port, token }) => {
+      stopHelperWait = null;
+      if (!onboarding.helperProvider) onboarding.connectHelper(String(port), token);
+    });
+  });
+}
+
 // 가져오기 화면 = 노트북 바탕화면(2026-10-18). 보이는 것만 맡고 파일은 Onboarding이 읽는다.
-const desk = mountImportDesk({ root: elements.onboarding, startSample: () => onboarding.startSample() });
+const desk = mountImportDesk({ root: elements.onboarding, startSample: () => onboarding.startSample(), onHelperWindow: helperWindowChanged });
 const onboarding = new Onboarding({
   root: elements.onboarding,
   status,
   // 정리 계획 안내는 모듈이 다 읽힌 뒤에(처음 refresh는 Onboarding을 만드는 도중에 온다)
   onRefresh: (state) => { desk.refresh(state); queueMicrotask(() => refreshPlanOffer(state)); },
-  beforeStart: () => desk.leave(),
+  beforeStart: () => { helperWindowChanged(false); return desk.leave(); }, // 방으로 가면 Helper 찾기를 멈춘다
   afterStart: () => desk.restore(),
   capacity: store.capacity,
   onStart: startWith,
@@ -682,6 +701,7 @@ async function connectHelperForFinish(port, token) {
 const finishDesk = mountFinishDesk({
   root: elements.finish,
   connectHelper: connectHelperForFinish,
+  waitForHelper: (onFound) => waitForHelper(onFound), // 「Helper로 적용」에서 exe만 켜면 이 화면이 이어 간다(v0.2.3)
   notice: (text, tone) => status.notice(text, tone),
   onBack: async (report) => {
     if (report.variant === "plan") return; // 가져오기 화면에서 연 계획: 그 화면으로 돌아간다

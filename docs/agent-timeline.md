@@ -824,3 +824,46 @@ css/styles.css: .sheet-close 32px 원 + grid 가운데 정렬, SVG 14px 선. .sh
 js/landing-story/room-layer.js: load가 box.glb도 읽음(10-11 「정리된 방은 바닥만 깨끗이, 상자는 요청 시」를 되돌림 — 결과가 안 보여 텅 비어 보였음). #buildBoxes: 상자 넷을 코르크 보드 아래 두 줄로 두 개씩(x −0.33/0.27, 앞면 −z), 앞면에 크림 이름표(사진·음악·영상·문서·압축파일, 나눔스퀘어라운드 800) + 코르크 보드에 사진 13장(게임 ATTIC_PINBOARD를 m로, 시드 20261025로 조금씩 어긋나고 기울게). warm()이 상자 셰이더도 미리 컴파일. sun 조명: 해 "#ffbf78" 4.6, 반구 "#ffe2bd"/"#5e3f26" 1.15, 주변 "#f0c9a0" .3, 빛기둥 "#ffc985" .46. 하늘(SkyDome) 낮 색을 노을 쪽으로(dayLow "#f1dcc2", dayTop "#9dbfd6", 구름 "#fff0d8"/"#d9c9bc"). 첫 방(밤)은 그대로.
 백업: _archive/claude-day-ab-20261025/room-layer.js.
 검증: preload 5/5, node --check, 헤드리스 1600×900 #end 캡처(상자·이름표·사진·빛기둥), 콘솔 오류 0. 실제 GPU 색감 미확인.
+
+## 2026-11-03 16:14–19:10 Claude — 랜딩 새 첫 화면: 노트북 → 로그인 화면 → 아침 방 + Cozium → 말풍선 → 파일이 터져 나옴
+사용자 아이디어(무슨 사이트인지 처음에 알게 + 3D가 돋보이게)와 디렉팅: 노트북만 덩그러니(눌러 시작, 통통 + 연필 강조선 + 「노트북을 눌러 시작하기」), 누르면 정면 풀화면 「당신의 바탕화면 / 환영해요」, 뒤로 빠지며 방 + Cozium(배경은 아침 — 밤엔 정리 공간이 어두움), Cozium·부제는 다시 위 가운데 + 글자 외곽선, 시작 버튼 대신 노트북 말풍선(올리면 「정리 시작해볼까요?」), 누르면 모니터에서 파일이 우수수 터져 방바닥에 쌓이고 카메라는 바닥으로(B안). 끝 장면 문구도 위 가운데. 말풍선 모양은 자리만 잡은 것(사용자: 시안 그대로면 싸 보임 — 디자인 따로).
+js/landing-story/room-layer.js: style.light "lamp" → "morning". 빛 "morning"(하얀 아침 해, 하늘 맑은 색, 빛기둥 옅게)·"desk"(책상 스탠드 스포트 하나) 추가, 하늘 색·빛기둥 색/세기를 빛마다(userData.sky/rays). setIntro(on): 노트북·Laptop001(화면)·Table·Mug·Note만 남기고("Room" 껍데기는 노트북의 부모라 재질만 숨김) desk 빛. laptopPose()/floorPose()/static mixPose(). poseFn(now → pose)이 있으면 이야기 t 대신 사용(둘러보기 끔). setHop(h) 노트북 통통. burstAt(sec)/settleFiles()/hideFiles(): 바닥 파일이 화면 앞에서 포물선으로 제자리에(아래 깔린 것부터, 착지 통통, 화면 번쩍). BURST_END 내보냄. filesShown. LIGHTS에 morning.
+js/landing-story/story.js: intro 단계 laptop → boot(카메라 노트북→화면 1.7초) → welcome(1.6초) → reveal(setIntro 끔, jump(dive 끝) 후 goTo(0) — 기존 노트북 진입을 거꾸로) → ready(말풍선) → burst(파일 + 카메라 C→바닥, 「1.」 쪽지) → 어두운 막(#veil 진갈색)으로 넘어가 jump(GATE), 이후 기존 이야기. introTick이 연필 강조선(placeCue)·누르는 자리(#introHit)·말풍선 자리(노트북 화면 왼쪽 위, --k zoom)를 매 프레임 맞춤. holdIcons: 방에서도 노트북 속 바탕화면 아이콘 유지, 터질 때 사라짐. autoplayTick·쪽지는 intro가 끝난 뒤부터. 건너뛰기는 intro도 정리. 시작 링크(.cta)는 3D가 없거나 방 불러오기 실패 때만. #end로 돌아오면 intro 없음. uiK를 모듈 변수로.
+css/landing-story.css: .hero 위 가운데(left 50%, top 92px) + h1 외곽선 10px·문구/버튼 5px #2f231a(paint-order). .intro-cue(연필 선 떨림 boil), .intro-hit, .intro-under, .welcome(바탕화면 그림 + 어둡게, 프로필·「당신의 바탕화면」·돌아가는 점 「환영해요」), .bubble(자리만 잡은 구름, 평소 .36배 「···」, 올리면 1배 「정리 시작해볼까요?」, 가끔 통통, 마우스 없는 화면은 늘 펼침).
+index.html: #introCue/#introHit, #welcome, #bubble 추가. 첫 화면 정지 그림 poster-C → 신규 assets/landing/room-3d/poster-L.webp(노트북만, 38 KB) + preload. 무대 aria-label 고침.
+백업: _archive/claude-intro-20261103/.
+검증: preload·csp 9/9, node --check. 헤드리스 1280×720으로 laptop → 클릭 → welcome → reveal → ready → 말풍선 올림 → 클릭 → burst → GATE(p 0.575, autoplay 계속)까지 한 번에 통과, 콘솔 오류 0. #end 끝 장면 위 가운데 확인. 실기기(타이밍·말풍선 위치·내비가 처음 3초 강조선 위를 가림)는 미확인.
+
+## 2026-11-03 19:05–21:40 Claude — 새 첫 화면 손질: 「환영합니다」, Cozium 왼쪽 위로 롤백, 연필 말풍선(B)
+사용자: 「이걸 그냥 넣을 생각을 했다고?」(Claude가 임시 말풍선을 그대로 D에 넣은 것 등) → 「환영합니다. 너무 짧고, 모티브가 윈도우 켤 때 환영합니다 그대로라 해요체로 끝나면 안 됨」, 「코지움·부제 다시 롤백 왼쪽 정렬 아웃라인 없이」, 「말풍선 위치 잡아 줬는데 왜 저기인지」, 「말풍선 디자인 확정 안 나면 다음 단계 안 감」 → 시안 A 종이 쪽지 / B 연필 손그림 / C 메신저 중 B 「맘에 든다」.
+index.html: 환영 문구 「환영해요」 → 「환영합니다」(말투 규칙 예외, 주석). #bubble을 연필 손그림 말풍선으로: .b-idle(70×44 「···」) + .b-open(220×62 「정리 시작해볼까요?」), 둥근 사각형에 왼쪽 아래 꼬리, 진한 연필(#2f231a) 두 번 겹쳐 긋기 + 종이 흰색(#fbf7ec).
+css/landing-story.css: .hero 왼쪽 위(72·120)로 롤백, 외곽선(text-stroke) 전부 삭제. .bubble 새 규칙: 올리면/포커스 → 작은 것은 사라지고 넓은 것이 꼬리 쪽에서 커지며 나옴, 평소 「···」만 가끔 통통, 마우스 없는 화면은 넓은 것만.
+js/landing-story/story.js: WELCOME_MS 1600 → 3400. 말풍선 자리를 노트북 화면 오른쪽 위 모서리(꼬리 끝이 모서리 바로 위)로. 읽어 주기 문구 「환영합니다」.
+백업: _archive/claude-intro-fix-20261103/.
+검증: preload·csp 9/9, 헤드리스 1280×720로 처음~상자에 넣기까지 통과, 콘솔 오류 0. 헤드리스는 마우스 없는 화면으로 잡혀 말풍선이 늘 펼쳐진 상태로만 확인(평소 「···」 상태는 실기기 확인 필요).
+남은 것(사용자 확인 전): 터진 뒤 어둡게 넘어가 「노트북 속 바닥」으로 이어 붙는 연결이 끊겨 보임, 터질 때 큰 파일이 카메라 바로 앞을 지나감, 처음 3초 내비가 연필 강조선 위를 가림, 끝 장면 버튼을 말풍선으로 할지.
+
+## 2026-11-06 18:47–19:45 Claude — 흐름 뒤집기(방의 짐 → 노트북으로 빨려 들어감), 노트북 화면은 가까이서만, 연필 안내 말풍선, 침대 낮↔밤 힌트
+사용자: 「당신의 바탕화면 → 나의 바탕화면」, 「모니터 화면이 HTML이라 이질감」(→ 멀리선 빈 화면, 가까이서만 켜기), 「처음 바탕화면은 아무것도 없는 깔끔한 상태」, 「시작해볼까요?를 누르면 바닥의 널브러진 파일들이 모니터 안으로(지금의 역순), 핀보드도 더럽게」, 「메모 쪽지 → 말풍선」(시안 B: 꼬리가 관련된 것을 가리킴), 「침대를 누르면 랜딩에서도 시간대가 바뀌고, 게임·랜딩 둘 다 호버하면 힌트 아이콘」(시안 B: 연필 해/달 + 글자). Helper·음악은 디자인 끝난 뒤.
+js/landing-story/room-layer.js: 터져 나오기(burstAt·floorPose·settleFiles·BURST_END) 삭제 → suckAt(sec)/SUCK_END 2.9초: 노트북에 가까운 것부터 살짝 떴다가 점점 빨라지며 화면 한가운데로, 작아지며 사라짐, 들어갈 때마다 화면이 조금 밝아짐. 어질러진 핀보드: 사진·메모 26장이 겹치고 기울게(this.files, 같이 빨려 들어감). 3D 화면 색 #screenTone(꺼짐 / 빈 화면 #cdbfa9 / 밤 푸른빛). 침대 낮↔밤 setNight(1.6초 동안 두 빛 섞기, warm()에 섞인 조합도 미리 컴파일), bedAt·bedRect.
+js/landing-story/story.js: 단계 burst → suck(1.5초부터 노트북으로 걸어 들어감, 어둡게 넘어가는 컷 없앰). 처음 바탕화면은 아이콘 없음(deskEmpty). 바탕화면 HTML은 화면이 커질 때만(deskNear, 끝 장면도). 아이콘은 걸어 들어가기 뒤 절반에서 하나씩(POP). 안내 쪽지 → 연필 말풍선(capPath·placeCaption: 1 바탕화면 아이콘, 2 오른쪽 상자, 3 정리된 폴더를 꼬리로 가리킴). 침대: 첫 방에서 말풍선 기다릴 때·정리된 방에서 누르면 낮↔밤, 올리면 침대 위에 힌트.
+js/ui/time-hint.js(새), css/time-hint.css(새): 연필 해/달 + 「눌러서 밤으로/아침으로」, 랜딩·게임 공용.
+js/three/board-3d.js, css/styles.css, app.html: 게임에서 침대를 겨누면 조준선 위에 같은 힌트(time-hint.css 연결).
+index.html: 「나의 바탕화면」, 쪽지 p → .story-bubble, #bedHint. css/landing-story.css: .story-note(인덱스 카드) 규칙 삭제 → .story-bubble.
+백업: _archive/claude-flip-20261106/.
+검증: preload·csp 9/9, 헤드리스(시계 멈춰 가며)로 처음~상자 장면까지 콘솔 오류 0, 끝 장면 침대 클릭 → 밤 확인. 게임 힌트는 헤드리스에서 포인터 고정이 안 돼 실제 겨누기로는 못 봄(모양만 확인) — 실기기 확인 필요.
+남은 것: 「1. 당신의 파일을 방으로 옮겨요」 문구를 바꿀지(사용자 답 대기), 음악(수노 Pro / 무료 음원 / Claude 제작 중 선택 대기), Helper 더 쉽게(디자인 끝난 뒤).
+
+## 2026-11-07 17:26–17:55 Claude — 첫 바탕화면 버그, 말풍선 호버 시 화면 빛, 핀보드 다시, 안내 말풍선 자리, 랜딩 침대 뺌
+사용자: 「나의 바탕화면 환영합니다 다음 빈 바탕화면이 아님」, 「시작해볼까요 호버에서는 살짝 라이트라도 화면에」, 「핀보드 반듯하게 배치됨, 갯수 줄이고 이상하게 겹친 거 없애고 회전, 모서리 시커먼 거(문서) 보기 싫으니 핀보드에 꽂지 마」, 말풍선 자리를 그림으로 잡아 줌(3번은 꼬리 없음), 「랜딩에서 이거(침대 낮↔밤) 하는 건 없애자」.
+js/landing-story/story.js: 환영 화면 뒤 시작 자리를 B.dive[1] → DESK_FULL(그 바로 앞). B.dive[1] = B.fall[0]이라 노트북 속 3D 장면(아이콘 있음)이 먼저 보였음. 말풍선(#bubble)에 올리거나 포커스하면 노트북 화면이 부드럽게 밝아짐(glow → room.setGlow). 안내 말풍선 자리 capPlace: 1 마지막 줄 오른쪽 끝 아이콘 아래 오른쪽(꼬리 위 왼쪽), 2 오른쪽 끝 상자의 오른쪽 위(꼬리 아래 왼쪽), 3 작업 표시줄 위 오른쪽 구석(꼬리 없음). capPath는 위/아래/없음. 랜딩 침대(클릭·힌트·커서) 전부 삭제.
+js/landing-story/room-layer.js: setNight·#blendStep·bedAt·bedRect·#bedBox·night 삭제(warm의 섞인 빛 컴파일도). setGlow 추가(#screenTone이 반짝임과 호버 중 큰 쪽). 어질러진 핀보드: 사진만 11장, 4×3 칸에서 비껴 놓고 판 면 안에서 기울임(이전엔 축을 잘못 잡아 판 밖으로 꺾임).
+index.html: #bedHint, time-hint.css 연결 삭제. css/landing-story.css: 침대 규칙 삭제. css/time-hint.css·js/ui/time-hint.js: 게임 전용이라는 주석만.
+백업: _archive/claude-fix-20261107/.
+검증: preload·csp 9/9, 헤드리스로 환영 뒤 첫 장면(p .2198) 아이콘 없는 바탕화면, 호버 시 화면 밝아짐, 핀보드 가까이, 안내 말풍선 1·2·3 자리 확인, 콘솔 오류 0.
+
+## 2026-11-07 18:10–18:45 Claude — 안내 말풍선 꼬리 없앰, 자리 사용자 선택대로
+사용자: 「꼬리가... 그냥 없는 게 나을려나, 위치도 대충 잡아 준 걸 그대로 갔구나」 → 꼬리 없는 시안 A(셋 다 오른쪽 아래)·B(장면마다 빈 곳)를 보여 줌 → 사용자가 1·3은 A(오른쪽 아래, 작업 표시줄 위), 2는 B(상자 장면 오른쪽 위 벽)에 동그라미.
+js/landing-story/story.js: capPath 꼬리 없음, 말풍선 테두리는 한 번만 그림. capPlace(3D 투영으로 아이콘·상자 찾기)·capKey 삭제 → placeCaption(spot): 오른쪽 4.5% 띄우고 "low" 아래 11.5% 위 / "high" 위 7.8%. css/landing-story.css: 주석만.
+백업: _archive/claude-cap-20261107/.
+검증: preload·csp 9/9, 헤드리스 1600×900로 1·2·3 자리 확인, 콘솔 오류 0.

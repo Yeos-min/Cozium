@@ -7,7 +7,7 @@
 // become boxes → carry the four piles by hand → the tidy desktop → the tidied room with the two ways in.
 // Nothing here touches real files. Structure and tuning: docs/landing-redesign.md §7.
 import * as THREE from "three";
-import { RoomLayer, StyledPass, TEXT_LAYER } from "./room-layer.js";
+import { RoomLayer, StyledPass, TEXT_LAYER, SUCK_END } from "./room-layer.js";
 import { GLTFLoader } from "../../vendor/three/addons/loaders/GLTFLoader.js";
 import { toonGradient } from "../three/materials.js";
 import { initLab } from "./render-lab.js";
@@ -87,7 +87,12 @@ const RJ = rng(20261008);
 for (const it of items) { RJ(); RJ(); RJ(); it.deg = 0; } // the old jitter draws, kept so the arrival order stays the same
 // The screen starts empty; the icons arrive one by one while the camera dives in, closer and closer together.
 // Driven by progress like everything else, so scrolling back takes them away again.
-const POP = [.03, .2], POP_LEN = .016;
+// 11-06: 바탕화면은 화면이 커진 뒤에만 보이므로(deskNear) 아이콘도 그 뒤 절반에서 들어온다 — 방에서 빨려 들어간 파일이 아이콘이 되는 때
+const DIVE_LEN = B.dive[1] - B.dive[0];
+const POP = [B.dive[0] + DIVE_LEN * .5, B.dive[0] + DIVE_LEN * .88], POP_LEN = .016;
+// 11-06 사용자 「모니터 화면이 HTML이라 이질감 → 멀리선 빈 화면, 가까이서만」: 노트북 속 바탕화면(HTML)은 화면이 커졌을 때만.
+// t = 걸어 들어간 정도(0 방 … 1 화면 앞). 멀리선 3D 화면(room-layer #screenTone)만 보인다
+const deskNear = (t) => smooth(.42, .62, t);
 {
   const order = items.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(RJ() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
@@ -106,7 +111,8 @@ const cameBack = location.hash === "#end";
 // The 3D room. Its file things use the same faces as the floor scene inside the laptop (drawFace, below).
 const room = new RoomLayer(roomCanvas, { faceCanvas: (k) => drawFace(k) });
 const desk = $("#desk"), deskIcons = $("#deskIcons"), deskChrome = $("#deskChrome");
-const caption = $("#storyCap"), capN = caption.querySelector(".story-n"), capT = caption.querySelector(".story-t"), heroStart = $("#heroStart"), heroEnd = $("#heroEnd"), endGo = $("#endGo"), screenGlow = $("#screenGlow"), title = $("#title"), cta = $("#cta"), startLink = cta.querySelector(".start"), startLabel = cta.querySelector(".start-label"), skipBtn = $("#skip"), veil = $("#veil"), sceneStatus = $("#sceneStatus");
+const introCue = $("#introCue"), introRays = introCue.querySelector(".boil"), introHit = $("#introHit"), welcome = $("#welcome"), bubble = $("#bubble");
+const caption = $("#storyCap"), capSvg = caption.querySelector("svg"), capN = caption.querySelector(".story-n"), capT = caption.querySelector(".story-t"), heroStart = $("#heroStart"), heroEnd = $("#heroEnd"), endGo = $("#endGo"), screenGlow = $("#screenGlow"), title = $("#title"), cta = $("#cta"), startLink = cta.querySelector(".start"), startLabel = cta.querySelector(".start-label"), skipBtn = $("#skip"), veil = $("#veil"), sceneStatus = $("#sceneStatus");
 let pendingTo = null;   // 방 모델이 오기 전에 가려던 곳 — 준비되는 순간 이어서 간다(10-23)
 // 10-23 사용자: 스크롤로 넘기는 이야기는 버림. 첫 화면 「시작해볼까요?」를 누르면 이야기가 저절로 끝까지 흐르고(직접 담기도 시연)
 // 정리된 방에서 노트북으로 걸어 들어가 app.html. 흐르는 동안 「건너뛰고 바로 시작 →」. null = 멈춰 있음.
@@ -236,6 +242,7 @@ function fitChrome(k) { // 0 = on the plate's edges, 1 = on the visible part of 
     width: `${((w - 2 * CHROME.barSide * du) / du).toFixed(1)}px`, height: `${CHROME.bar}px`, transform: `scale(${du.toFixed(4)})`,
   });
 }
+let uiK = 1; // 화면 px 층(히어로·쪽지·말풍선)의 배율
 function layoutWorld() {
   vw = stage.clientWidth; vh = stage.clientHeight;
   cover = Math.max(vw / W0, vh / H0);
@@ -243,7 +250,7 @@ function layoutWorld() {
   world.style.transform = `translate(${(vw - W0 * cover) / 2}px,${(vh - H0 * cover) / 2}px) scale(${cover})`;
   // 10-25 디자인 시스템: 히어로·단계 줄·쪽지·건너뛰기는 화면 px(디자인 시스템 크기 그대로). 1280×720보다 작으면 줄이고(최소 .65),
   // 1600×900보다 크면 바탕화면 UI와 같은 배율로 키운다(deskScale).
-  const uiK = vw >= DESK_BASE.w && vh >= DESK_BASE.h ? deskScale(vw, vh) : clamp(Math.min(vw / 1280, vh / 720), .65, 1);
+  uiK = vw >= DESK_BASE.w && vh >= DESK_BASE.h ? deskScale(vw, vh) : clamp(Math.min(vw / 1280, vh / 720), .65, 1);
   stage.style.setProperty("--k", uiK.toFixed(3));
   crop = { x: Math.max(0, (W0 - vw / cover) / 2), y: Math.max(0, (H0 - vh / cover) / 2) };
   // the grid moves in by the crop, but no further than its far edge allows (a phone: it simply doesn't fit)
@@ -1190,16 +1197,138 @@ stage.addEventListener("click", (e) => { if (!e.target.closest("a,button") && on
 skipBtn.addEventListener("click", () => {
   if (!auto) return;
   auto = null;
+  if (intro.phase !== "done") introFinish();
   if (demoTimer) { clearTimeout(demoTimer); demoTimer = 0; }
   if (demoNext) { clearTimeout(demoNext); demoNext = 0; }
   hand.active = false; hand.list = [];
   jump(1);
   requestAnimationFrame(() => requestAnimationFrame(startEnter)); // the tidied room is drawn once, then the walk-in
 });
+// ───────────── 11-03 새 첫 화면 ─────────────
+// 사용자: 「무슨 사이트인지 처음에 알게 하는 게 제일 중요」 + 「첫 화면에 3D가 돋보이게」.
+// laptop  노트북만 덩그러니(책상 스탠드 빛, 연필 강조선, 가끔 통통) — 노트북을 누르면
+// boot    카메라가 노트북 화면 앞으로
+// welcome 정면 풀화면 「나의 바탕화면 / 환영합니다」(윈도우 로그인 배치, 우리 색)
+// reveal  아무것도 없는 깨끗한 바탕화면에서 뒤로 빠지며 아침 다락방 + Cozium(이야기 트랙 dive를 거꾸로).
+//         방바닥·핀보드·책상엔 파일이 널려 있다(11-06)
+// ready   노트북 말풍선 「정리 시작해볼까요?」 — 누르면
+// suck    널린 파일이 노트북 화면으로 빨려 들어가고(11-06 사용자, 예전 「터져 나오기」의 거꾸로) 카메라가 그대로
+//         노트북 속으로 → 어질러진 바탕화면(아이콘이 하나씩) → 상자에 넣기(GATE)… 원래 이야기대로
+const intro = { phase: cameBack || noGL ? "done" : "laptop", t0: performance.now(), readyAt: 0, dove: false };
+const BOOT_MS = 1700, WELCOME_MS = 3400; // 11-03 사용자: 환영 화면이 너무 짧음
+const DESK_FULL = B.dive[1] - 2e-4; // 방 → 노트북 걸어 들어가기의 끝, 바탕화면(HTML)이 화면을 꽉 채운 자리
+let bubbleHot = false, glow = 0; // 11-07 사용자: 「시작해볼까요」에 올리면 노트북 화면이 살짝 켜짐
+const SUCK_DIVE = 1.5; // 빨려 들어가기 시작 몇 초 뒤 카메라가 노트북으로 걸어 들어가기 시작(남은 파일이 카메라 앞을 지나 화면으로)
+let deskEmpty = false; // 11-06 사용자 「처음 바탕화면엔 아무것도 없는 깔끔한 상태」: 아이콘 없이 배경화면·작업 표시줄만
+const ioEase = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+function introSet(phase) {
+  intro.phase = phase; intro.t0 = performance.now();
+  stage.dataset.intro = phase;
+  if (phase === "ready") intro.readyAt = intro.t0;
+  const say = { laptop: "어두운 방 책상 위에 노트북 한 대. 노트북을 눌러 시작하세요.", welcome: "나의 바탕화면, 환영합니다.", ready: "아침 해가 드는 다락방. 바닥과 핀보드에 파일이 어질러져 있습니다. Cozium — 당신의 어질러진 바탕화면을 방 치우듯 정리해 보세요. 노트북 위 말풍선을 누르면 파일이 노트북으로 들어가며 정리가 시작됩니다." }[phase];
+  if (say) sceneStatus.textContent = say;
+}
+function introStartLaptop() {
+  if (!room.ready) return;
+  room.setIntro(true); room.hideFiles();
+  const L = room.laptopPose();
+  room.poseFn = () => L;
+  introSet("laptop");
+}
+introHit.addEventListener("click", () => {
+  if (intro.phase !== "laptop" || !room.ready) return;
+  room.setHop(0);
+  const L = room.laptopPose(), E = room.endPose();
+  if (reduced) { room.poseFn = () => E; introSet("welcome"); welcome.dataset.on = "true"; return; }
+  const t0 = performance.now();
+  room.poseFn = (now) => RoomLayer.mixPose(L, E, ioEase(clamp((now - t0) / BOOT_MS)));
+  introSet("boot");
+});
+for (const [ev, on] of [["pointerenter", true], ["pointerleave", false], ["focus", true], ["blur", false]]) bubble.addEventListener(ev, () => { bubbleHot = on; });
+bubble.addEventListener("click", () => {
+  if (intro.phase !== "ready") return;
+  auto = { t0: performance.now(), kick: 0 };
+  if (topNav && matchMedia("(hover: hover) and (pointer: fine)").matches) navSet(false);
+  if (reduced) { introFinish(); return; } // 움직임 줄이기: 파일은 바로 사라지고 이야기는 autoplayTick이 이어 감
+  introSet("suck");
+});
+// 빨려 들어가기 끝(또는 건너뛰기): 방의 파일은 노트북 안으로, 바탕화면은 아이콘이 들어올 준비
+function introFinish() {
+  room.poseFn = null; room.hideFiles(); deskEmpty = false;
+  introSet("done");
+}
+// 한 프레임마다: 단계 넘기기 + 화면 위 연필 선·말풍선 자리
+function introTick(now) {
+  const ph = intro.phase, sec = (now - intro.t0) / 1000;
+  if (ph === "done") { introCue.hidden = true; bubble.hidden = true; welcome.dataset.on = "false"; return; }
+  if (ph === "laptop" && room.ready && !room.intro) introStartLaptop();
+  if (ph === "laptop" && room.ready) {
+    // 가끔 통통(2.6초마다, 파일 더미 튀는 것과 같은 말)
+    const tau = (now / 1000) % 2.6;
+    room.setHop(tau < .7 ? Math.abs(Math.sin(tau * Math.PI / .26)) * Math.exp(-tau * 5) * .03 : 0);
+  }
+  if (ph === "boot" && sec * 1000 >= BOOT_MS) { introSet("welcome"); welcome.dataset.on = "true"; }
+  if (ph === "welcome" && sec * 1000 >= WELCOME_MS) {
+    // 방을 켜고(아침, 어질러진 방) 깨끗한 바탕화면이 화면을 꽉 채운 자리에서 시작해 뒤로 빠진다
+    room.setIntro(false); room.poseFn = null; room.showFiles(); deskEmpty = true;
+    jump(DESK_FULL); // 11-07 사용자 「환영합니다 다음이 빈 바탕화면이 아님」: B.dive[1]은 노트북 속 3D 장면(아이콘 있음)의 시작이라 그 바로 앞
+    welcome.dataset.on = "false";
+    introSet("reveal");
+  }
+  if (ph === "reveal" && sec > .55 && !tween && Math.abs(prog - DESK_FULL) < 1e-6) goTo(0);
+  if (ph === "reveal" && sec > 1 && !tween && prog < 1e-4) introSet("ready");
+  if (ph === "suck") {
+    room.suckAt(sec);
+    if (sec >= SUCK_DIVE && !intro.dove) { intro.dove = true; deskEmpty = false; goTo(B.dive[1]); }
+    if (sec >= SUCK_END) introFinish(); // 걸어 들어가기(tween)는 계속, 도착하면 autoplayTick이 이어 감
+  }
+  // 연필 강조선 + 「노트북을 눌러 시작하기」(노트북 화면 자리에 맞춰)
+  const cueOn = ph === "laptop" && room.ready;
+  introCue.hidden = !(cueOn || ph === "boot");
+  introCue.dataset.on = String(cueOn);
+  const q = room.ready ? room.screenQuad() : null;
+  if (cueOn && q) placeCue(q);
+  // 말풍선: 방이 다 드러난 뒤, 노트북 화면 오른쪽 위
+  const bOn = ph === "ready" || (ph === "suck" && sec < .3);
+  bubble.hidden = !(ph === "ready" || ph === "suck");
+  bubble.dataset.on = String(bOn);
+  bubble.dataset.bob = String(ph === "ready" && now - intro.readyAt > 1800);
+  bubble.inert = ph !== "ready";
+  // 말풍선에 올리면 노트북 화면이 살짝 켜졌다가, 떼면 다시 은은하게(빨려 들어가기가 시작되면 그쪽 반짝임이 맡음)
+  const gT = ph === "ready" && bubbleHot ? .8 : 0;
+  if (glow !== gT) { glow += (gT - glow) * .14; if (Math.abs(gT - glow) < .01) glow = gT; room.setGlow(glow); }
+  if (!bubble.hidden && q) {
+    // 말풍선은 노트북 화면 오른쪽 위(11-03 사용자가 그림으로 잡아 준 자리). 꼬리 끝(상자 왼쪽 아래 14, 84)이 화면 오른쪽 위
+    // 모서리 바로 위에. zoom(--k) 안이라 좌표를 k로 나눔
+    const tr = q[1], k = uiK;
+    bubble.style.zoom = String(k);
+    bubble.style.left = `${((tr[0] - 6) / k - 14).toFixed(1)}px`; bubble.style.top = `${((tr[1] - 8) / k - 84).toFixed(1)}px`;
+  }
+}
+let cueKey = "";
+function placeCue(q) {
+  const [tl, tr, br, bl] = q, w = tr[0] - tl[0], h = bl[1] - tl[1];
+  const key = q.flat().map((v) => Math.round(v)).join(",");
+  if (key === cueKey) return; cueKey = key;
+  const cx = (tl[0] + tr[0]) / 2, cy = Math.min(tl[1], tr[1]) + h * .3, R0 = Math.max(w, h) * .64, R1 = Math.max(w, h) * .84;
+  const line = (p0, p1, bend, wd) => {
+    const m = [(p0[0] + p1[0]) / 2 + bend, (p0[1] + p1[1]) / 2 - bend * .5];
+    const d = (o) => `M${(p0[0] + o).toFixed(1)} ${(p0[1] - o).toFixed(1)} Q${m[0].toFixed(1)} ${m[1].toFixed(1)} ${(p1[0] - o).toFixed(1)} ${(p1[1] + o * .5).toFixed(1)}`;
+    return `<path d="${d(0)}" style="stroke-width:${wd}"/><path d="${d(1.2)}" style="stroke-width:${(wd * .55).toFixed(2)};opacity:.7"/>`;
+  };
+  introRays.innerHTML = [[-2.6, 5, 4.2], [-2.12, -4, 3.6], [-1.6, 3, 4.6], [-1.08, -5, 3.8], [-.6, 4, 4.2]].map(([a, bd, wd], i) => {
+    const r0 = R0 + (i % 2) * 10, r1 = R1 + (i % 2) * 18;
+    return line([cx + Math.cos(a) * r0, cy + Math.sin(a) * r0], [cx + Math.cos(a) * r1, cy + Math.sin(a) * r1], bd, wd);
+  }).join("");
+  // 누르는 자리: 노트북(화면 + 아래 자판) + 그 아래 글자
+  const x0 = Math.min(tl[0], bl[0]) - w * .1, x1 = Math.max(tr[0], br[0]) + w * .1, y0 = Math.min(tl[1], tr[1]) - 6, y1 = Math.max(bl[1], br[1]) + h * 1.45;
+  Object.assign(introHit.style, { left: `${x0}px`, top: `${y0}px`, width: `${x1 - x0}px`, height: `${y1 - y0}px` });
+}
 // 10-23 20:40 사용자: 장면 사이 이동은 저절로, 담기는 방문자가 직접("여전히 사용자 참여가 중요").
 // 바탕화면(문구) → 방(문구, 더미가 통통 튐 — 시연 없음) → 다 넣으면 정리된 바탕화면(문구) → 정리된 방 + 버튼.
 const CAP_READ = 2300; // 문구 하나 읽을 시간
 function autoplayTick(now) {
+  if (intro.phase !== "done") return; // 첫 화면 연출 중엔 introTick이 이끈다
   if (!auto || enter || tween || veilBusy || !room.ready) return;
   const at = (r) => Math.abs(prog - r) < 1e-4, dwell = now - arrivedAt;
   if (at(0)) goTo(B.dive[1]);
@@ -1218,12 +1347,30 @@ addEventListener("keydown", (e) => {
 });
 // On-screen words for the three stops (10-23 사용자 문구).
 // 10-25 디자인 시스템: 문구는 늘 오른쪽 아래 종이 쪽지 한 장, 앞에 단계 번호(16:26 사용자: 위 단계 줄 대신 「쪽지에 1. 2. 3.」).
-const CAPTIONS = [[B.dive[1], "1.", "당신의 파일을\n방으로 옮겨요"], [GATE, "2.", "파일들을\n상자에 넣어봐요"], [B.back[1], "3.", "바탕화면이\n깨끗해졌어요!"]];
+// 11-06 사용자 B: 연필 말풍선. 11-07 사용자: 꼬리 없이, 자리는 시안에서 골라 줌 —
+//   1. 바탕화면·3. 정리된 바탕화면 = 오른쪽 아래(작업 표시줄 위) / 2. 상자 장면 = 오른쪽 위 벽(아래 파일 더미를 안 가리게)
+const CAPTIONS = [[B.dive[1], "1.", "당신의 파일을\n방으로 옮겨요", "low"], [GATE, "2.", "파일들을\n상자에 넣어봐요", "high"], [B.back[1], "3.", "바탕화면이\n깨끗해졌어요!", "low"]];
+const CAP_W = 300, CAP_H = 100; // 말풍선 크기(CSS px, --k 배율 전)
+// 연필 말풍선 테두리(둥근 사각, 시작 말풍선과 같은 손맛). o = 두 번째 연필 선의 어긋남
+function capPath(w, h, o = 0) {
+  const r = 18;
+  return `M${r + o} ${2 - o} Q${w / 2} ${-1 + o * .5} ${w - r} ${2 + o} Q${w + 1} 1 ${w - 1 - o} ${r} L${w - 2 + o} ${h - r} ` +
+    `Q${w - 1} ${h - 1} ${w - r} ${h - 2 + o} L${r} ${h - 1 - o} Q1 ${h - 1} ${2 + o} ${h - r} L${1 - o} ${r} Q1 1 ${r + o} ${2 - o}`;
+}
+const d0 = capPath(CAP_W, CAP_H), d1 = capPath(CAP_W, CAP_H, 1.3);
+capSvg.setAttribute("width", CAP_W); capSvg.setAttribute("height", CAP_H); capSvg.setAttribute("viewBox", `0 0 ${CAP_W} ${CAP_H}`);
+capSvg.innerHTML = `<path class="f" d="${d0}"/><path class="s" d="${d0}"/><path class="s2" d="${d1}"/>`;
+// 오른쪽 4.5% 띄우고, 아래(작업 표시줄 위 11.5%) 또는 위(7.8%). zoom(--k) 안이라 k로 나눔
+function placeCaption(spot) {
+  const k = uiK, left = (vw * .955) / k - CAP_W, top = spot === "high" ? (vh * .078) / k : (vh * .885) / k - CAP_H;
+  caption.style.left = `${left.toFixed(1)}px`; caption.style.top = `${top.toFixed(1)}px`;
+}
 function frameCaption(p) {
   let hit = null;
-  if (!enter) for (const c of CAPTIONS) if (Math.abs(p - c[0]) < 2e-3 && !(c[0] === GATE && gateOpen)) { hit = c; break; }
+  if (!enter && intro.phase === "done") for (const c of CAPTIONS) if (Math.abs(p - c[0]) < 2e-3 && !(c[0] === GATE && gateOpen)) { hit = c; break; }
   const on = String(!!hit);
   if (hit && capT.textContent !== hit[2]) { capN.textContent = hit[1]; capT.textContent = hit[2]; }
+  if (hit) placeCaption(hit[3]);
   if (caption.dataset.on !== on) caption.dataset.on = on;
   // the desktop and the floor scene are bright (cream wallpaper, pale wall): the skip button turns dark there
   const tone = p > B.dive[0] + (B.dive[1] - B.dive[0]) * .7 && p < B.out[0] + .01 ? "ink" : "light";
@@ -1276,10 +1423,10 @@ function frameDOM(p, counts) {
       const m = quadMatrix(W0, H0, quad);
       desk.style.transform = deskChrome.style.transform = m; featherDesk(quad);
     }
-    desk.style.opacity = q3 ? String(smooth(.006, .04, p)) : "0"; // the laptop screen lights up as the scroll begins
+    desk.style.opacity = q3 ? String(deskNear(dive)) : "0"; // 11-06: 멀리선 3D 빈 화면, 화면이 커지면 바탕화면
     for (const it of items) {
       const el = it.el; if (!el) continue;
-      const a = (p - it.popP) / POP_LEN;
+      const a = deskEmpty ? 0 : (p - it.popP) / POP_LEN;
       if (a <= 0) { el.style.opacity = "0"; continue; }
       const s = a < 1 ? lerp(.2, 1, outBack(a)) : 1, drop = 1 - Math.pow(1 - clamp(a * 1.3), 3);
       el.style.opacity = String(clamp(a * 4));
@@ -1301,8 +1448,8 @@ function frameDOM(p, counts) {
     room.setState("tidy");
     roomCanvas.hidden = false; if (paintRef) paintRef.style.opacity = "0";
     // after the button: the same walk-in again, into the tidied laptop (enterU 0 → 1)
-    const eu = enterU(performance.now());
-    const q3 = roomQuad(Math.max(1 - out, inOut(eu)));
+    const eu = enterU(performance.now()), walk = Math.max(1 - out, inOut(eu));
+    const q3 = roomQuad(walk);
     roomCanvas.style.opacity = String(smooth(0, .12, out) * (1 - smooth(.9, 1, eu)));
     const blur = lab.blur ? 6 * Math.max(1 - smooth(.25, .82, out), smooth(.18, .75, eu)) : 0;
     roomCanvas.style.filter = blur > .15 ? `blur(${blur.toFixed(2)}px)` : "none";
@@ -1319,7 +1466,7 @@ function frameDOM(p, counts) {
       const gw = sw * 1.5, gh = sh * 1.7;
       screenGlow.style.cssText = `left:${(cx - gw / 2).toFixed(1)}px;top:${(cy - gh / 2).toFixed(1)}px;width:${gw.toFixed(1)}px;height:${gh.toFixed(1)}px`;
     }
-    desk.hidden = false; desk.style.opacity = String(Math.max(1 - smooth(.86, 1, out) * .15, smooth(0, .2, eu)));
+    desk.hidden = false; desk.style.opacity = String(deskNear(walk)); // 11-06: 정리된 방에서도 멀리선 빈 화면
     deskChrome.style.opacity = String(Math.max(1 - smooth(.1, .3, out), smooth(.55, .9, eu)));
     fitChrome(Math.max(1 - smooth(0, .2, out), smooth(.8, 1, eu)));
   }
@@ -1328,14 +1475,16 @@ function frameDOM(p, counts) {
   if (screenGlow.dataset.on !== glowOn) screenGlow.dataset.on = glowOn;
   if (!endQuad && stage.dataset.hot) delete stage.dataset.hot;
   // title: visible on the first room, back with the buttons on the last
-  const tIn = (p < .5 ? 1 - smooth(.012, .05, p) : smooth(.72, .92, out)) * (1 - smooth(0, .2, enterU(performance.now())));
+  const isec = (performance.now() - intro.t0) / 1000;
+  const introHero = intro.phase === "done" ? 1 : intro.phase === "ready" ? smooth(0, .6, isec) : intro.phase === "suck" ? 1 - smooth(0, .35, isec) : 0;
+  const tIn = (p < .5 ? 1 - smooth(.012, .05, p) : smooth(.72, .92, out)) * (1 - smooth(0, .2, enterU(performance.now()))) * introHero;
   title.style.opacity = String(tIn);
   title.style.visibility = tIn < .01 ? "hidden" : "visible";
   // 10-25 디자인 시스템(원칙 4): 같은 자리, 다른 내용 — 첫 방은 로고 + 「시작해볼까요?」(테두리), 정리된 방(#end)은
   // 「방이 깨끗해졌어요」 + 「내 바탕화면 정리하러 가기 →」(채움). 이야기가 흐르는 동안은 버튼 없음.
   const atEnd = !noGL && p >= .5;
   if (heroStart.hidden !== atEnd) { heroStart.hidden = atEnd; heroEnd.hidden = !atEnd; }
-  cta.hidden = !(noGL || (p < 1e-3 && !auto));
+  cta.hidden = !(noGL || stage.dataset.room === "failed"); // 11-03: 시작은 노트북 말풍선. 링크는 3D가 없을 때만
   endGo.hidden = !(atEnd && p >= B.out[0] && out > .7 && !auto);
   cta.inert = endGo.inert = !!enter;
   skipBtn.hidden = !auto || !!enter;
@@ -1351,7 +1500,7 @@ function jump(v) {
 }
 // Screen-reader description of each finished scene (the visible page stays wordless).
 const SCENE_TEXT = new Map([
-  [0, "밤의 다락방. 스탠드가 켜진 책상 위에 노트북이 있고 바닥에 파일이 흩어져 있습니다. 시작해볼까요 버튼을 누르면 정리하는 이야기가 시작됩니다."],
+  [0, "아침 해가 드는 다락방. 바닥과 핀보드에 파일이 어질러져 있습니다. 노트북 위 말풍선을 누르면 파일이 노트북으로 들어가며 정리가 시작됩니다."],
   [B.dive[1], "파일 아이콘이 가득한 바탕화면. 당신의 파일을 방으로 옮겨요. 곧 아이콘이 방바닥의 물건이 되고 폴더는 상자가 됩니다."],
   [GATE, "파일들을 상자에 넣어봐요. 바닥에 종류별로 모인 파일 더미 네 개와 상자 네 개. 더미를 누르면 통째로 집히고, 상자를 누르면 그 안에 들어갑니다. 키보드에서는 Enter를 누를 때마다 더미 하나가 상자에 들어갑니다."],
   [B.back[1], "바탕화면이 깨끗해졌어요! 더미가 모두 상자에 들어가고, 상자는 바탕화면의 폴더 네 개가 되었습니다."],
@@ -1365,6 +1514,7 @@ function announce(p) {
 }
 
 function loop(now) {
+  introTick(now);
   autoplayTick(now);
   if (tween) {
     const { t, p: tp } = tweenAt(tween, now);
@@ -1425,6 +1575,7 @@ facesReady.then(() => room.load("./models/room.glb")).then(() => {
 }).catch((e) => {
   console.error("landing room", e);
   stage.dataset.room = "failed";
+  if (intro.phase !== "done") introSet("done");
   const box = document.querySelector(".loading");
   if (box) box.textContent = `3D 방을 불러오지 못했어요 (${e?.message ?? e}). 지금 보이는 건 정지 이미지예요.`;
 });

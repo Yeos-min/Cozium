@@ -1,0 +1,11 @@
+/* 침대 힌트(2026-11-06, 사용자 시안 B): 연필 해/달 + 「눌러서 밤으로/아침으로」. 그림은 js/ui/time-hint.js.
+   게임(app.html)에서 침대를 겨누면 조준선 위에(자리는 css/styles.css). 랜딩에선 11-07 사용자가 뺌.
+   방 위에 뜨므로 크림 선 + 어두운 번짐(히어로 글자와 같은 결) */
+.time-hint{display:flex;flex-direction:column;align-items:center;width:140px;pointer-events:none;opacity:0;transition:opacity .2s}
+.time-hint[data-on="true"]{opacity:1}
+.time-hint .th-icon{overflow:visible;filter:drop-shadow(0 1px 2px #0009) drop-shadow(0 0 8px rgb(28 18 12 / .45))}
+.time-hint .th-s,.time-hint .th-s2{fill:none;stroke:#f8f1dc;stroke-linecap:round;stroke-linejoin:round}
+.time-hint .th-s{stroke-width:2.4}
+.time-hint .th-s2{stroke-width:1.2;opacity:.6}
+.time-hint .th-f{fill:#f8f1dc}
+.time-hint .th-label{margin-top:4px;color:#f8f1dc;font:800 15px/1 "NanumSquareRound",sans-serif;white-space:nowrap;text-shadow:0 1px 2px #0009,0 0 10px rgb(28 18 12 / .5)}

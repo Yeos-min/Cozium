@@ -80,6 +80,13 @@
 .finish-apply-box .helper-form { display: flex; gap: 6px; margin-bottom: 8px; }
 .finish-apply-box .helper-form input { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid #46352940; border-radius: 6px; background: #fff; color: var(--desk-ink); font: inherit; }
 .finish-apply-box > .win-button { margin-top: 10px; }
+/* v0.2.3: Helper를 기다리는 줄. 숨 쉬듯 옅어졌다 진해져 "기다리는 중"임을 알린다 */
+.finish-apply-box > .finish-apply-wait { color: var(--desk-ink) !important; font-weight: 600; animation: finish-wait 1.6s ease-in-out infinite; }
+@keyframes finish-wait { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .finish-apply-box > .finish-apply-wait { animation: none; } }
+/* 포트·토큰 직접 연결은 접어 둔다(고정 포트가 막혔을 때만 쓰는 길) */
+.finish-manual { margin: 8px 0 0; font-size: 12.5px; color: #6c7465; }
+.finish-manual summary { cursor: pointer; margin-bottom: 6px; }
 .finish-problems { margin: 6px 0 0; font-size: 12.5px; color: #7d3324; }
 .finish-problems summary { cursor: pointer; }
 .finish-problems ul { margin: 6px 0 0; padding-left: 18px; max-height: 140px; overflow: auto; color: #6c4a3e; line-height: 1.55; }

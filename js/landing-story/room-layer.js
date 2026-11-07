@@ -57,10 +57,15 @@ const END_HFOV = 38;      // lens at the end of the walk-in, when the screen fil
 // the desktop riding on it end exactly where they did. No extra cost: the room is drawn every frame anyway.
 export const LOOK = { yaw: 2.4, pitch: 1.4, slide: .06, rise: .03, ease: .35, fadeUntil: .3 };
 const SCREEN = "Laptop_screen";
+// 11-06 사용자: 흐름을 뒤집음 — 방바닥·핀보드에 널린 파일이 「정리 시작해볼까요?」에 노트북 화면으로 빨려 들어간다(suckAt).
+export const SUCK_END = 2.9; // 빨려 들어가기 길이(초): 마지막 파일이 화면에 닿는 때 ≈ 0.25 + 1.75 + 0.1 + 0.8
+// 11-06 사용자: 「모니터 화면이 HTML이라 이질감」 → 멀리선 빈 화면(방 빛을 받는 3D 화면), 화면이 커질 때만 HTML 바탕화면.
+// 빈 화면 색 = 바탕화면 그림의 평균색(#d3c5b1) 쪽, 조금 스스로 빛나게. 밤엔 푸른 화면빛
+const SCREEN_ON = { color: "#cdbfa9", emissive: "#453f35" }, SCREEN_NIGHT = { color: "#cdbfa9", emissive: "#2b3352" }, SCREEN_OFF = { color: "#0a0b0e", emissive: "#000000" };
 
 // Light setups to compare. "game" is TUNING.light as the game uses it today.
 export const LIGHTS = {
-  sun: "오후 햇살", game: "게임 조명", soft: "흐린 낮", lamp: "저녁 스탠드",
+  morning: "아침 햇살", sun: "늦은 오후 햇살", game: "게임 조명", soft: "흐린 낮", lamp: "저녁 스탠드",
 };
 export const MATERIALS = {
   pbr: "모델 그대로", toon: "툰 3단", matte: "무광", unlit: "언릿",
@@ -92,21 +97,27 @@ export class RoomLayer {
     this.lookTarget = new THREE.Vector2(); this.lookNow = new THREE.Vector2(); // pointer, −1…1 (x right, y down)
     this.scene = new THREE.Scene();
     this.sky = new SkyDome({ radius: 40 }); this.scene.add(this.sky.mesh);
-    { this.sky.uniforms.dayLow.value.set("#f1dcc2"); this.sky.uniforms.dayTop.value.set("#9dbfd6"); this.sky.uniforms.cloudLit.value.set("#fff0d8"); this.sky.uniforms.cloudShade.value.set("#d9c9bc"); } // 10-25 천창 너머 그림 하늘(밤 별, 낮 구름). 랜딩 낮은 늦은 오후라 지평선 쪽을 노을빛으로
+    // 10-25 천창 너머 그림 하늘(밤 별, 낮 구름). 색은 빛마다(#applyLight): 아침은 맑은 하늘색, 늦은 오후는 지평선 쪽 노을빛
     this.camera = new THREE.PerspectiveCamera(50, 16 / 9, .04, 60);
     this.camera.rotation.order = "YXZ";
     this.outline = new OutlineEffect(this.renderer, { ...TUNING.outline }, { ...TUNING.dithering, levels: { ...TUNING.dithering.levels } });
     this.snap = new VertexSnapEffect(this.renderer, { ...TUNING.vertexWobble, cellSizes: { ...TUNING.vertexWobble.cellSizes } });
     this.snap.patchMaterial(this.outline.normalMaterial);
     // The user's pick (10-11): camera C, toon, 1px outline in the surrounding colour, fine dither, wobble.
-    // The messy room is at night (desk lamp), the tidied room in the afternoon sun: the clean-up took the night.
-    this.style = { cam: "C", light: "lamp", lightEnd: "sun", mat: "toon", outline: 1, ink: "around", dither: "fine", wobble: "wobble", tone: "none", rays: true };
+    // 11-03 사용자: 어질러진 방은 아침(밤엔 정리 공간이 너무 어두움), 정리된 방은 늦은 오후 — 하루 걸려 치운 방.
+    // 그 앞의 「노트북만 덩그러니」는 책상 스탠드 빛 하나("desk", setIntro).
+    this.style = { cam: "C", light: "morning", lightEnd: "sun", mat: "toon", outline: 1, ink: "around", dither: "fine", wobble: "wobble", tone: "none", rays: true };
     this.size = { w: 1, h: 1 };
     this.ready = false;
     this.state = "messy";
     this.meshes = [];
     this.lights = {};
     this._q = new THREE.Quaternion(); this._v = new THREE.Vector3();
+    this.poseFn = null;      // 11-03 첫 화면 연출: 카메라를 이야기 진행(t) 대신 이 함수가 정할 때(now → pose)
+    this.hop = 0;            // 노트북이 통통 뛰는 높이(m)
+    this.filesShown = true;  // 어질러진 방의 파일: 빨려 들어간 뒤엔 없음(suckAt)
+    this.lightOverride = null;
+    this.glow = 0;           // 11-07 사용자: 「정리 시작해볼까요?」에 올리면 노트북 화면이 살짝 켜짐(0…1)
   }
 
   async load(roomUrl, boxUrl) {
@@ -159,7 +170,7 @@ export class RoomLayer {
       if (this.boxes) this.boxes.visible = st === "tidy";
       try { this.renderer.compile(this.scene, this.camera); } catch { /* compile is an optimisation */ }
     }
-    this.state = keep; this.#applyLight(); this.files.visible = keep === "messy";
+    this.state = keep; this.#applyLight(); this.files.visible = keep === "messy" && this.filesShown;
     if (this.boxes) this.boxes.visible = keep === "tidy";
   }
 
@@ -197,7 +208,22 @@ export class RoomLayer {
       // 10-25 사용자 A+B: 낮이 휑함 → 늦은 오후. 햇빛은 주황으로 세게, 방은 조금 어둡게(예전 "#ffd9a0" 3.8, 반구 "#fff3dc"/"#8a6844" 1.7, 주변 .5)
       const sun = shadowed(new THREE.DirectionalLight("#ffbf78", 4.6)); sun.position.set(9.5, 11, -3.2); sun.target.position.set(0, 0, .4);
       add("sun", new THREE.HemisphereLight("#ffe2bd", "#5e3f26", 1.15), new THREE.AmbientLight("#f0c9a0", .3), sun, sun.target);
-      L.sun.userData = { bg: "#cfe5ef", exposure: 1 };
+      L.sun.userData = { bg: "#cfe5ef", exposure: 1, sky: "evening", rays: { tint: "#ffc985", strength: .46 } };
+    }
+    // 11-03 아침(어질러진 방): 같은 천창 해, 하얗고 서늘하게(끝 장면의 늦은 오후 주황과 구분)
+    {
+      const sun = shadowed(new THREE.DirectionalLight("#fff4e0", 3.9)); sun.position.set(9.5, 11, -3.2); sun.target.position.set(0, 0, .4);
+      add("morning", new THREE.HemisphereLight("#eef4ff", "#8a6844", 1.6), new THREE.AmbientLight("#f3ece2", .5), sun, sun.target);
+      L.morning.userData = { bg: "#dcebf2", exposure: 1, sky: "morning", rays: { tint: "#fff0d0", strength: .32 } };
+    }
+    // 11-03 첫 화면: 어둠 속 책상 위 스탠드 빛 웅덩이 하나(노트북·커피잔·공책만 보임)
+    {
+      const lap = new THREE.Box3().setFromObject(this.room.getObjectByName("Laptop") ?? this.screenMesh).getCenter(new THREE.Vector3());
+      const spot = new THREE.SpotLight("#ffcf8f", 14, 4, .5, .65, 1.6);
+      spot.position.copy(lap).add(new THREE.Vector3(-.35, 1.9, -.2)); spot.target.position.copy(lap).add(new THREE.Vector3(0, -.15, 0));
+      spot.castShadow = true; spot.shadow.mapSize.set(1024, 1024); spot.shadow.bias = -.0006;
+      add("desk", new THREE.HemisphereLight("#3a3048", "#120c08", .35), spot, spot.target);
+      L.desk.userData = { bg: "#140e0a", exposure: 1 };
     }
     // the game's light rig (TUNING.light), directions only; the room is in metres, the game in half metres
     {
@@ -241,7 +267,7 @@ export class RoomLayer {
     const sun = this.lights.sun.children.find((c) => c.isDirectionalLight);
     if (!corners || !sun) { console.info("landing: no skylight found, no god rays"); return; }
     this.skylight = corners;
-    this.rays = new GodRays(corners, sun.target.position.clone().sub(sun.position), { tint: "#ffc985", strength: .46 }); // 10-25 늦은 오후 빛기둥(예전 기본 "#ffd9a0" .3)
+    this.rays = new GodRays(corners, sun.target.position.clone().sub(sun.position)); // 색·세기는 빛마다(#applyLight: 아침 옅게, 늦은 오후 주황 진하게)
   }
 
   // The messy room: the same kinds of things as the desktop inside the laptop, in a few piles on the open floor,
@@ -288,6 +314,20 @@ export class RoomLayer {
     stray(-2.3, 1.9, -2.1, 2.4, 22);
     // on the desk, next to the laptop (desk top y ≈ .73)
     pile(3.42, 1.3, 6, .05, .735, ["document", "document", "photo"]);
+    // 11-06 사용자: 「핀보드도 뭔가 더럽게 파일들이 막 붙어 있어야 함」 — 정리된 방의 사진 판(#buildBoxes)과 같은 코르크
+    // 보드(x −0.7…0.7, y 1.33…2.25, 판 앞 z 2.862, 앞면 −z)에 사진·메모가 마구 겹치고 기울고 판 밖으로 삐져나오게.
+    // 바닥 파일과 같은 무리(this.files)라 같이 빨려 들어간다
+    // 11-07 사용자: 「반듯하게 배치됨, 갯수 줄이고 이상하게 겹친 거 없애고 회전」, 「문서 모서리 시커먼 거 → 핀보드에 꽂지 마」
+    // → 사진만 11장, 4×3 칸에 하나씩(한 칸 비움) 조금씩 비껴서, 판 면 안에서 기울임(로컬 y = 판의 법선 축)
+    const P = rng(20261107), skip = 6;
+    for (let i = 0, n = 0; i < 12; i++) {
+      if (i === skip) continue;
+      const m = thing("photo"), c = i % 4, r = (i / 4) | 0;
+      m.scale.setScalar(.84 + P() * .18); m.userData.base = m.scale.x;
+      m.rotation.set(-Math.PI / 2, (P() - .5) * 1.0, 0);
+      m.position.set(-.53 + c * .355 + (P() - .5) * .2, 2.08 - r * .3 + (P() - .5) * .14, 2.856 - n++ * .003); // 칸을 넘나들어 이웃과 살짝 겹침, 나중 것이 앞에
+      this.files.add(m);
+    }
   }
 
   #buildBoxes(src) {
@@ -332,13 +372,13 @@ export class RoomLayer {
   setState(state) {
     if (state === this.state || !this.ready) return;
     this.state = state;
-    this.files.visible = state === "messy";
+    this.files.visible = state === "messy" && this.filesShown;
     if (this.boxes) this.boxes.visible = state === "tidy";
     this.#applyLight(); // the light changes with the room; the switch happens while the screen fills the frame
   }
 
   // first room → style.light, last room → style.lightEnd
-  get activeLight() { return this.state === "tidy" ? this.style.lightEnd ?? this.style.light : this.style.light; }
+  get activeLight() { return this.lightOverride ?? (this.state === "tidy" ? this.style.lightEnd ?? this.style.light : this.style.light); }
 
   #applyLight() {
     const s = this.style, key = this.lights[this.activeLight] ? this.activeLight : "sun";
@@ -346,13 +386,15 @@ export class RoomLayer {
     const L = this.lights[key].userData;
     this.scene.background = new THREE.Color(L.bg);
     this.sky.night = key === "lamp" ? 1 : 0;
+    const SKY = { morning: ["#dcebf2", "#86b6d6", "#ffffff", "#cfdbe3"], evening: ["#f1dcc2", "#9dbfd6", "#fff0d8", "#d9c9bc"] }[L.sky ?? "morning"];
+    const su = this.sky.uniforms; su.dayLow.value.set(SKY[0]); su.dayTop.value.set(SKY[1]); su.cloudLit.value.set(SKY[2]); su.cloudShade.value.set(SKY[3]);
+    if (this.rays && L.rays) { this.rays.uniforms.tint.value.set(L.rays.tint); this.rays.uniforms.strength.value = L.rays.strength; }
     this.renderer.toneMapping = { none: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, agx: THREE.AgXToneMapping }[s.tone] ?? THREE.NoToneMapping;
     this.renderer.toneMappingExposure = L.exposure;
     this.renderer.shadowMap.type = key === "game" ? THREE.BasicShadowMap : THREE.PCFShadowMap;
     this.renderer.shadowMap.needsUpdate = true;
-    if (this.rays) this.rays.on = key === "sun" && s.rays !== false && this.quality.profile.rays;
-    const sm = [].concat(this.screenMesh.material).find((mm) => mm.name === SCREEN);
-    if (sm?.emissive) sm.emissive.set(L.screenGlow ? "#1b2440" : "#000000");
+    if (this.rays) this.rays.on = !!L.rays && s.rays !== false && this.quality.profile.rays;
+    this.#screenTone();
     this.steam?.setTint(L.screenGlow ? "#dbe3ff" : undefined, L.screenGlow ? .8 : 1); // 밤에는 화면빛에 푸르게, 옅게
   }
 
@@ -491,12 +533,113 @@ export class RoomLayer {
     return P;
   }
 
+  // ───── 11-03 새 첫 화면 ─────
+  // 노트북만 덩그러니: 노트북·커피잔·공책·책상만 남기고, 빛은 책상 스탠드 하나. 벽 껍데기("Room")는 노트북 노드의
+  // 부모라 visible을 끄면 노트북도 사라져서 그 재질만 안 보이게 한다.
+  setIntro(on) {
+    if (!this.ready || !!this.intro === on) return;
+    this.intro = on;
+    if (!this._introKeep) {
+      const keep = new Set();
+      for (const n of ["Laptop", "Laptop001", "Table", "Mug", "Note"]) this.room.getObjectByName(n)?.traverse((o) => keep.add(o));
+      this._introKeep = keep;
+    }
+    const keep = this._introKeep;
+    this.room.traverse((o) => {
+      if (!o.isMesh || keep.has(o)) return;
+      let parent = false; o.traverse((d) => { if (d !== o && keep.has(d)) parent = true; });
+      if (parent) [].concat(o.material).forEach((m) => { m.visible = !on; });
+      else o.visible = !on;
+    });
+    this.sky.mesh.visible = !on;
+    if (this.boxes) this.boxes.visible = !on && this.state === "tidy";
+    this.files.visible = !on && this.state === "messy" && this.filesShown;
+    this.lightOverride = on ? "desk" : null;
+    this.#applyLight(); // 화면 색도 여기서(#screenTone: 첫 화면은 꺼진 화면)
+  }
+
+  // 첫 화면 카메라: 책상 위 노트북을 비스듬히 위에서
+  laptopPose() {
+    const lap = new THREE.Box3().setFromObject(this.room.getObjectByName("Laptop") ?? this.screenMesh).getCenter(new THREE.Vector3());
+    const n = this.screenNormal.clone(); n.y = 0; n.normalize();
+    const side = new THREE.Vector3(0, 1, 0).cross(n).normalize();
+    const pos = lap.clone().addScaledVector(n, 2.05).addScaledVector(side, -.55).add(new THREE.Vector3(0, .85, 0));
+    const tgt = lap.clone().addScaledVector(side, -.06).add(new THREE.Vector3(0, -.1, 0));
+    return { pos, q: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(pos, tgt, new THREE.Vector3(0, 1, 0))), hfov: 60, shift: 0 };
+  }
+
+  // 두 자세 사이(카메라 이동)
+  static mixPose(A, B, k) {
+    return { pos: A.pos.clone().lerp(B.pos, k), q: A.q.clone().slerp(B.q, k), hfov: lerp(A.hfov, B.hfov, k), shift: lerp(A.shift ?? 0, B.shift ?? 0, k) };
+  }
+
+  // 노트북이 통통 뛰게(파일 더미 튀는 것과 같은 말: 「눌러 봐」)
+  setHop(h) {
+    if (!this.room) return;
+    if (!this._lap) this._lap = ["Laptop", "Laptop001"].map((n) => this.room.getObjectByName(n)).filter(Boolean).map((o) => ({ o, y: o.position.y }));
+    this.hop = h;
+  }
+
+  // 「정리 시작해볼까요?」 → 바닥·핀보드·책상 위 파일이 노트북 화면으로 빨려 들어간다(11-06, 예전 터져 나오기의 거꾸로).
+  // 화면에 가까운 것부터 차례로: 살짝 떠올랐다가 점점 빨라지며 화면 한가운데로, 작아지며 사라진다. sec = 시작부터 초
+  suckAt(sec) {
+    if (!this._suck) {
+      const sc = this.screenCenter.clone().addScaledVector(this.screenNormal, .03);
+      let seed = 11; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      const items = this.files.children.map((m) => ({ m, P: m.position.clone(), R: m.rotation.clone(), s: m.userData.base ?? 1, d: m.position.distanceTo(sc) + rnd() * .9 }));
+      items.sort((a, b) => a.d - b.d);
+      items.forEach((it, i) => {
+        it.delay = .25 + (i / items.length) * 1.75 + rnd() * .1;
+        it.dur = .55 + rnd() * .25;
+        it.S = sc.clone().add(new THREE.Vector3(0, (rnd() - .5) * .06, (rnd() - .5) * .12));
+        it.h = .08 + it.P.distanceTo(it.S) * .06 + rnd() * .08;
+        it.spin = new THREE.Vector3((rnd() - .5) * 7, (rnd() - .5) * 7, (rnd() - .5) * 7);
+      });
+      this._suck = items;
+    }
+    let arriving = 0;
+    for (const it of this._suck) {
+      const u = (sec - it.delay) / it.dur;
+      if (u <= 0) { it.m.visible = true; it.m.position.copy(it.P); it.m.rotation.copy(it.R); it.m.scale.setScalar(it.s); continue; }
+      if (u >= 1) { it.m.visible = false; if (u < 1.6) arriving++; continue; }
+      it.m.visible = true;
+      const lift = smooth(0, .22, u) * (1 - smooth(.22, .5, u)) * .1;          // 처음엔 살짝 떠오르고
+      const e = Math.pow(smooth(.12, 1, u), 2.2);                              // 점점 빨라지며 화면으로
+      it.m.position.copy(it.P).lerp(it.S, e); it.m.position.y += lift + it.h * 4 * e * (1 - e);
+      it.m.rotation.set(it.R.x + it.spin.x * e, it.R.y + it.spin.y * e, it.R.z + it.spin.z * e);
+      it.m.scale.setScalar(it.s * lerp(1, .12, smooth(.3, 1, u))); // 일찍부터 작아져서 카메라 앞을 지나는 것도 크게 안 가림
+    }
+    // 들어갈 때마다 화면이 조금씩 밝아진다
+    this.#screenTone(Math.min(1, arriving / 3) * .6);
+  }
+  /** 파일을 모두 제자리에 보이게(어질러진 방) */
+  showFiles() {
+    this.filesShown = true; this.files.visible = this.state === "messy" && !this.intro;
+    for (const it of this._suck ?? []) { it.m.visible = true; it.m.position.copy(it.P); it.m.rotation.copy(it.R); it.m.scale.setScalar(it.s); }
+    this._suck = null;
+  }
+  /** 파일 숨김(첫 화면 「노트북만 덩그러니」, 빨려 들어간 뒤) */
+  hideFiles() { this.filesShown = false; this.files.visible = false; this.glow = 0; this.#screenTone(0); }
+  /** 말풍선에 올렸을 때 화면이 살짝 켜짐(story.js가 부드럽게 0…1로 넘김) */
+  setGlow(v) { if (Math.abs(v - this.glow) < .002) return; this.glow = v; this.#screenTone(); }
+
+  // 3D 노트북 화면: 꺼짐(첫 화면) / 빈 화면(낮) / 푸른 화면빛(밤). flash = 파일이 들어갈 때 더 밝게, glow = 말풍선 호버(0…1)
+  #screenTone(flash = 0) {
+    const sm = this.screenMat && [].concat(this.screenMesh.material).find((mm) => mm.name === SCREEN);
+    if (!sm) return;
+    const T = this.intro ? SCREEN_OFF : this.activeLight === "lamp" ? SCREEN_NIGHT : SCREEN_ON;
+    sm.color?.set(T.color);
+    const k = Math.max(flash * .5, this.glow * .78); // 말풍선 호버가 더 환하게(화면이 켜진 느낌)
+    if (sm.emissive) { sm.emissive.set(T.emissive); if (k) sm.emissive.lerp(this._white ??= new THREE.Color("#fff8ea"), k); }
+  }
+
   render(t, plateW, plateH) {
     if (!this.ready) return null;
     const now = performance.now(), dt = this._last ? Math.min(.1, (now - this._last) / 1000) : 0;
     if (this._last && this.quality.observe(dt, !document.hidden)) this.#applyQuality();
     this._last = now;
-    this.#applyPose(this.#lookPose(this.poseAt(t), t, dt), plateW, plateH);
+    if (this._lap) for (const m of this._lap) m.o.position.y = m.y + this.hop;
+    this.#applyPose(this.poseFn ? this.#lookPose(this.poseFn(now), 1, dt) : this.#lookPose(this.poseAt(t), t, dt), plateW, plateH);
     this.steam?.update(now / 1000);
     this.sky.update(this.camera, now / 1000);
     this.snap.prepare(this.scene);

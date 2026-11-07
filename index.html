@@ -8,7 +8,7 @@
 <meta name="description" content="어질러진 바탕화면을 방 치우듯 정리하는 3D 웹 게임. 파일을 집어 상자(폴더)에 넣어 정리해요.">
 <script src="./js/entry-route.js"></script>
 <!-- 첫 화면에 필요한 것만: 같은 카메라의 정지 이미지, 로고·문구 글꼴(10-24 Nunito 900 + 나눔스퀘어라운드 B), 방 모델. tests/landing/preload.test.mjs가 잠근다. -->
-<link rel="preload" href="./assets/landing/room-3d/poster-C.webp" as="image" type="image/webp">
+<link rel="preload" href="./assets/landing/room-3d/poster-L.webp" as="image" type="image/webp">
 <link rel="preload" href="./models/room.glb" as="fetch" type="model/gltf-binary" crossorigin>
 <link rel="preload" href="./assets/fonts/nunito/Nunito-900-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./assets/fonts/nanum-square-round/NanumSquareRoundB.woff2" as="font" type="font/woff2" crossorigin>
@@ -25,9 +25,9 @@
     <a class="go" href="./app.html">정리방 들어가기</a>
   </nav>
 </header>
-<main class="stage" id="stage" data-try="closed" data-scene="room" data-room="loading" aria-label="Cozium: 어질러진 바탕화면의 파일이 방의 물건이 되어 상자로 정리되는 이야기. 시작해볼까요 버튼을 누르면 이야기가 시작되고, 바닥의 파일 더미를 직접 상자에 넣어 볼 수 있습니다">
+<main class="stage" id="stage" data-try="closed" data-scene="room" data-room="loading" aria-label="Cozium: 책상 위 노트북을 누르면 나의 바탕화면이 켜지고, 아침 다락방에서 노트북 말풍선을 누르면 방에 널린 파일이 노트북으로 들어가 어질러진 바탕화면이 됩니다. 파일 더미를 직접 상자에 넣어 볼 수 있습니다">
   <canvas class="room" id="room" aria-hidden="true"></canvas>
-  <img class="poster" id="poster" src="./assets/landing/room-3d/poster-C.webp" alt="">
+  <img class="poster" id="poster" src="./assets/landing/room-3d/poster-L.webp" alt="">
   <canvas class="gl" id="gl" hidden aria-hidden="true"></canvas>
   <div class="world" id="world">
     <div class="plate desk" id="desk" style="opacity:0">
@@ -55,7 +55,22 @@
       <a class="end-go" id="endGo" href="./app.html" hidden>내 바탕화면 정리하러 가기 <span aria-hidden="true">→</span></a>
     </div>
   </div>
-  <p class="story-note" id="storyCap" data-on="false" aria-hidden="true"><b class="story-n"></b><span class="story-t"></span></p>
+  <!-- 11-03 새 첫 화면: 노트북만 덩그러니(눌러 시작) → 정면 로그인 화면 → 방 + Cozium → 노트북 말풍선 → 파일이 터져 나옴. js/landing-story/story.js intro -->
+  <div class="intro-cue" id="introCue" hidden>
+    <svg class="intro-rays" aria-hidden="true"><g class="boil"></g></svg>
+    <button class="intro-hit" id="introHit" type="button"><span>노트북을 눌러 시작하기</span><svg class="intro-under" viewBox="0 0 260 14" aria-hidden="true"><path d="M3 8 Q66 12 130 8 T257 5"/><path d="M5 10 Q70 13 131 9 T254 7"/></svg></button>
+  </div>
+  <div class="welcome" id="welcome" aria-hidden="true">
+    <div class="welcome-av"><svg viewBox="0 0 48 48"><circle cx="24" cy="17" r="8"/><path d="M8 42c2-9 9-13 16-13s14 4 16 13"/></svg></div>
+    <b>나의 바탕화면</b>
+    <p><i></i>환영합니다</p><!-- 윈도우 「환영합니다」 그대로가 모티브라 말투 규칙(~해요)의 예외(11-03 사용자) -->
+  </div>
+  <!-- 11-03 사용자 선택 B: 연필 손그림 말풍선(진한 연필 두 번 겹쳐 긋기 — 3D 외곽선과 같은 선). 평소 「···」, 올리면 「정리 시작해볼까요?」 -->
+  <button class="bubble" id="bubble" type="button" hidden aria-label="정리 시작해볼까요?">
+    <span class="b-idle" aria-hidden="true"><svg class="b-shape" width="70" height="62" viewBox="-2 -2 74 64" aria-hidden="true"><path class="f" d="M18 2 Q35.0 -1.0 52 2 Q71 1 69 18 L68 26 Q69 43 52 42 L38 43 L14 60 L22 42 L18 43 Q1 43 2 26 L1 18 Q1 1 18 2"/><path class="s" d="M18 2 Q35.0 -1.0 52 2 Q71 1 69 18 L68 26 Q69 43 52 42 L38 43 L14 60 L22 42 L18 43 Q1 43 2 26 L1 18 Q1 1 18 2"/><path class="s2" d="M19.3 0.7 Q35.0 -0.35 52 3.3 Q71 1 67.7 18 L69.3 26 Q69 43 52 43.3 L39.3 43 L12.7 60 L23.3 42 L18 41.7 Q1 43 3.3 26 L-0.30000000000000004 18 Q1 1 19.3 0.7"/></svg><span class="b-t">···</span></span>
+    <span class="b-open" aria-hidden="true"><svg class="b-shape" width="220" height="80" viewBox="-2 -2 224 82" aria-hidden="true"><path class="f" d="M18 2 Q110.0 -1.0 202 2 Q221 1 219 18 L218 44 Q219 61 202 60 L38 61 L14 78 L22 60 L18 61 Q1 61 2 44 L1 18 Q1 1 18 2"/><path class="s" d="M18 2 Q110.0 -1.0 202 2 Q221 1 219 18 L218 44 Q219 61 202 60 L38 61 L14 78 L22 60 L18 61 Q1 61 2 44 L1 18 Q1 1 18 2"/><path class="s2" d="M19.3 0.7 Q110.0 -0.35 202 3.3 Q221 1 217.7 18 L219.3 44 Q219 61 202 61.3 L39.3 61 L12.7 78 L23.3 60 L18 59.7 Q1 61 3.3 44 L-0.30000000000000004 18 Q1 1 19.3 0.7"/></svg><span class="b-t">정리 시작해볼까요?</span></span>
+  </button>
+  <div class="story-bubble" id="storyCap" data-on="false" aria-hidden="true"><svg></svg><p class="sb-text"><b class="story-n"></b><span class="story-t"></span></p></div>
   <button class="skip" id="skip" type="button" hidden>건너뛰고 바로 시작 →</button>
   <div class="loading" aria-hidden="true"><i></i></div>
   <div class="veil" id="veil" aria-hidden="true"></div>
