@@ -44,6 +44,13 @@ export function familyOf(extension) {
   return FAMILY_BY_EXTENSION.get((extension ?? "").toLowerCase()) ?? "other";
 }
 
+/** 바탕화면 아이콘 그림 — 가져오기 화면·결과 화면·상자 안(11-07)이 같은 그림을 쓴다 */
+export const DESK_ICONS = "./assets/landing/parts/desktop-v4/icons/";
+const ICON_BY_FAMILY = { image: "photo", design: "photo", video: "video", audio: "audio", archive: "archive" };
+export function deskIconFor(extension) {
+  return `${DESK_ICONS}${ICON_BY_FAMILY[familyOf(extension)] ?? "document"}.webp`;
+}
+
 /** 이름 앞의 글자 연속(2자 이상). "렌더_0412" → "렌더", "스크린샷 2026-..." → "스크린샷", "3D모델링" → "" */
 export function prefixOf(name) {
   const dot = name.lastIndexOf(".");

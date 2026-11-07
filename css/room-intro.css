@@ -68,10 +68,7 @@
   border: 1px solid #e9dfc46b; border-radius: 4px; background: #f7f1e414; box-shadow: 0 1px 0 #00000059;
   color: #fff6e5; font-family: inherit; font-size: 11.5px; font-weight: 700; line-height: 1;
 }
-.room-intro .mouse { display: inline-grid; place-items: center; width: 23px; height: 23px; border: 1px solid #e9dfc46b; border-radius: 4px; background: #f7f1e414; }
-.room-intro .mouse svg { width: 13px; height: 18px; overflow: visible; }
-.room-intro .mouse path, .room-intro .mouse rect { stroke: #fff6e5; stroke-width: 1.5; fill: none; }
-.room-intro .mouse path.on { fill: var(--ri-accent); stroke: var(--ri-accent); }
+/* 마우스 그림은 연필(js/ui/pencil.js mouseIcon, css/room-paper.css .pen-mouse) — 11-07 */
 
 .intro-enter {
   margin-top: 22px; padding: 14px 28px; border: 0; border-radius: 10px; cursor: pointer;

@@ -25,6 +25,7 @@ import { playBoundsFor } from "./ui/board-layout.js";
 import { Onboarding } from "./ui/onboarding.js";
 import { mountImportDesk } from "./ui/import-desk.js";
 import { mountRoomIntro } from "./ui/room-intro.js";
+import { mouseIcon, pencilize } from "./ui/pencil.js";
 import { mountFinishDesk } from "./ui/finish-desk.js";
 import { buildPlan, loadPendingPlan, parsePlan, pathLabel, planGroups, splitPlan } from "./state/cleanup-plan.js";
 import { StatusPanel } from "./ui/status.js";
@@ -79,7 +80,7 @@ const store = new SessionStore({
   // -1 = 자동 보충 없음. 책상을 다 치우면 바닥이 드러나고, 다음 무더기는 더미를 눌러 꺼낸다. [임시]
   refillBelow: intParam("refill", -1, -1, 64),
   bounds: playBoundsFor("bottom"),
-  // 다락방(10-11): 사진·메모는 핀보드, 문서는 책 더미에서 시작한다. 정원이 차면 바닥.
+  // 다락방(10-11): 사진·메모는 핀보드에서 시작한다. 정원이 차면 바닥. (11-07: 문서 책 더미는 뺌 — 바닥 파일)
   layout: params.get("layout") === "grid" ? {} : {
     mode: "floor", card: ATTIC_CARD, floor: ATTIC_FLOOR_LAYOUT, slotArea: atticSlotArea(UNIT), home: fileHome, homeCapacity: ATTIC_HOME_CAPACITY,
   },
@@ -289,7 +290,7 @@ function updateBar() {
   const last = store.lastBatch;
   const arranging = board?.arranging;
   elements.arrangeToggle.hidden = !board?.setArranging;
-  elements.arrangeToggle.textContent = arranging ? "상자 배치 모드 · Tab" : "파일 정리 모드 · Tab";
+  elements.arrangeToggle.querySelector(".arrange-label").textContent = arranging ? "상자 배치 모드" : "파일 정리 모드"; // 옆의 <kbd>Tab</kbd>은 그대로(11-07 연필 키캡)
   elements.arrangeToggle.setAttribute("aria-pressed", String(!!arranging));
   elements.undoButton.disabled = pending > 0 || (arranging ? !board.canUndoArrangement : !last);
   elements.undoButton.querySelector(".undo-label").textContent = arranging ? "상자 배치 되돌리기" : last
@@ -382,6 +383,9 @@ async function startWith(nextProvider) {
   );
 }
 
+// 11-07 사용자 A안: 정리방 UI(위·아래 버튼, 키 안내, 설정·기록 창)는 연필 + 크림 종이. 모양은 css/room-paper.css
+pencilize(elements.stage);
+for (const el of elements.stage.querySelectorAll("i.mouse")) el.innerHTML = mouseIcon(el.dataset.btn);
 const roomIntro = mountRoomIntro({ root: $("#room-intro"), onEnter: () => { session.startedAt = performance.now(); board?.enter(); } });
 
 // 가져오기 화면의 Helper 창이 열려 있는 동안 Helper를 찾다가, 켜지면 저절로 붙는다(v0.2.3, 고정 포트).

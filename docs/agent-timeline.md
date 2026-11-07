@@ -867,3 +867,50 @@ index.html: #bedHint, time-hint.css 연결 삭제. css/landing-story.css: 침대
 js/landing-story/story.js: capPath 꼬리 없음, 말풍선 테두리는 한 번만 그림. capPlace(3D 투영으로 아이콘·상자 찾기)·capKey 삭제 → placeCaption(spot): 오른쪽 4.5% 띄우고 "low" 아래 11.5% 위 / "high" 위 7.8%. css/landing-story.css: 주석만.
 백업: _archive/claude-cap-20261107/.
 검증: preload·csp 9/9, 헤드리스 1600×900로 1·2·3 자리 확인, 콘솔 오류 0.
+
+## 2026-11-07 22:11–22:15 Claude — 내비 로고 「Cozium」 대문자, 뒤 번개 표시 삭제
+사용자: 「첫 글자 대문자로, 뒤에 번개 심볼 같은 거 제거」.
+index.html·app.html·help.html(위 내비 + help 꼬리): 「cozium⌁」 → 「Cozium」. 표시용 규칙 삭제: css/site-nav.css·css/help.css·css/styles.css의 .brand span.
+D의 app.html·styles.css가 22:10에 다른 작업(Helper 안내 문구·노트북 힌트)으로 바뀐 걸 확인하고 그 위에 위 줄만 고쳐 씀. 백업: _archive/claude-logo-20261107/.
+검증: csp 4/4.
+
+## 2026-11-07 22:19–22:42 Claude(디자인 채팅) — 정리방 UI를 연필 + 크림 종이로(사용자 A안)
+사용자: HUD 시안 A(전부 연필) 선택. 「WASD·Ctrl 오른쪽 여백이 없음(가운데 정렬 아님)」, 「아래 『빈손으로 상자를…』은 계속 떠 있을 필요 없음」, 「처음 키 안내 창이랑 Esc 창도 A에 맞게」 → 2차 시안 「괜찮네」. Helper 채팅은 끝남(사용자).
+새 js/ui/pencil.js: [data-pen] 요소 크기를 재서 손으로 두 번 그은 둥근 사각 svg를 깔고, ResizeObserver로 크기가 바뀌면 다시 그림(글꼴이 늦게 들어와 키캡 여백이 틀어지던 원인). paper/ink/line/sheet 네 종류, kbd는 저절로 line. 글을 바꿔 테두리가 지워지면 MutationObserver가 다시 그림. 연필 마우스 그림 mouseIcon(정리 시작 화면·설정 창 공용).
+새 css/room-paper.css(styles.css·room-intro.css 다음에 읽음): 위 버튼(새 폴더 이름·새 폴더(먹 채움)·파일 정리 모드 Tab·기록·톱니), 왼쪽 위 Cozium·카운터(판 없이 크림 글자 + 번짐), 아래 키 안내·되돌리기, 손에 든 파일 안내·폴더 안 표시·배치 안내·「방 둘러보기」, 상자·더미 이름표, 설정·기록 창(종이 한 장 + 안쪽 12px 연필 테두리, 선택 칸·슬라이더·× 연필), 정리 시작 조작 안내(제목·조작·「방에 들어가기」를 종이 한 장에).
+app.html: data-pen 붙임, 선택 칸을 span.pen-field로 감쌈, 설정 창 마우스 줄을 i.mouse + 이름으로, 톱니 ⚙ 글자 → svg, 「파일 정리 모드 <kbd>Tab</kbd>」, 「W A S D」 → 「WASD」, room-paper.css 연결.
+js/three/board-3d.js: 아래에 늘 뜨던 「빈손으로 상자를 클릭하면 폴더가 열립니다」 삭제 → 상자를 빈손으로 겨눌 때만 조준선 위 연필 폴더 + 「눌러서 ‘과제’ 열기」(침대·노트북 힌트와 같은 자리, 그동안 상자 3D 이름표는 숨김). 폴더 없을 때 문구 「폴더가 없어요 · 오른쪽 위 「새 폴더」로 만들어요」. 침대·노트북은 연필 힌트가 같은 말을 하므로 아래 손 안내는 파일을 들었을 때만(안 쓰게 된 두 갈래 삭제). 손 안내는 innerHTML 비교 대신 마지막 문구로 비교(연필 키캡 때문에 매 프레임 다시 쓰던 것 막음).
+js/ui/time-hint.js: folderHintMarkup(name). js/ui/room-intro.js: 옛 마우스 그림 → pencil.js. js/app.js: pencilize(정리방), 상자 배치 단추 글은 span만 바꿈. css/room-intro.css: 옛 마우스 규칙 삭제. css/finish.css: 쓰이지 않던 #arrange-toggle static 규칙 삭제.
+백업: _archive/claude-paper-20261107/.
+검증: csp·preload 9/9. 헤드리스 1600×900 샘플 방: 정리 시작 안내, HUD, 설정·기록 창 캡처, 포인터 락 → 상자 겨눔 → 「눌러서 ‘과제’ 열기」, 콘솔 오류 0. 파일 든 손 안내·폴더 안 표시는 화면으로 못 봄. 실기기 미확인. 옛 어두운 HUD 규칙(styles.css)은 아래에 남아 있고 room-paper.css가 덮음 — 정리는 따로.
+
+## 2026-11-07 22:45–22:55 Claude(디자인 채팅) — 조작 안내 종이 여백, 문서 「책 더미」 삭제
+사용자: 「(정리 시작 조작 안내가) 너무 꽉 참 여백이 없음」, 「pdf 책이라고 했는데 책장 안 만들었고 모델링도 따로 안 했으니 그냥 파일처럼」.
+js/ui/room-intro.js: 화면 배율을 정할 때 조작 안내 종이 높이가 화면 높이의 80%를 넘지 않게(보일 때·글꼴 들어온 뒤 다시 잼). css/room-paper.css: 「방에 들어가기」 포커스 네모 테두리 → 연필 선 굵게, 조작 줄 간격 10px.
+문서(pdf·doc·docx·hwp·hwpx·rtf)를 핀보드 아래 바닥에 책으로 쌓던 「책 더미」 삭제 → 다른 파일처럼 바닥 카드: js/three/file-homes.js(BOOKS·isBookExtension 삭제), js/three/file-form.js(book 모양 삭제), js/three/tuning.js(forms.book 삭제), js/three/card-face.js(책 표지 그리기 삭제), js/three/attic-room.js(ATTIC_BOOKS·bookSlot·정원 books 삭제), js/three/board-3d.js(#syncHomes는 핀보드만, 겨눌 때 책 띄우기 삭제). 주석만: js/app.js, js/three/scene-kit.js, js/state/session-store.js, js/ui/floor-layout.js. 테스트: tests/file-homes·file-form·attic-room에서 책 기대를 바닥 파일로.
+백업: _archive/claude-book-20261107/.
+검증: 로컬에 있는 테스트 47/47(file-homes·file-form·attic-room·floor-layout·session-store·stacking·csp 등 + 랜딩 preload). 헤드리스 2000×953: 조작 안내 종이 위아래 여백, 샘플 방 바닥에 책 더미 없음(문서는 바닥 카드), 콘솔 오류 0. npm test 전체는 사용자 PC에서.
+
+## 2026-11-07 23:00–11-08 01:05 Claude(디자인 채팅) — 상자 안 창도 연필 + 크림 종이로(A안)
+사용자: (상자 안 창 캡처) 「아... 이런것도 바꿔야겠네」.
+js/ui/folder-interior.js: 창 전체 data-pen="sheet". 영어 머리글 삭제 → 「상자 안 · 정리 체험 · 디스크는 그대로」. 닫기 「방으로 돌아가기 Esc」(들고 갈 파일이 있으면 「N개 들고 돌아가기」를 먹으로 채움). 「← 위 폴더로」, 「이 폴더를 목적지로 펼치기」 종이 칩, 안내 「클릭으로 고르기 · Shift + 클릭으로 여러 개」. 「고른 것 풀기」는 고른 게 있을 때만. 칸: 확장자 네모 → 바탕화면 아이콘(폴더 = 모래색 폴더, 사진 = 실제 그림 썸네일) + 이름. 문구 해요체(「이 폴더는 아직 비어 있어요.」, 「N개 골랐어요 · 방으로 돌아가면 손에 들려요.」 등).
+css/folder-interior.css: 다시 씀. 종이 #fbf7ec 창(position:fixed), 안쪽 판 #f1e7d3, 고른 칸은 종이 + 먹 테두리, Shift+클릭 글자 긁힘 막음(user-select:none), styles.css 사이트 footer 규칙(자간·대문자·폭·아래 여백)이 창 아래줄로 새던 것 되돌림.
+js/ui/layout.js: DESK_ICONS·deskIconFor(ext) 공용으로 꺼냄. js/ui/import-desk.js·finish-desk.js: 각자 갖던 같은 아이콘 표를 지우고 layout.js 것을 씀.
+js/ui/pencil.js: pencilize(root)가 root 자신이 [data-pen]일 때 그 안쪽 kbd·[data-pen]을 건너뛰던 버그 수정.
+백업: _archive/claude-interior-20261108/.
+검증: 헤드리스 1600×900, 샘플 내용을 넣은 상자 안 창 직접 띄워 캡처(처음 / 2개 고름), 콘솔 오류 0. 실제 방에서 상자를 겨눠 연 화면·안쪽 폴더로 들어간 화면은 못 봄. 실기기 미확인.
+
+## 2026-11-08 02:00–02:55 Claude(Helper 채팅) — 코드 최적화 1차(교수님 기준: 읽기 쉽게 · 주석 · 어디서든 · 덜어내기)
+
+먼저 실수: 01:21에 21:35 GitHub 사본으로 시작했다가 쓰기 직전 비교에서 디자인 채팅의 22:11–01:05 변경을 발견하고 멈춤(D엔 안 씀). 02:00 사용자 지시로 D를 기준본으로 다시 받아 처음부터 맞춤. 쓰기 직전에 24개 파일을 다시 받아 기준본과 같음을 확인하고, 파일마다 수정 시각 검사(expectedMtimeMs)를 걸어 씀.
+
+덜어내기 — 사이트(index·app·help)를 실제로 다 돌려(헤드리스, 랜딩 첫 화면·#end·가져오기·Helper 창·조작 안내·방·결과·이용 안내) 한 번도 안 불리고, import·링크로도 안 이어지는 파일만:
+- 옮기는 건 사용자가 tools/cleanup.bat 더블클릭(지우지 않고 _archive/claude-cleanup-20261108/로). 104개 + D에만 있던 옛 그림·도구. 옛 그림 랜딩(landing-classic.html, js/landing/, css/landing.css, 테스트 13개), 상자·덩굴·만화 PNG 원본, desktop-v2·v3·room-v3, 세이지 폴더 아이콘, 방 안 옛 바닥, 폭죽(confetti.js)·상자 버튼(cta-box.js)·옛 가구(cozy-room.js)·선반 틀(shelf-frame.js)·옛 godrays(landing-story)·onboarding-room.js·Bed.glb, ?lab 렌더 테스트 패널(render-lab.js + poster-A/B/C), 쓰지 않는 Fraunces 라이선스, tools의 attic-blockout·attic-icons·intro-video·bed-preview·make-clean-desktop·watercolor-study, docs/prototypes 등. 목록은 tools/archive-unused.ps1.
+- 코드 안: story.js 안 쓰는 변수·함수 12개(옛 원화 사각형·호모그래피·zoomPose 등, ioEase는 inOut과 같아 합침), ?lab 연결 삭제(효과 값은 room.style 기본값 하나로 고정, 블러는 늘 켜짐 그대로), room-layer.js inOut·LIGHTS·MATERIALS, scene-kit.js HALF_W/H, board-3d.js screenPositionOf·Pile·Folder·tilted, session-store.js batches, status.js clearNotice, assets.js hasAnyModel, desk-scale.js applyDeskScale, win-frame.js resetFrame, file-system-service.js의 「웹에서 직접 옮기기」 함수 7개(9월 폐기, 테스트와 함께 _archive로; 끌어다 놓기 읽기 부분만 남김). CSS: styles.css 2D 시절 규칙 63개(선택자 단위로, 주석·줄바꿈 보존), landing-story.css ?lab 패널 규칙.
+주석: story.js 머리 주석을 지금 흐름(노트북 → 환영 → 아침 다락방 → 빨려 들기 → 상자 담기 → 정리된 방 → app.html)과 구획 지도로 새로 씀. 머리 주석 없던 folder-shelves·outline-effect·vertex-snap·walk-collision에 「무엇을, 왜」 달기.
+테스트: Windows 경로 테스트를 isInside(Windows에서만, 이유 적음)와 validateName(어디서나)으로 나눔. preload 테스트에서 세이지 아이콘·포스터 A/B/C 빼고 「?lab 패널 없음」 확인으로 바꿈. 옛 랜딩·선반 틀 테스트는 코드와 함께 _archive로.
+문서·안내: README 주소표 / 흐름을 지금 랜딩으로, ?lab·room-v3·Fraunces 줄 삭제. help.html 서체 표기 Fraunces → 나눔스퀘어라운드·Nunito(각 OFL 링크). design-system.md ?lab 줄.
+tools/sync-to-c.ps1: 옛날엔 은퇴 파일을 건너뛰기 목록에 넣어서 C(GitHub)에 영원히 남았음 → 목록에서 빼서, cleanup.bat 뒤 sync하면 C에서도 지워짐(GitHub에서 약 47 MB 빠짐). tools/cleanup.bat 새로.
+백업: 고친 파일 원본 _archive/claude-cleanup-20261108/edited/.
+검증(D 기준본 사본에서): npm test 315 → 188개(옛 코드 테스트가 빠짐), 실패 2 → 0, 건너뜀 1(Windows 경로, Windows에선 돎). 정리 전후 화면 9장 픽셀 비교 — 랜딩 #end의 머그 김(시간마다 다름, 정리 전끼리도 다름) 말고 동일. 사이트 요청 404 0, 콘솔 오류 0, html 안 링크 깨짐 0. 끝 장면 버튼 → app.html 걸어 들어가기는 헤드리스에서 정리 전에도 안 넘어가서(느린 SwiftShader) 확인 못 함 — 실기기 확인 필요.
+남은 일(사용자): tools/cleanup.bat → tools/sync-to-c.bat → C에서 commit·push. 실기기에서 랜딩 끝까지 한 번.

@@ -57,7 +57,7 @@ export function floorSlotCount(bounds, config) {
 }
 
 /**
- * config.home(item)가 "floor"가 아닌 자리(예: 다락방의 핀보드·책 더미)를 돌려주면, 그 자리의 정원
+ * config.home(item)가 "floor"가 아닌 자리(예: 다락방의 핀보드)를 돌려주면, 그 자리의 정원
  * (config.homeCapacity[home]) 안에서는 바닥 슬롯을 쓰지 않고 `home`만 표시한다. 정원이 차면 바닥에 깔린다.
  * 자리 안에서 어디에 놓일지는 장면이 정한다. 기존 항목 중 home이 있는 것은 그 정원을 차지할 뿐 바닥을 막지 않는다.
  */

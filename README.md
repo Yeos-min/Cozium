@@ -20,8 +20,7 @@ npm run dev
 
 | 주소 | 용도 |
 | --- | --- |
-| `/` | 랜딩: 밤의 방 → 노트북 안(파일은 바닥의 물건, 폴더는 상자) → 직접 담기 → 정리된 바탕화면 → 낮의 정리된 방 → ‘정리방 들어가기’ |
-| `/?lab` | 랜딩 + 렌더 테스트 패널(카메라·빛·재질·외곽선·디더링·정점 흔들림) |
+| `/` | 랜딩: 노트북 → 「나의 바탕화면」 환영 → 아침 다락방 → 「정리 시작해볼까요?」 → 노트북 속 바탕화면이 바닥·상자가 됨 → 직접 담기 → 정리된 방 → 「내 바탕화면 정리하러 가기」 (흐름 설명은 `js/landing-story/story.js` 맨 위) |
 | `/?render=high` · `/?render=low` | 랜딩 화질 고정(기본은 자동) |
 | `/help.html` | 이용 안내: 시작 방법, 파일과 개인정보, 조작법, 자주 묻는 질문 |
 | `/app.html` | 정리방: 가져오기 화면 = 랜딩에서 들어간 노트북 바탕화면(놓으면 아이콘으로 깔리고 ‘방으로 가기’) |
@@ -124,7 +123,7 @@ css/
   help.css                 이용 안내
   styles.css, onboarding.css, folder-interior.css   정리방
 js/
-  landing-story/           랜딩: story.js(장면·연출), room-layer.js(3D 방), render-lab.js(?lab 패널), outline-ink.js
+  landing-story/           랜딩: story.js(장면·연출), room-layer.js(3D 방), outline-ink.js
   app.js                   Provider, 상태, UI 연결
   providers/               웹 읽기 전용 / Helper / 샘플
   state/                   정리 세션과 작업 이력
@@ -134,13 +133,11 @@ models/                    room.glb(다락방), box.glb(폴더 상자) — model
 assets/landing/
   room-3d/                 랜딩 정지 이미지(로딩 중), 노트북 안 바닥
   parts/desktop-v4/        노트북 바탕화면 아이콘·배경·작업표시줄·테두리 (랜딩·가져오기 화면)
-  parts/room-v3/           옛 가져오기 화면 그림(10-18부터 안 씀, GitHub에 안 올림)
-  fonts/                   Fraunces 서체와 OFL
 assets/app/desk/           가져오기 화면 작업표시줄 조각(막대·앱 타일 5·트레이)
 vendor/three/              Three.js r185와 MIT 라이선스
 helper/                    로컬 파일 작업 서버와 테스트
 tests/                     자동 테스트
-tools/                     개발 서버, 테스트 실행기, 정리 스크립트(archive-unused.ps1), 측정 도구
+tools/                     개발 서버, 테스트 실행기, D → C 올리기(sync-to-c.bat), 안 쓰는 파일 치우기(cleanup.bat), 측정 도구
 docs/                      디자인 시스템, 다락방 연결 메모, 렌더 효과, 성능 기준, 타임라인
 ```
 

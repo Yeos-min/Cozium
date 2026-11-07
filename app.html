@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="./css/room-intro.css" />
     <link rel="stylesheet" href="./css/finish.css" />
     <link rel="stylesheet" href="./css/time-hint.css" />
+    <link rel="stylesheet" href="./css/room-paper.css" />
     <!-- 다락방(models/room.glb, 4.4 MB)을 가져오기 화면에 있는 동안 미리 받는다. GLTFLoader의 fetch와 같은 요청(crossorigin). -->
     <link rel="preload" href="./models/room.glb" as="fetch" type="model/gltf-binary" crossorigin />
     <!-- three.js는 vendor/에 넣어 두었다. 발표 중 네트워크가 끊겨도 돌아간다. -->
@@ -36,7 +37,7 @@
   <body>
     <header class="topbar">
       <div class="topbar-left">
-        <a class="brand" href="./index.html" aria-label="Cozium 처음으로">cozium<span aria-hidden="true">⌁</span></a>
+        <a class="brand" href="./index.html" aria-label="Cozium 처음으로">Cozium</a>
         <a class="help-link" href="./help.html">이용 안내</a>
       </div>
       <div class="topbar-right">
@@ -103,9 +104,9 @@
                 되돌리기도 실제로 됩니다. 이동과 새 폴더만 하고, 지우기는 없습니다.
               </p>
               <ol class="howto">
-                <li><a id="helper-download" href="https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe">Desktop Helper</a>(CoziumHelper.exe)를 받아 실행합니다. 설치는 필요 없습니다.</li>
-                <li>실행되면 브라우저가 이 페이지를 연결 주소로 엽니다. Chrome이 "로컬 네트워크 접근"을 물으면 허용하세요.</li>
-                <li>자동으로 안 열리면 Helper 창의 포트와 토큰을 넣고 연결하세요.</li>
+                <li><a id="helper-download" href="https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe">CoziumHelper.exe</a>를 받아 실행해요.</li>
+                <li>경고창이 뜨면 「추가 정보」 → 「실행」을 눌러요. 서명 안 된 학생 프로젝트라 뜨는 경고예요.</li>
+                <li>브라우저가 「이 기기의 다른 앱 및 서비스에 액세스」를 물으면 「허용」을 눌러요. 이 창을 열어 두면 저절로 연결돼요.</li>
               </ol>
               <form id="helper-form" class="helper-form" autocomplete="off">
                 <input id="helper-port" inputmode="numeric" placeholder="포트" aria-label="Helper 포트" />
@@ -148,17 +149,17 @@
         <div class="stage-bar">
           <div class="room-brand"><strong>Cozium</strong><small id="room-mode">나의 작은 정리방</small></div>
           <div class="stage-bar-group">
-            <button class="button button-undo button-small" id="undo-button" type="button" disabled>
+            <button class="button button-undo button-small" id="undo-button" type="button" data-pen="paper" disabled>
               <span class="undo-label">마지막 더미 되돌리기</span> <kbd>Ctrl</kbd><kbd>Z</kbd>
             </button>
             <form id="new-folder-form" class="new-folder-form" autocomplete="off" hidden>
-              <input id="new-folder-name" placeholder="새 폴더 이름" aria-label="새 폴더 이름" maxlength="200" />
-              <button class="button button-secondary button-small" type="submit">새 폴더</button>
+              <span class="pen-field" data-pen="paper"><input id="new-folder-name" placeholder="새 폴더 이름" aria-label="새 폴더 이름" maxlength="200" /></span>
+              <button class="button button-secondary button-small" type="submit" data-pen="ink">새 폴더</button>
             </form>
-            <button class="button button-secondary button-small" id="arrange-toggle" type="button" aria-pressed="false">파일 정리 모드 · Tab</button>
-            <button class="button button-secondary button-small" id="log-toggle" type="button" aria-pressed="false" aria-controls="log-sheet">기록</button>
-            <button class="button button-secondary button-small" id="panel-toggle" type="button" aria-pressed="false" aria-controls="settings-sheet" aria-label="설정 열기" title="설정">
-              <span aria-hidden="true">⚙</span>
+            <button class="button button-secondary button-small" id="arrange-toggle" type="button" aria-pressed="false" data-pen="paper"><span class="arrange-label">파일 정리 모드</span> <kbd>Tab</kbd></button>
+            <button class="button button-secondary button-small" id="log-toggle" type="button" aria-pressed="false" aria-controls="log-sheet" data-pen="paper">기록</button>
+            <button class="button button-secondary button-small" id="panel-toggle" type="button" aria-pressed="false" aria-controls="settings-sheet" aria-label="설정 열기" title="설정" data-pen="paper">
+              <svg class="gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.4"/><path d="M12 2.6v3.2M12 18.2v3.2M2.6 12h3.2M18.2 12h3.2M5.4 5.4l2.2 2.2M16.4 16.4l2.2 2.2M5.4 18.6l2.2-2.2M16.4 7.6l2.2-2.2"/></svg>
             </button>
           </div>
         </div>
@@ -166,7 +167,7 @@
         <div class="stage-body">
           <div class="board-stack">
             <div id="board-root" class="board-viewport"></div>
-            <div class="room-key-hints"><span><kbd>W A S D</kbd> 이동</span><span><kbd>Space</kbd> 점프</span><span><kbd>Tab</kbd> 정리 / 상자 배치</span><span><kbd>Esc</kbd> 설정 · 배치 취소</span></div>
+            <div class="room-key-hints" data-pen="paper"><span><kbd>WASD</kbd> 이동</span><span><kbd>Space</kbd> 점프</span><span><kbd>Tab</kbd> 정리 / 상자 배치</span><span><kbd>Esc</kbd> 설정 · 배치 취소</span></div>
             <div class="progress-hud" id="progress-hud" aria-live="polite">
               <div class="progress-count">
                 <strong id="progress-done">0</strong><span id="progress-total">/ 0</span>
@@ -178,18 +179,18 @@
           <!-- 10-25 사용자: 오른쪽 개발용 패널 → ⚙ 「설정」 창 + 「기록」 버튼 창. 정리 시작 화면의 조작 안내 카드와 같은 모양(사용자).
                폴더 배치 선택은 뺌(벽면 수납장 고정). 조작 표를 고치면 README의 조작 표도 같이 고칠 것. -->
           <div class="room-sheet" id="settings-sheet" data-open="false" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-            <section class="sheet-card sheet-settings">
-              <div class="sheet-head"><h3 id="settings-title">설정</h3><button class="sheet-close" type="button" data-close aria-label="설정 닫기"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
+            <section class="sheet-card sheet-settings" data-pen="sheet">
+              <div class="sheet-head"><h3 id="settings-title">설정</h3><button class="sheet-close" type="button" data-close data-pen="paper" aria-label="설정 닫기"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
               <div class="sheet-cols">
                 <section class="sheet-sec" aria-labelledby="settings-view">
                   <h4 id="settings-view">화면</h4>
                   <div class="sheet-rows">
                     <label class="sheet-row" id="render-quality-control"><span>화면 품질</span>
-                      <select id="render-quality" aria-label="화면 품질">
+                      <span class="pen-field" data-pen="paper"><select id="render-quality" aria-label="화면 품질">
                         <option value="auto" selected>자동 · 성능에 맞춤</option>
                         <option value="high">선명하게</option>
                         <option value="low">가볍게</option>
-                      </select>
+                      </select></span>
                       <output id="render-quality-state" for="render-quality"></output>
                     </label>
                     <label class="sheet-row" id="outline-control"><span>외곽선 굵기</span>
@@ -197,20 +198,20 @@
                       <output id="outline-thickness-value" for="outline-thickness">1 px</output>
                     </label>
                     <label class="sheet-row"><span>디더링</span>
-                      <select id="dithering" aria-label="Ordered dithering">
+                      <span class="pen-field" data-pen="paper"><select id="dithering" aria-label="Ordered dithering">
                         <option value="off">Off · 끄기</option>
                         <option value="fine" selected>Fine · 촘촘한 색 단계</option>
                         <option value="medium">Medium · 중간</option>
                         <option value="coarse">Coarse · 거친 색 단계</option>
-                      </select>
+                      </select></span>
                     </label>
                     <label class="sheet-row"><span>PS1 흔들림</span>
-                      <select id="vertex-wobble" aria-label="PS1 vertex wobble">
+                      <span class="pen-field" data-pen="paper"><select id="vertex-wobble" aria-label="PS1 vertex wobble">
                         <option value="off">Off · 끄기</option>
                         <option value="subtle">Subtle · 약하게</option>
                         <option value="wobble" selected>Wobble · 흔들림</option>
                         <option value="ps1">PS1 · 강하게</option>
-                      </select>
+                      </select></span>
                     </label>
                   </div>
                 </section>
@@ -218,13 +219,13 @@
                   <h4 id="settings-keys">조작</h4>
                   <dl class="sheet-keys">
                       <div><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>걷기 <span>· Shift 빠르게</span></dd></div>
-                      <div><dt><kbd>마우스</kbd></dt><dd>둘러보기 <span>· 가운데 점이 손이 닿는 곳</span></dd></div>
-                      <div><dt><kbd>좌클릭</kbd></dt><dd>파일 담기 <span>· 누른 채 훑으면 여러 장</span></dd></div>
-                      <div><dt><kbd>좌클릭</kbd></dt><dd>상자에 넣기 <span>· 빈손이면 상자가 열려요</span></dd></div>
-                      <div><dt><kbd>우클릭 꾹</kbd></dt><dd>던지기 <span>· 상자가 빛나면 그 안으로, 짧게 누르면 발 앞에</span></dd></div>
-                      <div><dt><kbd>좌클릭</kbd></dt><dd>더미에서 다음 무더기 꺼내기</dd></div>
-                      <div><dt><kbd>침대</kbd></dt><dd>한숨 자기 <span>· 빈손으로 클릭, 낮 ↔ 밤</span></dd></div>
-                      <div><dt><kbd>노트북</kbd></dt><dd>정리 끝내기 <span>· 빈손으로 책상 위 노트북 클릭</span></dd></div>
+                      <div><dt><i class="mouse" data-btn="none"></i><b>마우스</b></dt><dd>둘러보기 <span>· 가운데 점이 손이 닿는 곳</span></dd></div>
+                      <div><dt><i class="mouse" data-btn="left"></i><b>좌클릭</b></dt><dd>파일 담기 <span>· 누른 채 훑으면 여러 장</span></dd></div>
+                      <div><dt><i class="mouse" data-btn="left"></i><b>좌클릭</b></dt><dd>상자에 넣기 <span>· 빈손이면 상자가 열려요</span></dd></div>
+                      <div><dt><i class="mouse" data-btn="right"></i><b>우클릭 꾹</b></dt><dd>던지기 <span>· 상자가 빛나면 그 안으로, 짧게 누르면 발 앞에</span></dd></div>
+                      <div><dt><i class="mouse" data-btn="left"></i><b>좌클릭</b></dt><dd>더미에서 다음 무더기 꺼내기</dd></div>
+                      <div><dt><i class="mouse" data-btn="left"></i><b>침대</b></dt><dd>한숨 자기 <span>· 빈손으로 클릭, 낮 ↔ 밤</span></dd></div>
+                      <div><dt><i class="mouse" data-btn="left"></i><b>노트북</b></dt><dd>정리 끝내기 <span>· 빈손으로 책상 위 노트북 클릭</span></dd></div>
                       <div><dt><kbd>Space</kbd></dt><dd>점프</dd></div>
                       <div><dt><kbd>Tab</kbd></dt><dd>상자 배치 모드 <span>· 휠로 회전, 우클릭·Esc 취소</span></dd></div>
                       <div><dt><kbd>Ctrl</kbd><kbd>Z</kbd></dt><dd>되돌리기</dd></div>
@@ -236,8 +237,8 @@
             </section>
           </div>
           <div class="room-sheet" id="log-sheet" data-open="false" role="dialog" aria-modal="true" aria-labelledby="log-title">
-            <section class="sheet-card sheet-log">
-              <div class="sheet-head"><h3 id="log-title">기록</h3><button class="sheet-close" type="button" data-close aria-label="기록 닫기"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
+            <section class="sheet-card sheet-log" data-pen="sheet">
+              <div class="sheet-head"><h3 id="log-title">기록</h3><button class="sheet-close" type="button" data-close data-pen="paper" aria-label="기록 닫기"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg></button></div>
               <div class="stage-summary" id="stage-summary" aria-live="polite"></div>
               <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
               <section class="plan-panel">
@@ -262,7 +263,7 @@
             <p class="intro-step"><span id="intro-step">다락방 불러오는 중</span><output id="intro-percent">0%</output></p>
             <p class="intro-tip" id="intro-tip"></p>
           </div>
-          <div class="intro-ready" role="dialog" aria-modal="true" aria-labelledby="intro-title">
+          <div class="intro-ready" data-pen="sheet" role="dialog" aria-modal="true" aria-labelledby="intro-title">
             <h2 class="intro-mark" id="intro-title">Cozium</h2>
             <small class="intro-kicker" id="intro-mode">나의 작은 정리방</small>
             <section class="intro-controls" aria-label="조작">
@@ -280,7 +281,7 @@
                 <div><dt><kbd>Esc</kbd></dt><dd>설정 <span>· 화질·조작 보기</span></dd></div>
               </dl>
             </section>
-            <button class="intro-enter" id="intro-enter" type="button">방에 들어가기 <span aria-hidden="true">→</span></button>
+            <button class="intro-enter" id="intro-enter" type="button" data-pen="ink">방에 들어가기 <span aria-hidden="true">→</span></button>
             <p class="intro-foot">전체 조작은 언제든 Esc나 오른쪽 위 <span aria-hidden="true">⚙</span> 설정에서</p>
           </div>
         </div>

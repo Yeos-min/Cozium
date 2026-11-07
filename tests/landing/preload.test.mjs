@@ -48,8 +48,7 @@ test("every asset the landing loads exists and three.js comes from the vendored 
     ...[...story.matchAll(/["`](\.\/(?:assets|models)\/[^"`$]+)["`]/g)].map((m) => m[1]),
   ]);
   for (const kind of ["document", "photo", "video", "audio", "archive"]) urls.add(`./assets/landing/parts/desktop-v4/faces/${kind}.webp`);
-  for (const kind of ["document", "photo", "video", "audio", "archive", "folder-sage", "folder-sand"]) urls.add(`./assets/landing/parts/desktop-v4/icons/${kind}.webp`);
-  for (const cam of ["A", "B", "C"]) urls.add(`./assets/landing/room-3d/poster-${cam}.webp`); // the ?lab panel can switch cameras
+  for (const kind of ["document", "photo", "video", "audio", "archive", "folder-sand"]) urls.add(`./assets/landing/parts/desktop-v4/icons/${kind}.webp`);
   for (const url of urls) await access(new URL(url, root));
   // 10-11 clean-up: the old landing's pictures (assets/landing/box/, desktop-v3) are no longer in the repository
   for (const url of urls) assert.doesNotMatch(url, /assets\/landing\/(box|parts\/desktop-v3)\//, url);
@@ -72,7 +71,8 @@ test("one way in: the tidied room's button goes to the organizer, and back retur
   assert.match(story, /addEventListener\("pageshow"/, "a page restored from the back-forward cache rests on the tidied room too");
 });
 
-test("the review panel stays off the real landing unless asked for", () => {
-  assert.doesNotMatch(html, /data-lab="always"/);
-  assert.match(story, /new URLSearchParams\(location\.search\)\.has\("lab"\)/);
+// 11-08: ?lab 렌더 테스트 패널은 디자인 확정 뒤 뺐다 — 다시 끼어들지 않게
+test("the landing has no review panel any more", () => {
+  assert.doesNotMatch(story, /render-lab/);
+  assert.doesNotMatch(html, /data-lab=/);
 });

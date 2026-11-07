@@ -195,8 +195,6 @@ export const TUNING = {
       card: { thickness: 1 },
       photo: { aspect: 1.25, thickness: 0.22, corner: 0.012, bevel: 0.002, edge: "#eee7d7" },
       note: { aspect: 1, thickness: 0.35, corner: 0.012, bevel: 0.002, fold: 0.16, edge: "#e4cc73" },
-      // 다락방 책 더미(10-11). 크기=두께는 그대로, 책답게 두툼하게. 옆면 = 종이 묶음.
-      book: { aspect: 1.33, thickness: 2.4, corner: 0.016, bevel: 0.006, edge: "#efe3c4" },
     },
     faceColor: "#fff0cc",
     edgeTint: 0.5,

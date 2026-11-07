@@ -65,10 +65,6 @@ export function slotFor(kind, family) {
   return url ? { ...slot, url } : null;
 }
 
-export function hasAnyModel() {
-  return Object.values(MODEL_MANIFEST).some((slot) => slot.url || Object.keys(slot.byFamily ?? {}).length > 0);
-}
-
 /**
  * 모델을 불러 장면에 넣을 수 있는 Object3D를 돌려준다. 실패하면 null.
  * 같은 url은 한 번만 받고 복제해서 쓴다.

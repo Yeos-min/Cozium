@@ -8,15 +8,13 @@
  * Helper 모드는 이미 옮겨져 있다. 샘플은 적용할 게 없다.
  * 이 모듈은 보여 주기와 적용 단추만 맡는다. 무엇을 보여 줄지(report)는 app.js가 만든다.
  */
-import { extensionOf, familyOf } from "./layout.js";
+import { DESK_ICONS as ICONS, deskIconFor, extensionOf } from "./layout.js";
 import { enableDrag, enableResize } from "./win-frame.js";
 import { applyPlan, checkPlan, clearPendingPlan, pathLabel, planFileName, savePendingPlan, splitPlan, undoApplied } from "../state/cleanup-plan.js";
 
-const ICONS = "./assets/landing/parts/desktop-v4/icons/";
-const ICON_BY_FAMILY = { image: "photo", design: "photo", video: "video", audio: "audio", archive: "archive" };
 const CELL = { w: 100, h: 104 };
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const fileIcon = (name) => `${ICONS}${ICON_BY_FAMILY[familyOf(extensionOf(name))] ?? "document"}.webp`;
+const fileIcon = (name) => deskIconFor(extensionOf(name));
 /** 폴더는 모든 화면에서 한 색(갈색·샌드, 10-18 사용자). 초록·갈색을 섞으면 뜻이 있는 줄 안다. */
 const folderIcon = () => `${ICONS}folder-sand.webp`;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, reduced() ? 0 : ms));
@@ -362,10 +360,10 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
       const steps = el("ol", "howto");
       const a = el("a", null, "CoziumHelper.exe");
       a.href = "https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe";
-      const s1 = el("li"); s1.append(a, "를 받아 실행해요. 설치는 필요 없어요.");
+      const s1 = el("li"); s1.append(a, "를 받아 실행해요.");
       steps.append(
         s1,
-        el("li", null, "「Windows의 PC 보호」 창이 뜨면 「추가 정보」 → 「실행」을 눌러요."),
+        el("li", null, "경고창이 뜨면 「추가 정보」 → 「실행」을 눌러요. 서명 안 된 학생 프로젝트라 뜨는 경고예요."), // 창 제목은 Windows 버전마다 달라 적지 않는다(11-07 사용자)
         el("li", null, "브라우저가 「이 기기의 다른 앱 및 서비스에 액세스」를 물으면 「허용」을 눌러요."),
       );
       const waiting = el("p", "finish-apply-progress finish-apply-wait", "Helper를 기다리는 중… 켜지면 이 화면에서 바로 이어져요.");

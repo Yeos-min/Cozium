@@ -1,3 +1,7 @@
+// outline-effect.js — 게임 화면 후처리 한 장: 외곽선 + 디더링 + 글자 레이어 합성.
+// 외곽선은 깊이·법선이 갑자기 바뀌는 곳에 긋는다. 색은 "주변색"(그 자리 색을 어둡게, 10-11 사용자 선택).
+// 디더링은 4×4 Bayer로 색 단계를 줄인다(시작값 Fine). 둘 다 설정 창에서 끌 수 있고 기본값은 tuning.js.
+// 자세한 설명: docs/render-effects.md
 import * as THREE from "three";
 import { TEXT_LAYER } from "./text-overlay.js";
 

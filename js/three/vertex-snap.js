@@ -1,3 +1,5 @@
+// vertex-snap.js — PS1식 「정점 흔들림」: 화면에 그릴 때만 정점을 거친 격자에 맞춰 살짝 흔들리게 한다.
+// 실제 위치·충돌·그림자는 그대로다. 큰 판(바닥 등)은 userData.noSnap으로 빼야 판끼리 틈이 안 벌어진다(10-13).
 import * as THREE from "../../vendor/three/three.module.min.js";
 
 const snapVertex = /* glsl */`

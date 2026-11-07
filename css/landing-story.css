@@ -103,26 +103,6 @@ canvas.room{position:absolute;inset:0;width:100%;height:100%;display:block;will-
 @keyframes load{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 .stage[data-room="ready"] .loading{opacity:0}
 
-/* review panel */
-.lab{position:fixed;left:14px;bottom:14px;z-index:20;font:12px/1.4 var(--font-ui);color:#254c43}
-.lab-toggle{height:32px;padding:0 14px;border:1px solid #254c4340;border-radius:16px;background:#faf4e3f2;color:#254c43;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 2px 0 #254c4326}
-.lab[data-open="true"] .lab-toggle{background:#254c43;color:#faf4e3}
-.lab-body{display:none;margin-bottom:8px;width:min(372px,calc(100vw - 28px));max-height:calc(100vh - 80px);overflow:auto;padding:12px 12px 10px;border:1px solid #254c4333;border-radius:10px;background:#faf4e3f7;box-shadow:0 4px 0 #254c431f}
-.lab[data-open="true"]{display:flex;flex-direction:column-reverse;align-items:flex-start}
-.lab[data-open="true"] .lab-body{display:block}
-.lab-row{display:grid;grid-template-columns:66px 1fr;gap:6px;align-items:center;margin-bottom:7px}
-.lab-label{font-weight:700;color:#254c43cc}
-.lab-seg{display:flex;flex-wrap:wrap;gap:3px}
-.lab-seg button{min-height:26px;padding:0 8px;border:1px solid #254c4333;border-radius:5px;background:#fffaf0;color:#254c43;font:inherit;cursor:pointer}
-.lab-seg button[aria-pressed="true"]{background:#254c43;border-color:#254c43;color:#faf4e3}
-.lab-seg button:focus-visible,.lab-toggle:focus-visible,.lab-foot button:focus-visible{outline:2px solid #254c43;outline-offset:2px}
-.lab-checks{display:grid;gap:3px;margin:4px 0 9px 72px}
-.lab-checks label{display:flex;gap:6px;align-items:center;cursor:pointer}
-.lab-foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px;border-top:1px dashed #254c4333}
-.lab-code{flex:1 1 100%;font:11px/1.35 ui-monospace,Consolas,monospace;color:#254c43b0;word-break:break-all;user-select:all}
-.lab-foot button{min-height:26px;padding:0 10px;border:1px solid #254c43;border-radius:5px;background:#254c43;color:#faf4e3;font:inherit;cursor:pointer}
-.lab-foot .lab-reset{background:#fffaf0;color:#254c43}
-@media (max-width:520px){.lab-row{grid-template-columns:1fr}.lab-checks{margin-left:0}}
 /* a failed load says so instead of leaving the still image looking live */
 .stage[data-room="failed"] .loading{opacity:1;width:auto;height:auto;left:16px;right:16px;margin:0;padding:8px 12px;background:#faf4e3f2;border:1px solid #254c4340;border-radius:6px;color:#254c43;font:12px/1.5 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;text-align:center;overflow:visible}
 /* walk-in to app.html: only shown by the review copy, which has no app.html */

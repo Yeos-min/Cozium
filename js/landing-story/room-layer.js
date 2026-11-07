@@ -22,7 +22,6 @@ export { TEXT_LAYER };
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (a, b, t) => { const x = clamp((t - a) / (b - a)); return x * x * (3 - 2 * x); };
-const inOut = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 // CSS cubic-bezier(x1, y1, x2, y2) as a function of t (0…1), for the walk-in (10-24).
 function cubicBezier(x1, y1, x2, y2) {
   const bx = (u) => 3 * x1 * u * (1 - u) ** 2 + 3 * x2 * u * u * (1 - u) + u ** 3;
@@ -63,13 +62,7 @@ export const SUCK_END = 2.9; // 빨려 들어가기 길이(초): 마지막 파�
 // 빈 화면 색 = 바탕화면 그림의 평균색(#d3c5b1) 쪽, 조금 스스로 빛나게. 밤엔 푸른 화면빛
 const SCREEN_ON = { color: "#cdbfa9", emissive: "#453f35" }, SCREEN_NIGHT = { color: "#cdbfa9", emissive: "#2b3352" }, SCREEN_OFF = { color: "#0a0b0e", emissive: "#000000" };
 
-// Light setups to compare. "game" is TUNING.light as the game uses it today.
-export const LIGHTS = {
-  morning: "아침 햇살", sun: "늦은 오후 햇살", game: "게임 조명", soft: "흐린 낮", lamp: "저녁 스탠드",
-};
-export const MATERIALS = {
-  pbr: "모델 그대로", toon: "툰 3단", matte: "무광", unlit: "언릿",
-};
+// 빛·재질 이름표(LIGHTS·MATERIALS)는 ?lab 패널 전용이라 11-08에 패널과 함께 뺐다. 실제 값은 아래 #applyLight·재질 코드.
 
 // metres: w, d, thickness. A little larger than life (×1.4), like the game's chunky cards, so the mess reads from the door.
 const FILE_SIZE = Object.fromEntries(Object.entries({

@@ -65,16 +65,6 @@ export const ATTIC_STACK = Object.freeze({ shelfY: 0, levelGap: 0.01, gap: 0.08 
 /** 핀보드(코르크) 앞면. 사진·메모가 꽂힌다. */
 export const ATTIC_PINBOARD = Object.freeze({ x: 0, z: 5.755, minX: -1.4, maxX: 1.4, minY: 2.66, maxY: 4.5, cols: 5, rows: 4, scale: 0.58 });
 
-/** 핀보드 아래 바닥의 책 더미. 문서(pdf·docx·hwp)가 눕혀 쌓인다. */
-export const ATTIC_BOOKS = Object.freeze({
-  stacks: Object.freeze([
-    { x: -1.5, z: 5.3, yaw: 0.06 }, { x: -0.65, z: 5.32, yaw: -0.05 },
-    { x: 0.2, z: 5.3, yaw: 0.03 }, { x: 1.0, z: 5.28, yaw: -0.08 },
-  ].map(Object.freeze)),
-  perStack: 6,
-  scale: 0.72,
-});
-
 /** 파일 바닥을 논리 좌표로 쓸 때의 크기. 왼쪽 위(minX, minZ)가 논리 (0, 0)이다. */
 export function atticFloorBounds(unit) {
   return {
@@ -109,7 +99,6 @@ export function atticSlotArea(unit) {
 /** 저장소 레이아웃에 넘기는 자리별 정원. 넘치면 바닥에 깔린다. */
 export const ATTIC_HOME_CAPACITY = Object.freeze({
   pinboard: ATTIC_PINBOARD.cols * ATTIC_PINBOARD.rows,
-  books: ATTIC_BOOKS.stacks.length * ATTIC_BOOKS.perStack,
 });
 
 /** 상자 칸 크기: `models/box.glb`(0.514 × 0.493 × 0.682 m, 앞 = 짧은 면) ×2 */
@@ -128,10 +117,4 @@ export function pinboardPose(index) {
   const x = p.maxX - cellW * (col + 0.5) + jitter(12.9) * 0.05;
   const y = p.maxY - cellH * (row + 0.5) + jitter(78.2) * 0.04;
   return { x, y, z: p.z, spin: Math.PI + jitter(3.7) * 0.09, facePitch: Math.PI / 2, scale: p.scale };
-}
-
-/** 책 더미 칸 → (더미 번호, 몇 번째 층). 한 더미를 채운 뒤 옆 더미로: 몇 권이어도 쌓여 보이게. */
-export function bookSlot(index) {
-  const { stacks, perStack } = ATTIC_BOOKS;
-  return { stack: Math.floor(index / perStack) % stacks.length, level: index % perStack };
 }
