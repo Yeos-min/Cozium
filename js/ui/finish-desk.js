@@ -36,15 +36,18 @@ export function formatElapsed(ms) {
 }
 
 /**
- * @param {{ root: HTMLElement, onBack: (report) => void, connectHelper: (port: string, token: string) => Promise<object|null>, notice: (text: string, tone?: string) => void }} options
+ * @param {{ root: HTMLElement, onBack: (report) => void, connectHelper: (port: string, token: string) => Promise<object|null>, waitForHelper?: (onFound: (found: {port: number, token: string}) => void) => () => void, notice: (text: string, tone?: string) => void }} options
+ *   waitForHelper: Helper가 켜질 때까지 찾아보다가 찾으면 onFound를 부른다. 멈추는 함수를 돌려준다(native-helper-provider.js).
  */
-export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {} }) {
+export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = null, notice = () => {} }) {
   const $ = (selector) => root.querySelector(selector);
   const desk = $(".desk"), icons = $("#finish-icons"), win = $("#win-finish");
   const kicker = $("#finish-kicker"), title = $("#finish-title"), lede = $("#finish-lede"), stats = $("#finish-stats");
   const folderList = $("#finish-folders"), left = $("#finish-left"), apply = $("#finish-apply");
   const back = $("#finish-back"), replay = $("#finish-replay"), clock = $("#finish-clock");
   let report = null, helper = null, applied = null, busy = false, runId = 0, checkRun = 0;
+  let stopWaiting = null; // Helper 찾기를 멈추는 함수. 「Helper로 적용」 단계에서만 돈다.
+  const stopWait = () => { stopWaiting?.(); stopWaiting = null; };
 
   /** 제목: 글자마다 통통 튀어 들어온다. [보통 글, 강조 글] */
   function setTitle([plain, accent]) {
@@ -316,6 +319,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
 
   // ── 적용(모드별) ──
   function renderApply(state = "idle", extra = {}) {
+    stopWait(); // 다른 단계로 가면 Helper 찾기를 멈춘다. "connect" 단계가 다시 시작한다.
     apply.replaceChildren();
     const r = report;
     const box = el("div", "finish-apply-box");
@@ -353,12 +357,38 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
       return;
     }
     if (state === "connect") {
-      box.append(el("p", "finish-apply-head", "Desktop Helper 연결"));
+      // v0.2.3: 이 화면이 Helper를 기다린다. 사용자는 exe만 켜면 되고, 켜지면 여기서 바로 이어진다(새 탭·입력 없음).
+      box.append(el("p", "finish-apply-head", "Desktop Helper를 켜 주세요"));
       const steps = el("ol", "howto");
-      const a = el("a", null, "Desktop Helper");
+      const a = el("a", null, "CoziumHelper.exe");
       a.href = "https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe";
-      const s1 = el("li"); s1.append(a, "를 받아 실행해요. 새 탭이 열리면 거기 Helper 창에서 이 계획을 적용할 수 있어요.");
-      steps.append(s1, el("li", null, "이 화면에서 하려면 Helper 창에 나온 포트와 토큰을 넣고 연결하세요."));
+      const s1 = el("li"); s1.append(a, "를 받아 실행해요. 설치는 필요 없어요.");
+      steps.append(
+        s1,
+        el("li", null, "「Windows의 PC 보호」 창이 뜨면 「추가 정보」 → 「실행」을 눌러요."),
+        el("li", null, "브라우저가 「이 기기의 다른 앱 및 서비스에 액세스」를 물으면 「허용」을 눌러요."),
+      );
+      const waiting = el("p", "finish-apply-progress finish-apply-wait", "Helper를 기다리는 중… 켜지면 이 화면에서 바로 이어져요.");
+      box.append(steps, waiting);
+      if (waitForHelper) {
+        stopWaiting = waitForHelper(async ({ port, token }) => {
+          stopWaiting = null;
+          if (apply.dataset.state !== "connect" || busy) return;
+          waiting.textContent = "Helper를 찾았어요. 연결하는 중…";
+          busy = true;
+          try {
+            helper = await connectHelper(String(port), token);
+          } finally {
+            busy = false;
+          }
+          if (apply.dataset.state !== "connect") return;
+          if (helper) renderApply("ready");
+          else waiting.textContent = "Helper를 찾았지만 연결하지 못했어요. 아래에서 포트와 토큰으로 연결해 보세요.";
+        });
+      }
+      // 고정 포트가 막혀 Helper가 다른 포트로 열렸을 때만 쓰는 길. 평소엔 접어 둔다.
+      const manual = el("details", "finish-manual");
+      manual.append(el("summary", null, "포트와 토큰으로 직접 연결"));
       const form = el("form", "helper-form");
       form.autocomplete = "off";
       const port = el("input"); port.placeholder = "포트"; port.inputMode = "numeric"; port.setAttribute("aria-label", "Helper 포트");
@@ -378,8 +408,8 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
       });
       const cancel = el("button", "win-link", "← 돌아가기"); cancel.type = "button";
       cancel.addEventListener("click", () => renderApply("idle"));
-      box.append(steps, form, cancel);
-      port.focus({ preventScroll: true });
+      manual.append(form);
+      box.append(manual, cancel);
       return;
     }
     if (state === "ready") {
@@ -527,6 +557,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, notice = () => {}
 
   function close() {
     runId++;
+    stopWait();
 
     root.hidden = true;
     root.classList.remove("is-arriving", "is-from-laptop");

@@ -5,12 +5,60 @@
  * 이동은 Helper가 같은 볼륨 rename으로 즉시 끝내고, 되돌리기는 rename 역방향이다.
  * 덮어쓰기 없음, 삭제 없음. 항목별 결과.
  *
- * 연결: Helper가 실행되며 만든 포트와 일회용 토큰을 URL(#helper=PORT&token=…, v0.2.1까지는 ?helper=…)로 받거나 사용자가 직접 입력한다.
+ * 연결은 세 갈래다.
+ *   1. 찾아가기(v0.2.3): 열어 둔 화면이 고정 포트(HELPER_PORT)를 몇 초마다 두드리다가 Helper가 켜지면 /v1/pair로 토큰을 받는다.
+ *      사용자는 exe만 켜면 된다 — 새 탭도, 포트·토큰 입력도 없다(11-07 사용자: exe 켜는 게 번거롭고 튜토리얼 맥락이 끊김).
+ *   2. 주소로 받기: Helper가 연 탭의 #helper=PORT&token=…(v0.2.1까지는 ?helper=…).
+ *   3. 손으로 넣기: Helper 창에 나온 포트와 토큰.
  * 모든 요청에 `Authorization: Bearer <token>`. Helper는 Origin 허용 목록과 토큰을 둘 다 검사한다.
  */
 import { FileSystemProvider, ProviderError, emptyImport, folderLabel, getExtension } from "./file-system-provider.js";
 
 const nameCollator = new Intl.Collator("ko", { numeric: true, sensitivity: "base" });
+
+/** Helper가 먼저 여는 포트. helper/desktop-helper.mjs의 HELPER_PORT와 같아야 한다. */
+export const HELPER_PORT = 47821;
+
+/**
+ * 켜져 있는 Helper를 한 번 찾아본다. 있으면 { port, token }, 없으면 null(오류를 던지지 않는다).
+ * Helper가 꺼져 있으면 브라우저 콘솔에 연결 거부가 찍히는데, 정상이다.
+ */
+export async function findHelper({ port = HELPER_PORT, fetchImpl = globalThis.fetch?.bind(globalThis) } = {}) {
+  try {
+    const response = await fetchImpl(`http://127.0.0.1:${port}/v1/pair`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return body?.token ? { port, token: String(body.token) } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Helper가 켜질 때까지 intervalMs마다 찾아본다. 찾으면 onFound({ port, token })를 한 번 부르고 멈춘다.
+ * 돌려준 함수를 부르면 그만 찾는다(창을 닫거나 다른 화면으로 갈 때).
+ * 처음 두드릴 때 Chrome이 「이 기기의 다른 앱 및 서비스에 액세스」를 묻는다 — 그래서 사용자가 Helper 단계에 왔을 때만 시작한다.
+ */
+export function waitForHelper(onFound, { intervalMs = 2000, ...options } = {}) {
+  let stopped = false;
+  let timer = null;
+  const tick = async () => {
+    if (stopped) return;
+    const found = await findHelper(options);
+    if (stopped) return;
+    if (found) {
+      stopped = true;
+      onFound(found);
+      return;
+    }
+    timer = setTimeout(tick, intervalMs);
+  };
+  tick();
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+  };
+}
 
 export class NativeHelperProvider extends FileSystemProvider {
   capabilities = {

@@ -70,7 +70,7 @@ export class StatusPanel {
 
   logConnect({ desktopName, version }) {
     this.#push(`Desktop Helper v${version ?? "?"} 연결됨 · ${desktopName}`, "success");
-    this.notice(`Desktop Helper에 연결됐습니다. '${desktopName}'을(를) 읽어 시작할 수 있습니다.`, "success");
+    this.notice(`Desktop Helper에 연결됐어요. ‘${desktopName}’ 폴더를 읽어 시작할 수 있어요.`, "success");
   }
 
   /**

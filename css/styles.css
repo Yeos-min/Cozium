@@ -490,6 +490,9 @@ footer { width: min(1600px, 94vw); margin: 0 auto; padding: 0 0 28px; display: f
 .hand-hint strong { color: var(--accent); font-size: 14px; }
 .hand-hint kbd { margin: 0 1px; }
 
+/* 침대를 겨누면 조준선 바로 위에 해/달 힌트(2026-11-06, 모양은 css/time-hint.css) */
+.board-overlay .time-hint { position: absolute; left: 50%; top: 50%; z-index: 6; transform: translate(-50%, calc(-100% - 18px)); }
+
 /* ── 몰입 모드: 게임이 화면을 채운다. 온보딩은 평소 레이아웃 그대로. ── */
 body.is-playing { overflow: hidden; }
 body.is-playing .topbar,

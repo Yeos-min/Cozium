@@ -30,6 +30,7 @@ import { FolderShelfAssignments } from "./folder-shelves.js";
 import { PointerLockState } from "./pointer-lock-state.js";
 import { movementKey } from "./walk-collision.js";
 import { surfaceMaterial } from "./materials.js";
+import { timeHintMarkup } from "../ui/time-hint.js";
 const LAPTOP_HIT = new THREE.Vector3();
 const BED_HIT = new THREE.Vector3();
 
@@ -124,6 +125,8 @@ export class Board3D {
   #crosshair;
   #lockPrompt;
   #handHint;
+  #timeHint;
+  #timeHintNight = null;
   #keys = new Set();
   #onKeyDown = null;
   #onKeyUp = null;
@@ -517,6 +520,11 @@ export class Board3D {
     this.#handHint = document.createElement("div");
     this.#handHint.className = "hand-hint";
     this.#handHint.hidden = true;
+    // 침대를 겨누면 「누르면 시간이 바뀐다」 연필 해/달(11-06 사용자: 랜딩과 같은 힌트)
+    this.#timeHint = document.createElement("div");
+    this.#timeHint.className = "time-hint";
+    this.#timeHint.dataset.on = "false";
+    this.#timeHint.setAttribute("aria-hidden", "true");
     this.#arrangeHint = document.createElement("div");
     this.#arrangeHint.className = "arrange-hint";
     this.#arrangeHint.setAttribute("role", "status");
@@ -525,7 +533,7 @@ export class Board3D {
     this.#shelfPager = document.createElement("div");
     this.#shelfPager.className = "shelf-pager";
 
-    this.#overlay.append(this.#breadcrumb, this.#marquee, this.#hoverLabel, this.#crosshair, this.#lockPrompt, this.#handHint, this.#arrangeHint, this.#shelfPager);
+    this.#overlay.append(this.#breadcrumb, this.#marquee, this.#hoverLabel, this.#crosshair, this.#timeHint, this.#lockPrompt, this.#handHint, this.#arrangeHint, this.#shelfPager);
     this.#root.append(this.#overlay);
   }
 
@@ -1041,7 +1049,7 @@ export class Board3D {
     const detail = this.#lockDenied ? "클릭해서 재시도 · 안 되면 빈손 우클릭 드래그로 둘러보기" : "클릭하면 마우스 시점 복귀 · Esc 설정";
     this.#lockPrompt.querySelector("strong").textContent = title;
     this.#lockPrompt.querySelector("small").textContent = detail;
-    if (!walking) this.#handHint.hidden = true;
+    if (!walking) { this.#handHint.hidden = true; this.#updateTimeHint(false); }
     this.#kit.renderer.domElement.style.cursor = walking && this.#locked ? "none" : "default";
     this.#breadcrumb.dataset.fallback = String(this.#lockDenied);
   }
@@ -1442,6 +1450,7 @@ export class Board3D {
   diveIntoLaptop() {
     this.setSuspended(true);
     this.#handHint.hidden = true;
+    this.#updateTimeHint(false);
     this.#kit.laptopHover = false;
     if (this.#laptopLabel) this.#laptopLabel.visible = false;
     return this.#kit.diveLaptop();
@@ -1460,6 +1469,7 @@ export class Board3D {
     const bed = fixture === "bed", laptop = fixture === "laptop";
     this.#kit.laptopHover = laptop;
     this.#updateLaptopLabel(laptop);
+    this.#updateTimeHint(bed && !this.#arranging);
     this.#handHint.hidden = this.#arranging || !walking || (held === 0 && !bed && !laptop);
     if (laptop) {
       const message = this.#laptopCalling
@@ -1483,6 +1493,13 @@ export class Board3D {
           : `<kbd>좌클릭</kbd> 상자에 넣기 <span>· ${held}장</span> <kbd>우클릭</kbd> ${pin ? "핀보드에 꽂기" : "꾹 눌러 던지기"}`;
       if (this.#handHint.innerHTML !== message) this.#handHint.innerHTML = message;
     }
+  }
+
+  #updateTimeHint(on) {
+    const night = this.#kit.isNight;
+    if (on && this.#timeHintNight !== night) { this.#timeHintNight = night; this.#timeHint.innerHTML = timeHintMarkup(night); }
+    const value = String(on);
+    if (this.#timeHint.dataset.on !== value) this.#timeHint.dataset.on = value;
   }
 
   #hitTargets() {

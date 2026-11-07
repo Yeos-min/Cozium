@@ -17,7 +17,11 @@ function iconFor(item) {
   return `${ICONS}${ICON_BY_FAMILY[familyOf(item.extension ?? extensionOf(item.name))] ?? "document"}.webp`;
 }
 
-export function mountImportDesk({ root, startSample }) {
+/**
+ * @param {{ root: HTMLElement, startSample: () => void, onHelperWindow?: (open: boolean) => void }} options
+ *   onHelperWindow: Helper 창이 열리고 닫힐 때. 열려 있는 동안 app.js가 Helper를 찾아 저절로 붙는다(v0.2.3).
+ */
+export function mountImportDesk({ root, startSample, onHelperWindow = () => {} }) {
   const $ = (selector) => root.querySelector(selector);
   const desk = $(".desk");
   const files = $("#desk-files");
@@ -78,10 +82,16 @@ export function mountImportDesk({ root, startSample }) {
   for (const win of [importWin, helperWin]) enableResize(win, { container: desk, minW: 340, minH: 240, inset: { left: 30, top: 30, right: 30, bottom: 56 + 30 + 12 } });
 
   const openHelper = () => {
+    const wasHidden = helperWin.hidden;
     helperWin.hidden = false;
     front(helperWin);
-    helperWin.querySelector("input")?.focus({ preventScroll: true });
     syncPressed();
+    if (wasHidden) onHelperWindow(true);
+  };
+  const closeHelper = () => {
+    helperWin.hidden = true;
+    syncPressed();
+    onHelperWindow(false);
   };
   const syncPressed = () => {
     for (const el of root.querySelectorAll('.tb-app[data-desk="helper"]')) el.setAttribute("aria-pressed", String(!helperWin.hidden));
@@ -93,8 +103,8 @@ export function mountImportDesk({ root, startSample }) {
     if (!el) return;
     const what = el.dataset.desk;
     if (what === "sample") startSample();
-    else if (what === "helper") helperWin.hidden ? openHelper() : (helperWin.hidden = true, syncPressed());
-    else if (what === "helper-close") { helperWin.hidden = true; syncPressed(); }
+    else if (what === "helper") helperWin.hidden ? openHelper() : closeHelper();
+    else if (what === "helper-close") closeHelper();
     else if (what === "import") { importWin.hidden = false; front(importWin); importWin.querySelector("#start-web:not(:disabled), #load-sample")?.focus({ preventScroll: true }); }
   });
   if (new URLSearchParams(location.search).has("helper")) openHelper();
