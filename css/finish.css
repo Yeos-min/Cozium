@@ -18,10 +18,15 @@
 
 /* ── 아이콘 ── */
 .finish-file[data-kind="folder"] { z-index: 2; }
-.finish-file[data-new="true"]::before { content: "새 폴더"; position: absolute; top: 4px; left: 6px; z-index: 1; padding: 2px 5px; border-radius: 4px; background: #d9b768; color: #3f3c30; font-size: 10px; font-weight: 700; }
+/* 11-08 A안: 금색 「새 폴더」 딱지 → 종이 + 먹 테두리, 숫자 배지는 먹 */
+.finish-file[data-new="true"]::before { content: "새 폴더"; position: absolute; top: 4px; left: 6px; z-index: 1; padding: 2px 6px; border-radius: 6px; background: var(--desk-paper); box-shadow: inset 0 0 0 1.5px var(--desk-ink); color: var(--desk-ink); font-size: 10px; font-weight: 800; }
 .finish-badge {
-  position: absolute; top: 2px; right: 8px; min-width: 24px; padding: 3px 7px; border-radius: 999px;
-  background: var(--desk-ink); color: var(--desk-paper); font-size: 11px; font-weight: 700; line-height: 1; font-style: normal; box-shadow: 0 2px 6px #254c4340;
+  /* 11-08 사용자 「배지 안에 숫자랑 배지 크기?」: 숫자가 위로 떠 있고 배지가 커서 폴더 밖으로 삐져나옴
+     → 높이를 정해 숫자를 가운데에, 숫자 글꼴은 Nunito(로고·키캡과 같은 글꼴), 폴더 그림 모서리에 걸치게 조금 안쪽으로 */
+  position: absolute; top: 3px; right: 14px; box-sizing: border-box; display: grid; place-items: center;
+  min-width: 19px; height: 18px; padding: 1.5px 5px 0; border-radius: 999px; /* 위 1.5px: Nunito 숫자가 글자 상자 안에서 살짝 위에 앉아서 */
+  background: var(--desk-ink); color: var(--desk-paper); box-shadow: 0 1px 3px #2f231a40;
+  font: 800 10.5px/1 var(--font-logo); font-style: normal; font-variant-numeric: tabular-nums;
 }
 .finish-badge[hidden] { display: none; }
 .finish-file.is-gulp img { animation: finish-gulp 0.34s cubic-bezier(.3, 1.6, .5, 1); }
@@ -32,79 +37,77 @@
 /* ── 결과 창 ── */
 /* 창은 내용만큼 크고(화면 안에서), 넘치면 폴더 목록이 먼저 줄어 그 안에서만 스크롤. 끌기·크기 바꾸기(js/ui/win-frame.js) */
 .win-finish { width: min(540px, calc(100% - 120px)); min-width: 400px; right: max(64px, 6%); top: max(44px, 5.5%); max-height: calc(100% - var(--taskbar-h) - 30px - max(44px, 5.5%) - 14px); }
-.win-finish .win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 20px 26px 22px; scrollbar-width: thin; scrollbar-color: #c9bb98 transparent; }
+.win-finish .win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 10px 34px 0; scrollbar-width: thin; scrollbar-color: #c9bb98 transparent; }
 .win-finish .win-body > * { flex: none; }
 .win-finish.is-resizing { user-select: none; }
-.finish-kicker { margin: 0 0 8px; color: #6c7465; font-size: 12px; letter-spacing: 0.04em; }
-.win-finish h1 { margin: 0 0 10px; font: 800 32px/1.2 var(--desk-heading); letter-spacing: -0.01em; color: var(--desk-ink); }
-.win-finish h1 em { font-family: inherit; font-weight: inherit; font-style: normal; color: #8a6a2f; }
-.finish-lede { margin: 0 0 14px; color: #4d5f55; font-size: 13.5px; line-height: 1.6; }
-.finish-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin: 0 0 12px; }
-.finish-stats > div { padding: 9px 12px 8px; border: 1px solid #46352920; border-radius: 8px; background: #fffaf0; }
-.finish-stats dt { color: #6c7465; font-size: 11px; }
-.finish-stats dd { margin: 4px 0 0; color: var(--desk-ink); font: 800 23px/1.1 var(--desk-heading); font-variant-numeric: tabular-nums; } /* 숫자도 제목 글꼴(10-24: 주아 → 나눔스퀘어라운드 EB) */
-.finish-stats dd small { margin-left: 4px; font-family: var(--font-ui); font-size: 11px; font-weight: 500; color: #6c7465; }
+.finish-kicker { margin: 14px 0 10px; color: var(--desk-ink-2); font: 800 13px/1 var(--font-ui); }
+.win-finish h1 { margin: 0 0 12px; font: 800 32px/1.25 var(--desk-heading); letter-spacing: -0.01em; color: var(--desk-ink); } /* 강조 말 밑줄은 onboarding.css .win h1 em */
+.finish-lede { margin: 0 0 16px; color: var(--desk-ink-2); font-size: 14px; line-height: 1.6; }
+/* 숫자 셋: 11-08 사용자 「카드 안의 카드라 무거움」 → 칸 없이 한 줄, 사이만 옅은 먹 세로줄 */
+.finish-stats { display: flex; flex-wrap: wrap; row-gap: 10px; margin: 0 0 16px; }
+.finish-stats > div { flex: 1 1 0; min-width: 96px; padding: 2px 18px; border-left: 1.5px solid #2f231a24; }
+.finish-stats > div:first-child { padding-left: 0; border-left: 0; }
+.finish-stats dt { color: var(--desk-ink-2); font: 700 12.5px/1.2 var(--font-ui); }
+.finish-stats dd { margin: 6px 0 0; color: var(--desk-ink); font: 800 26px/1.1 var(--desk-heading); font-variant-numeric: tabular-nums; } /* 숫자도 제목 글꼴(10-24: 주아 → 나눔스퀘어라운드 EB) */
+.finish-stats dd small { margin-left: 4px; font: 700 12px/1 var(--font-ui); color: var(--desk-ink-2); }
 .finish-folders {
   flex: 1 1 auto !important; min-height: 76px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); align-content: start; gap: 2px 10px;
   margin: 0 0 10px; padding: 0 4px 0 0; overflow-x: hidden; overflow-y: auto; list-style: none; scrollbar-width: thin; scrollbar-color: #c9bb98 transparent;
 }
 .finish-folders > li { min-width: 0; }
 .finish-folders details[open] { grid-column: 1 / -1; }
-.finish-folders summary { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; list-style: none; font-size: 14px; color: var(--desk-label); }
+.finish-folders summary { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: 8px; cursor: pointer; list-style: none; font: 700 14px/1.3 var(--font-ui); color: var(--desk-ink); }
 .finish-folders summary::-webkit-details-marker { display: none; }
-.finish-folders summary:hover { background: #46352910; }
+.finish-folders summary:hover { background: #2f231a0d; }
 .finish-folders summary img { width: 28px; height: 28px; }
 .finish-folders summary span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.finish-folders summary i { margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: #d9b76833; color: #8a6a2f; font-size: 10px; font-weight: 700; line-height: 1.4; font-style: normal; }
+.finish-folders summary i { margin-left: 6px; padding: 1px 7px; border-radius: 999px; box-shadow: inset 0 0 0 1.2px currentColor; color: var(--pen-red, #b5574a); font-size: 10.5px; font-weight: 800; line-height: 1.5; font-style: normal; }
 .finish-folders summary b { color: var(--desk-ink); font-size: 13px; font-variant-numeric: tabular-nums; }
-.finish-folders details p { margin: 0 8px 8px 46px; color: #6c7465; font-size: 12px; line-height: 1.6; word-break: break-all; }
-.finish-left { margin: 0 0 12px; color: #5f6a5f; font-size: 12.5px; line-height: 1.55; }
+.finish-folders details p { margin: 0 8px 8px 46px; color: var(--desk-ink-2); font-size: 12px; line-height: 1.6; word-break: break-all; }
+.finish-left { margin: 0 0 12px; color: var(--desk-ink-2); font-size: 13px; line-height: 1.55; }
 .finish-left[hidden] { display: none; }
 
 /* 적용 패널 */
-.finish-apply-box { padding: 12px 14px; border: 1px dashed #254c4359; border-radius: 8px; background: #fffaf0; }
-.finish-apply-box > p { margin: 0 0 6px; color: #4d5f55; font-size: 12.5px; line-height: 1.55; }
+/* 적용 칸: 점선 상자 → 종이보다 한 단 짙은 크림 판(가져오기 창 「가져오는 법」과 같다) */
+.finish-apply-box { padding: 16px 18px; border: 0; border-radius: 12px; background: var(--desk-tray); }
+.finish-apply-box > p { margin: 0 0 6px; color: var(--desk-ink-2); font-size: 13px; line-height: 1.55; }
 .finish-apply-box > p:last-child { margin-bottom: 0; }
-.finish-apply-head { color: var(--desk-ink) !important; font-weight: 700; font-size: 14px !important; }
+.finish-apply-head { color: var(--desk-ink) !important; font-weight: 800; font-size: 14.5px !important; }
 .finish-apply-ok { color: #2f6b45 !important; font-weight: 600; }
 .finish-apply-warn { color: #8a5a12 !important; font-weight: 700; font-size: 14px !important; } /* 10-19: 옮길 게 없거나 0개로 끝났을 때 */
-.finish-apply-note { color: #6c7465 !important; font-size: 12px !important; }
+.finish-apply-note { color: var(--desk-ink-2) !important; font-size: 12.5px !important; }
 .finish-apply-progress { font-variant-numeric: tabular-nums; }
-.finish-apply-row { display: flex; gap: 8px; align-items: stretch; margin: 8px 0; }
-.finish-apply-row .win-go { flex: 1; width: auto; margin: 0; min-height: 44px; font-size: 14px; }
-.finish-apply-row .win-button { min-height: 44px; }
-.finish-apply-box > .win-go { min-height: 44px; margin: 6px 0 0; font-size: 14px; }
+.finish-apply-row { display: flex; gap: 10px; align-items: stretch; margin: 10px 0; }
+.finish-apply-row .win-go { flex: 1; width: auto; margin: 0; min-height: 46px; font-size: 15px; }
+.finish-apply-row .win-button { min-height: 46px; }
+.finish-apply-box > .win-go { min-height: 46px; margin: 8px 0 0; font-size: 15px; }
 .finish-apply-box .win-go:disabled { display: flex; opacity: 0.45; cursor: default; }
-.finish-apply-box .howto { margin: 0 0 10px; padding-left: 18px; color: #4d5f55; font-size: 12.5px; line-height: 1.6; }
-.finish-apply-box .howto a { color: var(--desk-ink); font-weight: 600; }
-.finish-apply-box .helper-form { display: flex; gap: 6px; margin-bottom: 8px; }
-.finish-apply-box .helper-form input { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid #46352940; border-radius: 6px; background: #fff; color: var(--desk-ink); font: inherit; }
+.finish-apply-box .howto { margin: 0 0 10px; padding-left: 18px; line-height: 1.6; } /* 색·번호·링크는 onboarding.css .win .howto */
+.finish-apply-box .helper-form { display: flex; gap: 8px; margin-bottom: 8px; }
+.finish-apply-box .helper-form .pen-field { flex: 1; } /* 칸 모양은 onboarding.css .win .pen-field */
 .finish-apply-box > .win-button { margin-top: 10px; }
 /* v0.2.3: Helper를 기다리는 줄. 숨 쉬듯 옅어졌다 진해져 "기다리는 중"임을 알린다 */
 .finish-apply-box > .finish-apply-wait { color: var(--desk-ink) !important; font-weight: 600; animation: finish-wait 1.6s ease-in-out infinite; }
 @keyframes finish-wait { 50% { opacity: 0.5; } }
 @media (prefers-reduced-motion: reduce) { .finish-apply-box > .finish-apply-wait { animation: none; } }
 /* 포트·토큰 직접 연결은 접어 둔다(고정 포트가 막혔을 때만 쓰는 길) */
-.finish-manual { margin: 8px 0 0; font-size: 12.5px; color: #6c7465; }
+.finish-manual { margin: 8px 0 0; font-size: 13px; color: var(--desk-ink-2); }
 .finish-manual summary { cursor: pointer; margin-bottom: 6px; }
 .finish-problems { margin: 6px 0 0; font-size: 12.5px; color: #7d3324; }
 .finish-problems summary { cursor: pointer; }
 .finish-problems ul { margin: 6px 0 0; padding-left: 18px; max-height: 140px; overflow: auto; color: #6c4a3e; line-height: 1.55; }
 
 /* 단추는 창이 낮아도 늘 보이게 아래에 붙는다 */
-.finish-actions { position: sticky; bottom: -22px; z-index: 1; margin: 4px -26px -22px; padding: 12px 26px 16px; background: linear-gradient(#faf4e300, var(--desk-paper) 12px); }
+/* 바닥 18px은 비워 둔다 — 창의 연필 테두리(안쪽 12px)가 단추 줄 배경에 가리지 않게 */
+.finish-actions { position: sticky; bottom: 0; z-index: 1; margin: 4px -20px 0; padding: 14px 20px 34px; background: linear-gradient(#fbf7ec00, var(--desk-paper) 12px, var(--desk-paper) calc(100% - 18px), #fbf7ec00 calc(100% - 18px)); }
 .finish-actions .win-go { margin-top: 0; }
 .finish-actions .win-go:disabled { display: flex; opacity: 0.5; cursor: progress; }
-.finish-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
-.finish-links .win-link { font-size: 13px; }
+.finish-links { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
 .finish-links [hidden] { display: none; }
 
 /* 노트북 화면 속으로 들어가는 동안·결과 화면 동안(10-20): HUD·이름표를 걷어 화면만 남긴다. 돌아오면 다시 보인다 */
 body.is-diving .stage-bar, body.is-diving .room-key-hints, body.is-diving .progress-hud, body.is-diving #notice,
 body.is-diving .board-viewport > :not(canvas) { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.3s ease; }
-
-/* 방 HUD 상자 배치 단추(10-18 「정리 끝내기」 단추 옆에 두려고 static. 10-20 그 단추는 빼고 노트북으로 — 자리는 그대로) */
-body.is-playing #arrange-toggle { position: static; }
 
 @media (max-width: 900px) {
   .win-finish { left: 24px; right: 24px; width: auto; top: 30px; }
@@ -115,9 +118,9 @@ body.is-playing #arrange-toggle { position: static; }
 }
 
 /* 가져오기 화면 Helper 창: 저장한 정리 계획 */
-.helper-plan { margin-top: 16px; padding-top: 14px; border-top: 1px solid #46352920; }
-.helper-plan p { margin: 0 0 10px; color: #4d5f55; font-size: 12.5px; line-height: 1.6; }
-.helper-plan .win-button { width: 100%; margin-bottom: 10px; }
+.helper-plan { margin-top: 16px; padding-top: 14px; border-top: 1.5px solid #2f231a1f; }
+.helper-plan p { margin: 0 0 10px; color: var(--desk-ink-2); font-size: 13px; line-height: 1.6; }
+.helper-plan .win-button { display: flex; width: 100%; margin-bottom: 10px; }
 .helper-plan-file { display: inline-block; font-size: 13px; }
 
 /* ── 창 손잡이: 네 변·네 모서리. 오른쪽 아래에는 늘릴 수 있다는 빗금 ── */
@@ -129,7 +132,7 @@ body.is-playing #arrange-toggle { position: static; }
 .win-grip-ne, .win-grip-nw, .win-grip-se, .win-grip-sw { width: 16px; height: 16px; }
 .win-grip-ne { top: 0; right: 0; cursor: nesw-resize; } .win-grip-sw { bottom: 0; left: 0; cursor: nesw-resize; }
 .win-grip-nw { top: 0; left: 0; cursor: nwse-resize; }
-.win-grip-se { bottom: 0; right: 0; cursor: nwse-resize; background: linear-gradient(135deg, transparent 52%, #46352940 52% 58%, transparent 58% 68%, #46352940 68% 74%, transparent 74%); }
+.win-grip-se { bottom: 0; right: 0; cursor: nwse-resize; background: linear-gradient(135deg, transparent 52%, #2f231a40 52% 58%, transparent 58% 68%, #2f231a40 68% 74%, transparent 74%); }
 .win-finish .win-bar { cursor: grab; }
 .win-finish .win-bar:active { cursor: grabbing; }
 
@@ -139,5 +142,5 @@ body.is-playing #arrange-toggle { position: static; }
 @keyframes finish-ch { from { opacity: 0; transform: translateY(16px) scale(.6); } }
 .finish-num { display: inline-block; font-variant-numeric: tabular-nums; }
 .finish-num.is-tick { animation: finish-tick 0.18s ease-out; }
-@keyframes finish-tick { 50% { transform: translateY(-2px) scale(1.12); color: #8a6a2f; } }
+@keyframes finish-tick { 50% { transform: translateY(-2px) scale(1.12); color: var(--pen-red, #b5574a); } }
 

@@ -22,15 +22,16 @@ import { CardObject, disposeSharedCardGeometry } from "./card-object.js";
 import { reservePileShape, stackHeights, thicknessOf } from "./stacking.js";
 import { CSS2DObject, SceneKit, THREE, toLogical, toWorld, toWorldSize } from "./scene-kit.js";
 import { TUNING, UNIT } from "./tuning.js";
-import { ATTIC_BOOKS, ATTIC_HALF, ATTIC_PILE, ATTIC_PINBOARD, atticCeilingAt, atticFloorBounds, bookSlot, pinboardPose } from "./attic-room.js";
+import { ATTIC_HALF, ATTIC_PILE, ATTIC_PINBOARD, atticCeilingAt, atticFloorBounds, pinboardPose } from "./attic-room.js";
 import { chargePower, throwPath, throwSpeed } from "./throw.js";
+import { sound } from "../sound.js";
 import { HomeSlots, fileHome } from "./file-homes.js";
 import { BoxPlacementState, rotateBox, supportsBox, validateBoxPlacement } from "./box-placement.js";
 import { FolderShelfAssignments } from "./folder-shelves.js";
 import { PointerLockState } from "./pointer-lock-state.js";
 import { movementKey } from "./walk-collision.js";
 import { surfaceMaterial } from "./materials.js";
-import { timeHintMarkup } from "../ui/time-hint.js";
+import { doneHintMarkup, timeHintMarkup, folderHintMarkup } from "../ui/time-hint.js";
 const LAPTOP_HIT = new THREE.Vector3();
 const BED_HIT = new THREE.Vector3();
 
@@ -125,8 +126,10 @@ export class Board3D {
   #crosshair;
   #lockPrompt;
   #handHint;
+  #handHintMessage = "";
+  #aimBoxId = null;
   #timeHint;
-  #timeHintNight = null;
+  #timeHintKey = null; // 조준선 위 힌트가 지금 무엇을 그리고 있나("bed-night" | "bed-day" | "laptop" | "laptop-calling")
   #keys = new Set();
   #onKeyDown = null;
   #onKeyUp = null;
@@ -224,37 +227,6 @@ export class Board3D {
   /** 모든 오브젝트를 목표 자리에 즉시 붙인다. 애니메이션을 기다리지 않을 때. */
   snap() {
     for (let i = 0; i < 90; i += 1) this.#frame(1 / 60);
-  }
-
-  /** 카드의 현재 화면 좌표(px, 뷰포트 기준). 콘솔 디버그와 테스트용. */
-  screenPositionOf(cardId) {
-    const card = this.#cards.get(cardId);
-    if (!card) return null;
-    const screen = this.#kit.toScreen(card.position);
-    const rect = this.#kit.renderer.domElement.getBoundingClientRect();
-    return { x: screen.x + rect.left, y: screen.y + rect.top, behind: screen.behind };
-  }
-
-  /** 아직 안 꺼낸 더미의 현재 화면 좌표. */
-  screenPositionOfPile() {
-    const point = this.#pile.position.clone().setY(0.18);
-    const screen = this.#kit.toScreen(point);
-    const rect = this.#kit.renderer.domElement.getBoundingClientRect();
-    return { x: screen.x + rect.left, y: screen.y + rect.top, behind: screen.behind };
-  }
-
-  /** 상자의 현재 화면 좌표. */
-  screenPositionOfFolder(folderId) {
-    const box = this.#boxes.get(folderId) ?? this.#boxes.get(`self:${folderId}`);
-    if (!box) return null;
-    const point = box.group.position.clone().add(new THREE.Vector3(0, TUNING.box.height * 0.5, 0));
-    const screen = this.#kit.toScreen(point);
-    const rect = this.#kit.renderer.domElement.getBoundingClientRect();
-    return { x: screen.x + rect.left, y: screen.y + rect.top, behind: screen.behind };
-  }
-
-  get tilted() {
-    return false; // 3D에는 2D의 사선 미리보기가 필요 없다. 카메라 프리셋이 대신한다.
   }
 
   get walking() {
@@ -492,6 +464,7 @@ export class Board3D {
 
     this.#breadcrumb = document.createElement("div");
     this.#breadcrumb.className = "breadcrumb";
+    this.#breadcrumb.dataset.pen = "paper"; // 11-07 연필 종이(js/ui/pencil.js, css/room-paper.css)
 
     this.#marquee = document.createElement("div");
     this.#marquee.className = "marquee";
@@ -513,20 +486,23 @@ export class Board3D {
     this.#lockPrompt = document.createElement("button");
     this.#lockPrompt.type = "button";
     this.#lockPrompt.className = "lock-prompt";
+    this.#lockPrompt.dataset.pen = "paper";
     this.#lockPrompt.innerHTML = "<strong>방 둘러보기</strong><small>클릭해서 시작 · WASD 이동 · Space 점프 · Esc 커서</small>";
     this.#lockPrompt.hidden = true;
     this.#lockPrompt.addEventListener("click", () => this.#requestLock());
 
     this.#handHint = document.createElement("div");
     this.#handHint.className = "hand-hint";
+    this.#handHint.dataset.pen = "paper";
     this.#handHint.hidden = true;
-    // 침대를 겨누면 「누르면 시간이 바뀐다」 연필 해/달(11-06 사용자: 랜딩과 같은 힌트)
+    // 조준선 위 연필 힌트: 침대 = 해/달(11-06), 노트북 = 체크 「눌러서 정리 끝내기」(11-07 — 위쪽 알약이 눈에 안 띈다는 사용자 피드백)
     this.#timeHint = document.createElement("div");
     this.#timeHint.className = "time-hint";
     this.#timeHint.dataset.on = "false";
     this.#timeHint.setAttribute("aria-hidden", "true");
     this.#arrangeHint = document.createElement("div");
     this.#arrangeHint.className = "arrange-hint";
+    this.#arrangeHint.dataset.pen = "paper";
     this.#arrangeHint.setAttribute("role", "status");
     this.#arrangeHint.hidden = true;
 
@@ -756,6 +732,7 @@ export class Board3D {
         });
         this.#kit.world.add(card.group);
         this.#cards.set(entry.id, card);
+        card.onLand = () => this.#landSound(entry.id);
         if (this.#pendingSpill.has(entry.id)) {
           card.spillFrom({ x: pilePosition.x, z: pilePosition.z }, this.#spillIndex * TUNING.supplyStagger);
           this.#spillIndex += 1;
@@ -779,35 +756,30 @@ export class Board3D {
   }
 
   /**
-   * 다락방의 처음 자리(핀보드·책 더미)에 있는 파일의 자세. 저장소는 home만 표시하고 칸은 장면이 정한다.
-   * 같은 파일은 같은 칸을 유지한다. 책은 칸 순서대로 실제 두께만큼 쌓인다.
+   * 다락방의 처음 자리(핀보드)에 있는 파일의 자세. 저장소는 home만 표시하고 칸은 장면이 정한다.
+   * 같은 파일은 같은 칸을 유지한다. (11-07: 책 더미는 뺌 — 문서도 그냥 바닥 파일)
    */
   #syncHomes() {
-    const byHome = new Map([["pinboard", []], ["books", []]]);
+    const byHome = new Map([["pinboard", []]]);
     const entries = this.#store.files
       .filter((entry) => entry.position?.home && BOARD_STATUSES.has(entry.status) && entry.status !== "moving")
       .sort((a, b) => (a.stackSeq ?? 0) - (b.stackSeq ?? 0));
     for (const entry of entries) byHome.get(entry.position.home)?.push(entry.id);
     const assigned = this.#homeSlots.assign(byHome);
     this.#homePoses.clear();
-    const books = [];
     for (const entry of entries) {
       const slot = assigned.get(entry.id);
-      if (!slot) continue;
-      if (slot.home === "pinboard") this.#homePoses.set(entry.id, pinboardPose(slot.index));
-      else books.push({ entry, ...bookSlot(slot.index) });
+      if (slot?.home === "pinboard") this.#homePoses.set(entry.id, pinboardPose(slot.index));
     }
-    const { stacks, scale } = ATTIC_BOOKS;
-    const tops = stacks.map(() => 0);
-    for (const book of books.sort((a, b) => a.level - b.level)) {
-      const stack = stacks[book.stack % stacks.length];
-      const wobble = Math.sin((book.level + 1) * 7.31 + book.stack) * 0.05;
-      this.#homePoses.set(book.entry.id, {
-        x: stack.x + wobble * 0.4, y: tops[book.stack], z: stack.z + wobble * 0.3,
-        spin: stack.yaw + wobble, scale, facePitch: 0,
-      });
-      tops[book.stack] += thicknessOf(book.entry.item.size, book.entry.item.extension) * scale + TUNING.card.stackGap;
-    }
+  }
+
+  /** 손을 떠난 카드가 내려앉았다: 상자 안이면 「툭」, 핀보드면 「틱」, 바닥이면 「탁」(11-09, js/sound.js) */
+  #landSound(id) {
+    const entry = this.#store.entry(id);
+    if (!entry) return;
+    if (entry.status === "moving" || entry.status === "placed") sound.play("box");
+    else if (entry.position?.home === "pinboard") sound.play("pin");
+    else sound.play("throw");
   }
 
   #applyCardTarget(card, entry, trayIndex, restHeight = 0) {
@@ -853,14 +825,10 @@ export class Board3D {
     const hovered = this.#hoveredCardId === entry.id;
     const home = this.#homePoses.get(entry.id);
     if (home) {
-      // 핀보드는 겨누면 방 쪽으로 살짝 들리고, 책은 위로 뜬다.
+      // 핀보드는 겨누면 방 쪽으로 살짝 들린다.
       card.spring = TUNING.card.spring;
       card.follow = 1;
-      card.setTarget({
-        ...home,
-        z: home.z - (hovered && home.facePitch ? 0.08 : 0),
-        y: home.y + (hovered && !home.facePitch ? 0.06 : 0),
-      });
+      card.setTarget({ ...home, z: home.z - (hovered ? 0.08 : 0) });
       return;
     }
     const spot = toWorld(entry.position.x + store.card.width / 2, entry.position.y + store.card.height / 2);
@@ -921,13 +889,15 @@ export class Board3D {
   #syncBreadcrumb() {
     const store = this.#store;
     const level = store.level;
-    this.#breadcrumb.textContent =
+    const crumb =
       level === null
         ? store.visibleTargets.length
-          ? "빈손으로 상자를 클릭하면 폴더가 열립니다"
-          : "폴더가 없습니다 · 설정 패널의 '새 폴더'로 만드세요"
+          ? "" // 11-07 사용자: 늘 떠 있을 필요 없음 → 상자를 빈손으로 겨눌 때만 조준선 위 「눌러서 폴더 열기」(#updateTimeHint)
+          : "폴더가 없어요 · Esc 설정에서 「새 폴더」로 만들어요"
         : `${store.folderLabel(level)} · Esc 뒤로`;
+    if (this.#breadcrumb.textContent !== crumb) this.#breadcrumb.textContent = crumb;
     this.#breadcrumb.dataset.level = level === null ? "root" : "inner";
+    this.#breadcrumb.hidden = !this.#breadcrumb.textContent;
   }
 
   // ───────────────────────── 프레임 ─────────────────────────
@@ -940,6 +910,7 @@ export class Board3D {
         const pick = this.#pickAt(null);
         this.#setHovered(pick.kind === "card" ? pick.id : null);
         this.#crosshair.dataset.over = pick.kind;
+        this.#aimBoxId = pick.kind === "box" ? pick.id : null;
         for (const box of this.#boxes.values()) box.setTargeted(pick.kind === "box" && box.id === pick.id, this.#arranging ? 0 : this.#store.selection.length);
       }
       this.#updateHandTargets();
@@ -1049,7 +1020,7 @@ export class Board3D {
     const detail = this.#lockDenied ? "클릭해서 재시도 · 안 되면 빈손 우클릭 드래그로 둘러보기" : "클릭하면 마우스 시점 복귀 · Esc 설정";
     this.#lockPrompt.querySelector("strong").textContent = title;
     this.#lockPrompt.querySelector("small").textContent = detail;
-    if (!walking) { this.#handHint.hidden = true; this.#updateTimeHint(false); }
+    if (!walking) { this.#handHint.hidden = true; this.#updateTimeHint(null); }
     this.#kit.renderer.domElement.style.cursor = walking && this.#locked ? "none" : "default";
     this.#breadcrumb.dataset.fallback = String(this.#lockDenied);
   }
@@ -1115,6 +1086,7 @@ export class Board3D {
     }
     if (pick.kind === "card") {
       this.#store.select(pick.id, { additive: true });
+      sound.play("pick");
       this.#gathering = TUNING.firstPerson.gather.sweep;
       return;
     }
@@ -1144,6 +1116,7 @@ export class Board3D {
     const pick = this.#pickAt(event);
     if (pick.kind !== "card" || this.#store.isSelected(pick.id)) return;
     this.#store.select(pick.id, { additive: true });
+    sound.play("pick");
   }
 
   /**
@@ -1420,7 +1393,7 @@ export class Board3D {
     return laptop <= BED_HIT.distanceTo(this.#kit.raycaster.ray.origin) ? "laptop" : "bed";
   }
 
-  /** 노트북 위 이름표: 겨누면 「정리 끝내기」, 다 치웠으면 늘 「다 치웠어요 · 여기서 마무리」. */
+  /** 노트북 위 이름표: 다 치웠을 때만 늘 「다 치웠어요 · 여기서 마무리」. 겨눌 때 힌트는 조준선 위(#updateTimeHint). */
   #updateLaptopLabel(aimed) {
     const box = this.#kit.laptopBox;
     if (!box) return;
@@ -1431,11 +1404,11 @@ export class Board3D {
       this.#laptopLabel.position.set((box.min.x + box.max.x) / 2, box.max.y + 0.35, (box.min.z + box.max.z) / 2);
       this.#kit.scene.add(this.#laptopLabel);
     }
-    const show = !this.#kit.diving && this.#kit.isWalking && !this.#arranging && (aimed || this.#laptopCalling);
+    // 겨누고 있으면 조준선 위 힌트가 같은 말을 하므로 노트북 위는 숨긴다(두 개가 겹쳐 보이지 않게)
+    const show = !this.#kit.diving && this.#kit.isWalking && !this.#arranging && this.#laptopCalling && !aimed;
     this.#laptopLabel.visible = show;
     const element = this.#laptopLabel.element;
-    const text = this.#laptopCalling ? "다 치웠어요 · 여기서 마무리" : "정리 끝내기";
-    if (element.textContent !== text) element.textContent = text;
+    if (show && !element.firstChild) element.innerHTML = doneHintMarkup("다 치웠어요 · 여기서 마무리");
     element.dataset.calling = String(this.#laptopCalling);
     element.dataset.aimed = String(aimed);
   }
@@ -1450,7 +1423,7 @@ export class Board3D {
   diveIntoLaptop() {
     this.setSuspended(true);
     this.#handHint.hidden = true;
-    this.#updateTimeHint(false);
+    this.#updateTimeHint(null);
     this.#kit.laptopHover = false;
     if (this.#laptopLabel) this.#laptopLabel.visible = false;
     return this.#kit.diveLaptop();
@@ -1469,20 +1442,10 @@ export class Board3D {
     const bed = fixture === "bed", laptop = fixture === "laptop";
     this.#kit.laptopHover = laptop;
     this.#updateLaptopLabel(laptop);
-    this.#updateTimeHint(bed && !this.#arranging);
-    this.#handHint.hidden = this.#arranging || !walking || (held === 0 && !bed && !laptop);
-    if (laptop) {
-      const message = this.#laptopCalling
-        ? `<strong>다 치웠어요</strong> <kbd>좌클릭</kbd> 노트북에서 마무리하기`
-        : `<kbd>좌클릭</kbd> 정리 끝내기 <span>· 노트북으로 들어가 결과 보기</span>`;
-      if (this.#handHint.innerHTML !== message) this.#handHint.innerHTML = message;
-      return;
-    }
-    if (bed) {
-      const message = `<kbd>좌클릭</kbd> 한숨 자기 <span>· ${this.#kit.isNight ? "아침으로" : "밤으로"}</span>`;
-      if (this.#handHint.innerHTML !== message) this.#handHint.innerHTML = message;
-      return;
-    }
+    const box = held === 0 && walking && this.#locked && !this.#suspended && this.#crosshair.dataset.over === "box";
+    this.#updateTimeHint(this.#arranging ? null : bed ? "bed" : laptop ? "laptop" : box ? "box" : null);
+    // 11-07: 침대·노트북은 조준선 위 연필 힌트가 같은 말을 하므로 아래 안내는 손에 파일을 들었을 때만
+    this.#handHint.hidden = this.#arranging || !walking || held === 0;
     if (held > 0 && walking) {
       const pin = this.#locked && this.#aimsAtPinboard(this.#aim(null));
       const caughtName = this.#charge?.caught != null ? this.#store.folder(this.#charge.caught)?.name : null;
@@ -1491,15 +1454,25 @@ export class Board3D {
         : this.#hintFlash > performance.now()
           ? `바닥에 두려면 <kbd>우클릭</kbd>으로 던지세요 <span>· 짧게 누르면 발 앞에</span>`
           : `<kbd>좌클릭</kbd> 상자에 넣기 <span>· ${held}장</span> <kbd>우클릭</kbd> ${pin ? "핀보드에 꽂기" : "꾹 눌러 던지기"}`;
-      if (this.#handHint.innerHTML !== message) this.#handHint.innerHTML = message;
+      // innerHTML과 비교하면 안 됨: 연필 키캡(js/ui/pencil.js)이 kbd에 테두리를 덧붙여 늘 달라 보인다
+      if (this.#handHintMessage !== message) { this.#handHintMessage = message; this.#handHint.innerHTML = message; }
     }
   }
 
-  #updateTimeHint(on) {
-    const night = this.#kit.isNight;
-    if (on && this.#timeHintNight !== night) { this.#timeHintNight = night; this.#timeHint.innerHTML = timeHintMarkup(night); }
+  /** 조준선 위 연필 힌트. kind: "bed" | "laptop" | "box" | null(숨김) */
+  #updateTimeHint(kind) {
+    const on = Boolean(kind);
+    if (on) {
+      const boxName = kind === "box" ? this.#store.folder(this.#aimBoxId)?.name ?? "폴더" : "";
+      const key = kind === "bed" ? (this.#kit.isNight ? "bed-night" : "bed-day") : kind === "box" ? `box:${boxName}` : this.#laptopCalling ? "laptop-calling" : "laptop";
+      if (this.#timeHintKey !== key) {
+        this.#timeHintKey = key;
+        this.#timeHint.innerHTML = kind === "bed" ? timeHintMarkup(this.#kit.isNight) : kind === "box" ? folderHintMarkup(boxName) : doneHintMarkup(this.#laptopCalling ? "눌러서 마무리하기" : "눌러서 정리 끝내기");
+      }
+    }
     const value = String(on);
     if (this.#timeHint.dataset.on !== value) this.#timeHint.dataset.on = value;
+    if (on && this.#timeHint.dataset.kind !== kind) this.#timeHint.dataset.kind = kind; // 상자면 3D 이름표를 잠시 숨김(css/room-paper.css)
   }
 
   #hitTargets() {
@@ -1744,6 +1717,8 @@ export class Board3D {
       const folderId = this.#boxUnder(event);
       if (folderId) {
         this.sync(); // 실패하면 제자리로 튕겨 돌아가야 하므로 위치는 그대로 둔다
+        // 끌어 놓기는 날아가지 않고 바로 들어간다. 장수만큼 불러 툭 → 톡톡톡(js/sound.js boxHit, 8장까지)
+        for (let i = 0; i < Math.min(drag.ids.size, 8); i++) sound.play("box");
         this.#onDropToFolder?.([...drag.ids], folderId);
         return;
       }

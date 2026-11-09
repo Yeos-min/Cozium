@@ -22,10 +22,6 @@ export class StatusPanel {
     }
   }
 
-  clearNotice() {
-    for (const element of this.#notices) element.hidden = true;
-  }
-
   #push(title, tone, lines = []) {
     if (!this.#log) return;
     const item = document.createElement("li");

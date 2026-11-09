@@ -1,23 +1,58 @@
-/* 샘플 상자 내부: 방 위에 펼친 얕은 수납 트레이. */
-.folder-interior { width: min(940px, 92vw); max-height: 86vh; padding: 28px; border: 8px solid #a88c67; border-radius: 20px; background: #f2eadb; color: #443d30; box-shadow: 0 28px 80px #20190c66; }
-.folder-interior::backdrop { background: #28271f88; backdrop-filter: blur(5px); }
+/* 상자 안 보기(빈손으로 상자를 누르면). 11-07 사용자 「이런 것도 바꿔야겠네」 → 정리방 UI와 같은 연필 + 크림 종이.
+   종이 한 장(안쪽 12px 연필 테두리, js/ui/pencil.js data-pen="sheet") 위에 바탕화면처럼 아이콘 + 이름.
+   색은 css/room-paper.css의 --pen-* (먹 #2f231a, 옅은 먹 #6b5a4a, 종이 #fbf7ec). */
+.folder-interior {
+  position: fixed; /* 모달 dialog 자리. pencil.js의 :where([data-pen]){position:relative}가 덮지 않게 */
+  width: min(980px, 92vw); max-height: 86vh; box-sizing: border-box; padding: 38px 46px 34px;
+  border: 0; border-radius: 18px; background: var(--pen-paper, #fbf7ec); color: var(--pen-ink, #2f231a);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.35); font-family: var(--font-ui); letter-spacing: 0; word-break: keep-all;
+}
+.folder-interior::backdrop { background: #17150fb3; }
 .folder-interior header, .folder-interior nav, .folder-interior footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
-.folder-interior h2 { margin: 6px 0 18px; font-size: 22px; overflow-wrap: anywhere; }
-.folder-interior small { color: #78765b; letter-spacing: .12em; }
-.folder-interior button { cursor: pointer; border-radius: 9px; }
-.folder-interior button:focus-visible { outline: 3px solid #768255; outline-offset: 3px; }
-.folder-interior nav { font-size: 13px; color: #746b5b; margin-bottom: 18px; }
-.interior-tray { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 22px; align-content: start; padding: 26px; max-height: 51vh; min-height: 250px; overflow-y: auto; background: #dfd1ba; border-radius: 12px; box-shadow: inset 0 5px 12px #5a432b28; border-bottom: 7px solid #c0a888; }
-.interior-tray button { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; background: #fcf8ed; border: 2px solid transparent; border-bottom: 5px solid #cabc9e; box-shadow: 0 8px 10px #51412625; transform: perspective(700px) rotateX(7deg); transition: transform .15s, box-shadow .15s; }
-.interior-tray button:hover, .interior-tray button[aria-pressed="true"] { transform: translateY(-5px); border-color: #79845a; box-shadow: 0 12px 16px #51412635; }
-.interior-tray button[aria-pressed="true"] { background: #eaf0d8; }
-.interior-tray strong { width: 100%; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.interior-face { height: 85px; width: 100%; display: grid; place-items: center; background: #e6e1d4; color: #77745e; font-weight: 700; border-radius: 5px; overflow: hidden; }
-.interior-face img { width: 100%; height: 100%; object-fit: cover; }
-.interior-tray .interior-folder { background: #a6ab83; border-bottom-color: #737955; }
-.interior-folder .interior-face { background: #858c64; color: #f9f3df; border-radius: 6px 18px 4px 4px; }
-.interior-empty { grid-column: 1 / -1; align-self: center; text-align: center; color: #766b59; padding: 55px 15px; }
-.folder-interior footer { width: auto; margin-top: 18px; padding: 0; font-size: 14px; letter-spacing: normal; text-transform: none; }
-.folder-interior header button, .folder-interior nav button, .folder-interior footer button { padding: 10px 14px; background: #faf5e9; border: 1px solid #b7ac94; color: #514b3c; }
-.interior-tray button { color: #443d30; }
+.folder-interior header { align-items: flex-start; }
+.folder-interior small { color: var(--pen-ink-2, #6b5a4a); font: 800 14px/1 var(--font-ui); letter-spacing: 0; }
+.folder-interior h2 { margin: 10px 0 22px; font: 900 26px/1.2 var(--font-ui); overflow-wrap: anywhere; }
+
+/* 버튼: 종이 칩(연필 테두리). 들고 돌아갈 파일이 있으면 「N개 들고 돌아가기」를 먹으로 채움 */
+.folder-interior button { cursor: pointer; font: 800 15px/1 var(--font-ui); color: var(--pen-ink, #2f231a); }
+.folder-interior :is(header, nav, footer) button[data-pen] { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 16px; border: 0; background: none; }
+.folder-interior :is(header, nav, footer) button[data-pen]:hover:not(:disabled) { transform: translateY(-1px); }
+.folder-interior [data-close][data-holding="true"] { color: var(--pen-paper, #fbf7ec); }
+.folder-interior [data-close][data-holding="true"] svg.pen .f { fill: var(--pen-ink, #2f231a); }
+.folder-interior [data-close][data-holding="true"] kbd { color: var(--pen-paper, #fbf7ec); }
+.folder-interior [data-close][data-holding="true"] kbd svg.pen :is(.s, .s2) { stroke: var(--pen-paper, #fbf7ec); }
+.folder-interior [data-back] { height: 42px; padding: 0 4px; border: 0; background: none; color: var(--pen-ink-2, #6b5a4a); }
+.folder-interior [data-back]:disabled { visibility: hidden; }
+.folder-interior button:disabled { cursor: default; opacity: 0.5; }
+.folder-interior button:focus-visible { outline: 2px solid var(--pen-ink, #2f231a); outline-offset: 3px; }
+.folder-interior nav { margin-bottom: 18px; color: var(--pen-ink-2, #6b5a4a); font: 700 14px/1 var(--font-ui); }
+.folder-interior nav span { display: inline-flex; align-items: center; gap: 6px; }
+.folder-interior kbd {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  min-width: 26px; height: 26px; padding: 0 8px; border: 0; background: none;
+  color: var(--pen-ink, #2f231a); font: 800 12.5px/1 var(--font-logo);
+}
+
+/* 상자 안: 바탕화면처럼 아이콘 + 이름. 바닥은 종이보다 살짝 짙은 크림 */
+.interior-tray {
+  user-select: none; /* Shift + 클릭이 글자를 긁어 고르지 않게 */
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px 8px; align-content: start;
+  padding: 22px; max-height: 50vh; min-height: 240px; overflow-y: auto;
+  border-radius: 12px; background: #f1e7d3; box-shadow: inset 0 0 0 1.5px #2f231a1f;
+}
+.interior-tray button {
+  position: relative; isolation: isolate; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 8px 10px; border: 0; border-radius: 10px; background: none;
+}
+.interior-tray button:hover { background: #2f231a0d; }
+/* 고른 파일: 연필 동그라미 대신 연필로 그은 종이(테두리는 pencil.js가 아닌 CSS로 — 많이 깔리므로 가볍게) */
+.interior-tray button[aria-pressed="true"] { background: var(--pen-paper, #fbf7ec); box-shadow: inset 0 0 0 2.2px var(--pen-ink, #2f231a), 1.2px -1px 0 0 #2f231a59; }
+.interior-tray strong { width: 100%; font: 700 13px/1.4 var(--font-ui); color: var(--pen-ink, #2f231a); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.interior-face { width: 64px; height: 64px; display: grid; place-items: center; }
+.interior-face img { width: 60px; height: 60px; display: block; pointer-events: none; filter: drop-shadow(0 3px 4px #5a463024); }
+/* 사진은 실제 그림을 종이 테두리 사진처럼 */
+.interior-face.is-photo img { width: 60px; height: 48px; object-fit: cover; border: 3px solid #fffaf0; border-radius: 2px; box-shadow: 0 2px 5px #5a463040; filter: none; }
+.interior-empty { grid-column: 1 / -1; align-self: center; text-align: center; color: var(--pen-ink-2, #6b5a4a); font: 700 15px/1.5 var(--font-ui); padding: 55px 15px; }
+/* css/styles.css의 사이트 아래띠 footer(폭·아래 여백·대문자·자간 .12em)가 새어 들어오지 않게 되돌림 */
+.folder-interior footer { width: auto; margin: 18px 0 0; padding: 0; text-transform: none; letter-spacing: 0; min-height: 42px; color: var(--pen-ink-2, #6b5a4a); font: 700 14px/1.4 var(--font-ui); }
 body.is-playing .folder-interior footer { display: flex; }

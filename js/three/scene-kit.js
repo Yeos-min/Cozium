@@ -26,8 +26,6 @@ import { TUNING, UNIT, directionFromAngles } from "./tuning.js";
 
 export { THREE, CSS2DObject };
 
-const HALF_W = BOARD_SIZE.width / 2;
-const HALF_H = BOARD_SIZE.height / 2;
 const DEG = Math.PI / 180;
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -460,7 +458,7 @@ export class SceneKit {
     return Math.min(92, 2 * Math.atan(Math.tan(TUNING.firstPerson.fov * DEG / 2) * Math.max(1, 1.5 / aspect)) / DEG);
   }
 
-  /** 핀보드·책 더미 앞에 서서 문 쪽 선반과 파일 바닥을 본다 */
+  /** 핀보드 앞에 서서 문 쪽 선반과 파일 바닥을 본다 */
   resetWalk() {
     this.clearLook();
     const bounds = this.#walkBounds();

@@ -18,6 +18,26 @@ function moon(cx, cy, r) {
   return `<path class="th-f" d="${d}"/>${pair(d)}${pair(`M${cx + r + 6} ${cy - r - 4} l3 0 m-1.5 -1.5 l0 3`)}${pair(`M${cx + r + 12} ${cy - 3} l2.4 0 m-1.2 -1.2 l0 2.4`)}`;
 }
 
+/** 연필 체크(✓). 노트북 = 정리 끝내기(11-07 사용자: 침대 힌트와 같은 모양, 완료 = 체크) */
+function check(cx, cy) {
+  return pair(`M${cx - 13} ${cy + 1} L${cx - 4} ${cy + 10} L${cx + 14} ${cy - 11}`);
+}
+
+/**
+ * 노트북 힌트: 침대 힌트와 같은 자리·같은 결의 연필 체크 + 글자.
+ * calling = 다 치워서 노트북이 부르는 중(노트북 위에 늘 뜨는 이름표에도 같은 그림을 쓴다).
+ */
+export function doneHintMarkup(label = "눌러서 정리 끝내기") {
+  return `<svg class="th-icon" width="60" height="52" viewBox="0 0 60 52" aria-hidden="true">${check(30, 26)}</svg><span class="th-label">${label}</span>`;
+}
+
+/** 상자를 빈손으로 겨누면: 열린 연필 폴더 + 「눌러서 ‘이름’ 열기」(11-07 사용자: 아래에 늘 떠 있던 안내를 없애고 필요할 때만).
+ *  이름이 여기 들어가므로 그동안 상자 위 3D 이름표는 숨긴다(겹쳐서) */
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+export function folderHintMarkup(name = "폴더") {
+  return `<svg class="th-icon" width="60" height="52" viewBox="0 0 60 52" aria-hidden="true">${pair("M10 40V14h13l4 5h21v7")}${pair("M10 40l7-14h38l-7 14Z")}</svg><span class="th-label">눌러서 ‘<b class="th-name">${esc(name)}</b>’ 열기</span>`;
+}
+
 /** night = 지금 밤인가. 밤이면 아침으로 가는 해, 낮이면 밤으로 가는 달 */
 export function timeHintMarkup(night) {
   const icon = night ? sun(30, 26, 11) : moon(28, 26, 13);

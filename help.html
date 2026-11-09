@@ -12,7 +12,7 @@
 </head>
 <body>
 <header class="site-nav" data-state="open">
-  <a class="brand" href="./index.html" aria-label="Cozium 처음으로">cozium<span aria-hidden="true">⌁</span></a>
+  <a class="brand" href="./index.html" aria-label="Cozium 처음으로">Cozium</a>
   <nav class="links" aria-label="사이트">
     <a href="./help.html" aria-current="page">이용 안내</a>
     <a class="go" href="./app.html">정리방 들어가기</a>
@@ -59,7 +59,7 @@
       </div>
       <div>
         <dt>남기지 않습니다</dt>
-        <dd>쿠키, 브라우저 저장소, 방문 분석 도구를 쓰지 않습니다. 회원가입과 로그인도 없습니다.</dd>
+        <dd>쿠키와 방문 분석 도구를 쓰지 않고, 회원가입과 로그인도 없습니다. 이 브라우저 안(저장소)에는 두 가지만 남습니다: 소리를 껐는지, 그리고 웹 체험 결과 화면을 열었을 때의 정리 계획(파일·폴더 이름과 옮길 곳 — 나중에 Helper로 적용하려고 보관하며, 적용하면 지웁니다). 어디로도 보내지 않습니다.</dd>
       </div>
       <div>
         <dt>웹 체험은 읽기만 합니다</dt>
@@ -83,20 +83,22 @@
   <section id="controls">
     <h2>조작법</h2>
     <h3>첫 화면</h3>
-    <p>휠, 스와이프, 방향키(<kbd>↓</kbd> <kbd>Space</kbd> / <kbd>↑</kbd>) 한 번에 다음 장면까지 재생됩니다. 바닥의 파일 더미를 누르면 더미 전체가 손에 모이고, 상자를 누르면 들어갑니다. 더미 네 개를 모두 넣으면 정리된 바탕화면으로 넘어갑니다. 멈춘 장면에서 스크롤만 계속하거나 <kbd>Enter</kbd>를 누르면 시연이 재생됩니다.</p>
+    <p>책상 위 노트북을 누르면 시작하고, 노트북 위 말풍선 「정리 시작해볼까요?」를 누르면 이야기가 저절로 흐릅니다. 노트북 속 바닥에서 파일 더미를 누르면 더미 전체가 손에 모이고, 상자를 누르면 들어갑니다. 더미 네 개를 모두 넣으면 정리된 바탕화면으로 넘어갑니다. <kbd>Enter</kbd>를 누르면 더미 하나를 대신 넣어 줍니다. 오른쪽 위 「건너뛰고 바로 시작」으로 바로 정리방에 갈 수 있고, 오른쪽 아래 단추로 소리를 끕니다.</p>
     <h3>정리방</h3>
-    <p>첫 클릭으로 시점을 잡고, <kbd>Esc</kbd>로 마우스를 놓습니다.</p>
+    <p>「방에 들어가기」나 첫 클릭으로 시점을 잡습니다. <kbd>Esc</kbd>를 누르면 설정 창이 열리고 마우스가 풀립니다 — 새 폴더 만들기, 기록, 소리 켜기/끄기, 화면 품질이 여기 있습니다.</p>
     <div class="table-wrap">
       <table class="keys">
         <tbody>
-          <tr><th scope="row">마우스 / <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, 방향키</th><td>둘러보기 / 걷기</td></tr>
-          <tr><th scope="row">파일 클릭, 누른 채 훑기</th><td>파일 한 개 또는 여러 개 집기</td></tr>
-          <tr><th scope="row">폴더 클릭 / <kbd>1</kbd>–<kbd>9</kbd></th><td>들고 있는 파일 넣기</td></tr>
-          <tr><th scope="row">빈손으로 폴더 클릭</th><td>폴더 열기</td></tr>
-          <tr><th scope="row">오른쪽 클릭</th><td>보고 있는 자리에 내려놓기</td></tr>
+          <tr><th scope="row">마우스 / <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, <kbd>Shift</kbd></th><td>둘러보기 / 걷기, 빠르게</td></tr>
+          <tr><th scope="row"><kbd>Space</kbd></th><td>점프</td></tr>
+          <tr><th scope="row">파일 클릭, 누른 채 훑기</th><td>파일 한 개 또는 여러 개 담기</td></tr>
+          <tr><th scope="row">상자 클릭</th><td>들고 있는 파일 넣기 · 빈손이면 상자(폴더) 열기</td></tr>
+          <tr><th scope="row">오른쪽 버튼 꾹 눌렀다 떼기</th><td>보는 쪽으로 던지기 · 상자가 빛나면 그 안으로, 짧게 누르면 발 앞에, 핀보드를 보면 사진·메모를 다시 꽂기</td></tr>
+          <tr><th scope="row">빈손으로 침대 클릭</th><td>낮 ↔ 밤</td></tr>
+          <tr><th scope="row">빈손으로 노트북 클릭</th><td>정리 끝내기 · 결과 보기</td></tr>
           <tr><th scope="row"><kbd>Ctrl</kbd><kbd>Z</kbd></th><td>마지막으로 넣은 묶음 되돌리기</td></tr>
-          <tr><th scope="row"><kbd>Tab</kbd></th><td>파일 정리 / 상자 배치 전환</td></tr>
-          <tr><th scope="row">상자 배치 중 휠</th><td>상자 돌리기</td></tr>
+          <tr><th scope="row"><kbd>Tab</kbd></th><td>파일 정리 / 상자 배치 전환 (배치 중 휠로 돌리기)</td></tr>
+          <tr><th scope="row"><kbd>Esc</kbd></th><td>설정 창 열기·닫기</td></tr>
         </tbody>
       </table>
     </div>
@@ -131,13 +133,13 @@
     <ul>
       <li>Cozium은 수업 과제로 만든 시제품입니다. 기능과 화면은 계속 바뀔 수 있습니다.</li>
       <li>Helper로 실제 바탕화면을 정리하기 전에는 중요한 파일을 백업해 두세요. 처음에는 연습용 폴더로 해 보길 권합니다.</li>
-      <li>포함된 라이브러리와 서체: Three.js r185(<a href="./vendor/three/LICENSE">MIT 라이선스</a>), Fraunces(<a href="./assets/landing/fonts/OFL.txt">SIL Open Font License 1.1</a>). 방과 상자 그림은 이미지 생성과 편집으로 만들었고, 바탕화면 아이콘은 프로젝트 코드로 그렸습니다.</li>
+      <li>포함된 라이브러리와 서체: Three.js r185(<a href="./vendor/three/LICENSE">MIT 라이선스</a>), 나눔스퀘어라운드(<a href="./assets/fonts/nanum-square-round/OFL.txt">SIL Open Font License 1.1</a>), Nunito(<a href="./assets/fonts/nunito/OFL.txt">SIL Open Font License 1.1</a>). 배경음악은 dailyjoy의 <a href="https://pixabay.com/music/beats-kalimba-soft-background-loop-156439/">「Kalimba Soft Background Loop」</a>(<a href="https://pixabay.com/service/license-summary/">Pixabay 콘텐츠 라이선스</a>)이고, 효과음은 프로젝트 코드로 합성합니다. 다락방과 상자 3D 모델은 Blender로 직접 만들었고, 바탕화면 아이콘은 프로젝트 코드로 그렸습니다.</li>
     </ul>
   </section>
 </main>
 
 <footer class="help-foot">
-  <a class="brand" href="./index.html">cozium<span aria-hidden="true">⌁</span></a>
+  <a class="brand" href="./index.html">Cozium</a>
   <span>흩어진 하루가 제자리를 찾는 곳.</span>
 </footer>
 </body>

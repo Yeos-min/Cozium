@@ -54,7 +54,6 @@ li::marker{color:var(--mark)}
 
 .help-foot{max-width:760px;margin:40px auto 0;padding:28px 28px 56px;border-top:1px solid var(--line);display:flex;align-items:baseline;gap:18px;color:var(--muted);font-size:14px}
 .help-foot .brand{font:900 20px/1 var(--font-logo);letter-spacing:-.025em;color:var(--ink);text-decoration:none}
-.help-foot .brand span{display:inline-block;margin-left:4px;font-size:16px;font-family:Georgia,serif;transform:rotate(-12deg)}
 
 @media (prefers-reduced-motion:reduce){summary::after{transition:none}html{scroll-behavior:auto}}
 @media (max-width:700px){.help{padding:96px 18px 32px}.intro h1{font-size:32px}.intro>p{font-size:16px}section{padding-top:48px}h2{font-size:22px}}

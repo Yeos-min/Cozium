@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  ATTIC_BOOKS, ATTIC_BOX, ATTIC_CARD, ATTIC_FLOOR, ATTIC_FLOOR_LAYOUT, ATTIC_HALF, ATTIC_HOME_CAPACITY, ATTIC_OBSTACLES, ATTIC_PILE,
-  ATTIC_PINBOARD, ATTIC_SHELF_RUNS, ATTIC_SPAWN, ATTIC_STACK, ATTIC_WALK, atticCeilingAt, atticFloorBounds, atticSlotArea, bookSlot, pinboardPose,
+  ATTIC_BOX, ATTIC_CARD, ATTIC_FLOOR, ATTIC_FLOOR_LAYOUT, ATTIC_HALF, ATTIC_HOME_CAPACITY, ATTIC_OBSTACLES, ATTIC_PILE,
+  ATTIC_PINBOARD, ATTIC_SHELF_RUNS, ATTIC_SPAWN, ATTIC_STACK, ATTIC_WALK, atticCeilingAt, atticFloorBounds, atticSlotArea, pinboardPose,
 } from "../js/three/attic-room.js";
 import { wallShelfSlots } from "../js/three/folder-shelves.js";
 import { overlaps, rotatedSize } from "../js/three/box-placement.js";
@@ -60,7 +60,7 @@ test("folder boxes line the low −x eave wall in two stacks, clear of furniture
   for (const slot of upper) assert.ok(ground.some((g) => g.x === slot.x && g.z === slot.z && Math.abs(slot.y - TUNING.box.height) < 0.05));
 });
 
-test("the player starts clear of furniture, under a high enough roof, with the pile and books beside them", () => {
+test("the player starts clear of furniture, under a high enough roof, with the pile beside them", () => {
   const context = { obstacles: ATTIC_OBSTACLES, radius: TUNING.firstPerson.bodyRadius, bounds: ATTIC_WALK };
   assert.equal(walkBlocked(ATTIC_SPAWN, context), false);
   for (const x of [ATTIC_WALK.minX, ATTIC_WALK.maxX]) assert.ok(atticCeilingAt(x) > TUNING.firstPerson.eyeHeight + 0.4);
@@ -69,7 +69,7 @@ test("the player starts clear of furniture, under a high enough roof, with the p
   assert.equal(overlaps(pile, floorRect), false);
 });
 
-test("pinboard and book slots are distinct, inside their places, and cover the home capacity", () => {
+test("pinboard slots are distinct, inside the board, and cover the home capacity", () => {
   const pins = Array.from({ length: ATTIC_HOME_CAPACITY.pinboard }, (_, i) => pinboardPose(i));
   for (const pose of pins) {
     assert.ok(pose.x > ATTIC_PINBOARD.minX - 0.1 && pose.x < ATTIC_PINBOARD.maxX + 0.1);
@@ -80,8 +80,4 @@ test("pinboard and book slots are distinct, inside their places, and cover the h
   assert.equal(cells.size, pins.length);
   // the first image goes top left as seen from the room (room left = +x when facing the +z wall)
   assert.ok(pins[0].x > pins[1].x && pins[0].y > pins[ATTIC_PINBOARD.cols].y);
-  const books = Array.from({ length: ATTIC_HOME_CAPACITY.books }, (_, i) => bookSlot(i));
-  assert.equal(new Set(books.map((slot) => `${slot.stack}:${slot.level}`)).size, books.length);
-  assert.deepEqual(bookSlot(1), { stack: 0, level: 1 }, "one pile fills before the next");
-  assert.ok(books.every((slot) => slot.level < ATTIC_BOOKS.perStack));
 });

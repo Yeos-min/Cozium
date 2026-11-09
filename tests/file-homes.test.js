@@ -8,19 +8,17 @@ const item = (id, extension) => ({ id, name: `${id}.${extension}`, extension, si
 const BOUNDS = { x: 0, y: 0, width: 1060, height: 810 };
 const CARD = { width: 110, height: 66 };
 
-test("images and text notes start on the pinboard, documents on the book pile, everything else on the floor", () => {
+test("images and text notes start on the pinboard, everything else (documents too, 11-07) on the floor", () => {
   for (const ext of ["png", "JPG", "heic", "txt", "md"]) assert.equal(fileHome({ extension: ext }), "pinboard");
-  for (const ext of ["pdf", "docx", "HWP", "hwpx", "doc"]) assert.equal(fileHome({ extension: ext }), "books");
-  for (const ext of ["pptx", "xlsx", "zip", "mp4", "", undefined]) assert.equal(fileHome({ extension: ext }), "floor");
+  for (const ext of ["pdf", "docx", "HWP", "hwpx", "doc", "pptx", "xlsx", "zip", "mp4", "", undefined]) assert.equal(fileHome({ extension: ext }), "floor");
 });
 
 test("home files take no floor slot until their place is full, then they fall back to the floor", () => {
   const items = [item("a", "png"), item("b", "png"), item("c", "png"), item("d", "pdf"), item("e", "zip")];
-  const spots = placeFloorItems({ items, bounds: BOUNDS, seed: 1, config: { card: CARD, home: fileHome, homeCapacity: { pinboard: 2, books: 5 } } });
+  const spots = placeFloorItems({ items, bounds: BOUNDS, seed: 1, config: { card: CARD, home: fileHome, homeCapacity: { pinboard: 2 } } });
   const homes = [...spots.values()].map((spot) => spot.home ?? "floor");
   assert.equal(homes.filter((home) => home === "pinboard").length, 2);
-  assert.equal(homes.filter((home) => home === "books").length, 1);
-  assert.equal(homes.filter((home) => home === "floor").length, 2, "the third image and the zip");
+  assert.equal(homes.filter((home) => home === "floor").length, 3, "the third image, the pdf and the zip");
   // existing home entries count against the capacity but never block a floor slot
   const existing = [{ x: 0, y: 0, rot: 0, width: CARD.width, height: CARD.height, home: "pinboard" }];
   const more = placeFloorItems({ items: [item("f", "png"), item("g", "png")], bounds: BOUNDS, existing, seed: 1,
@@ -29,10 +27,10 @@ test("home files take no floor slot until their place is full, then they fall ba
 });
 
 test("the store keeps a file's home until the player puts it down somewhere", () => {
-  const store = new SessionStore({ bounds: BOUNDS, layout: { mode: "floor", card: CARD, home: fileHome, homeCapacity: { pinboard: 20, books: 24 } }, seed: 3 });
+  const store = new SessionStore({ bounds: BOUNDS, layout: { mode: "floor", card: CARD, home: fileHome, homeCapacity: { pinboard: 20 } }, seed: 3 });
   store.addFiles([item("p", "png"), item("q", "pdf"), item("r", "zip")]);
   assert.equal(store.entry("p").position.home, "pinboard");
-  assert.equal(store.entry("q").position.home, "books");
+  assert.equal(store.entry("q").position.home, undefined);
   assert.equal(store.entry("r").position.home, undefined);
   store.setPositions([{ id: "p", x: 300, y: 300 }]);
   assert.equal(store.entry("p").position.home, undefined);
@@ -50,7 +48,7 @@ test("home slots stay put as files come and go, and freed slots are reused", () 
 });
 
 test("a photo taken off the pinboard can be pinned back, up to the pinboard's capacity", () => {
-  const store = new SessionStore({ bounds: BOUNDS, layout: { mode: "floor", card: CARD, home: fileHome, homeCapacity: { pinboard: 2, books: 24 } }, seed: 3 });
+  const store = new SessionStore({ bounds: BOUNDS, layout: { mode: "floor", card: CARD, home: fileHome, homeCapacity: { pinboard: 2 } }, seed: 3 });
   store.addFiles([item("p", "png"), item("q", "jpg"), item("s", "png")]);
   assert.deepEqual(["p", "q", "s"].map((id) => store.entry(id).position.home ?? "floor"), ["pinboard", "pinboard", "floor"]);
   store.setPositions([{ id: "p", x: 300, y: 300 }]); // taken off and put on the floor

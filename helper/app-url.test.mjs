@@ -1,3 +1,4 @@
+// Helper가 여는 페이지 주소(기본 배포 주소 + #helper=…&token=…)가 맞게 만들어지는지.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DEFAULT_APP_URL, DEFAULT_ORIGINS, buildAppUrl } from "./desktop-helper.mjs";

@@ -1,3 +1,5 @@
+// walk-collision.js — 1인칭 걷기 충돌(물리 엔진 없음).
+// 가구는 늘 막고, 상자처럼 높이가 있는 것은 점프로 넘거나 올라설 수 있다. 머리가 경사 천장에 닿는 자리는 못 오른다(10-11).
 import { overlaps } from "./box-placement.js";
 
 /**

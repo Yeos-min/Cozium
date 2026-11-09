@@ -1,17 +1,27 @@
-// Cozium landing, 3D room (Claude, 2026-10-11): the painted room plates of the 10-07 landing are replaced by the user's
-// 3D attic (room-layer.js); one button walks into the tidied laptop and on to app.html. Everything inside the laptop is
-// unchanged. The render panel opens with ?lab (the prototype copy it was reviewed in moved to _archive/ on 10-11).
-// Original header:
-// Cozium landing (2026-10-07). Built from the reviewed animatic v9 (docs/prototypes/landing-animatic.html, now in
-// _archive/, which kept a review bar for stepping through beats). Wordless story: room → laptop → the desktop becomes the floor and the folders
-// become boxes → carry the four piles by hand → the tidy desktop → the tidied room with the two ways in.
-// Nothing here touches real files. Structure and tuning: docs/landing-redesign.md §7.
+// story.js — Cozium 랜딩(index.html)의 흐름 전체. 3D 방은 room-layer.js, 이 파일은 순서·입력·노트북 속 바탕화면을 맡는다.
+//
+// 지금 흐름(11-03 새 첫 화면 → 11-06 흐름 뒤집기 → 11-07 손질):
+//   1. 어두운 책상 위 노트북만 — 「노트북을 눌러 시작하기」          (intro: laptop → boot)
+//   2. 정면 풀화면 「나의 바탕화면 / 환영합니다」                      (welcome)
+//   3. 깨끗한 바탕화면에서 뒤로 빠지며 아침 다락방 + Cozium 제목.     (reveal → ready)
+//      바닥·핀보드에 파일이 어질러져 있고 노트북 위에 연필 말풍선
+//   4. 「정리 시작해볼까요?」 → 파일이 노트북으로 빨려 들고 카메라가 그대로 노트북 속 어질러진 바탕화면으로 (suck)
+//   5. 바탕화면이 바닥이 되고 폴더가 상자가 된다                      (BEATS: dive → fall)
+//   6. 방문자가 직접 파일을 상자에 넣는다(다 넣을 때까지 기다림)      (try, GATE)
+//   7. 바닥이 드러나고 → 정리된 바탕화면 → 정리된 방                    (clear → back → out, 주소는 #end)
+//   8. 「내 바탕화면 정리하러 가기 →」(또는 노트북 클릭) → 노트북으로 걸어 들어가 app.html
+// 언제든 오른쪽 위 「건너뛰고 바로 시작」. 안내는 오른쪽 아래 연필 말풍선 1·2·3.
+//
+// 구획(아래 「─── 이름 ───」 줄): helpers · desktop data · DOM · WebGL world · camera poses · progress & input ·
+// the hands-on stop · per-frame scene · 3D room · the way in · 11-03 새 첫 화면 · DOM per frame · loop · site nav · parallax.
+// 진짜 파일은 건드리지 않는다. 숫자 하나하나의 이유는 그 자리 주석과 docs/design-system.md.
 import * as THREE from "three";
 import { RoomLayer, StyledPass, TEXT_LAYER, SUCK_END } from "./room-layer.js";
 import { GLTFLoader } from "../../vendor/three/addons/loaders/GLTFLoader.js";
 import { toonGradient } from "../three/materials.js";
-import { initLab } from "./render-lab.js";
 import { deskScale, DESK_BASE } from "../ui/desk-scale.js";
+import { sound, clickSoundFor } from "../sound.js";
+import { pencilize } from "../ui/pencil.js";
 
 // ───────────── helpers ─────────────
 const $ = (s) => document.querySelector(s);
@@ -70,7 +80,6 @@ const PILE_RANK = CLUSTERS.map((c) => CLUSTERS.filter((d) => d.center[0] < c.cen
 
 const cells = [];
 for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([r, c]);
-const folderCells = new Set(FOLDERS.map((f) => f.at.join(",")));
 const kindPool = Object.entries(NAMES).flatMap(([kind, list]) => list.map((name) => ({ kind, name })));
 for (let i = kindPool.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [kindPool[i], kindPool[j]] = [kindPool[j], kindPool[i]]; }
 const items = [];
@@ -105,7 +114,7 @@ const iconFile = (it) => it.kind === "folder" ? `${DESK}/icons/folder-${FOLDERS[
 
 // ───────────── DOM: room, desktop, chrome ─────────────
 const stage = $("#stage"), world = $("#world");
-const roomCanvas = $("#room"), poster = $("#poster"), paintRef = $("#paintRef");
+const roomCanvas = $("#room"), poster = $("#poster");
 // back from app.html (see "the way in"): read before anything else rewrites the address
 const cameBack = location.hash === "#end";
 // The 3D room. Its file things use the same faces as the floor scene inside the laptop (drawFace, below).
@@ -137,11 +146,7 @@ function buildDesk(mode, counts = []) {
 }
 buildDesk("messy");
 
-// Laptop screen quads in the two room paintings (source px).
-const Q_MESSY = [[1240, 288], [1332, 281.5], [1313, 348.5], [1223, 349]];
-const Q_TIDY = [[1238, 288], [1329, 281.5], [1311, 348.5], [1221, 349]];
 const FULL = [[0, 0], [W0, 0], [W0, H0], [0, H0]];
-const centerOf = (q) => [(q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4];
 const widthOf = (q) => ((q[1][0] - q[0][0]) + (q[2][0] - q[3][0])) / 2;
 
 // Square → quad homography as CSS matrix3d (Heckbert), for a w×h element with origin 0 0.
@@ -157,36 +162,6 @@ function quadMatrix(w, h, q) {
   const a = (x1 - x0 + g * x1) / w, d = (y1 - y0 + g * y1) / w, b = (x3 - x0 + h2 * x3) / h, e = (y3 - y0 + h2 * y3) / h;
   return `matrix3d(${a},${d},0,${g / w},${b},${e},0,${h2 / h},0,0,1,0,${x0},${y0},0,1)`;
 }
-// 3×3 homographies: unit square → quad, quad → quad, and the CSS matrix3d for one (plate origin 0 0).
-function sq2q([[x0, y0], [x1, y1], [x2, y2], [x3, y3]]) {
-  const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3, dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
-  let g = 0, h = 0;
-  if (Math.abs(dx3) > 1e-9 || Math.abs(dy3) > 1e-9) { const den = dx1 * dy2 - dx2 * dy1; g = (dx3 * dy2 - dx2 * dy3) / den; h = (dx1 * dy3 - dx3 * dy1) / den; }
-  return [x1 - x0 + g * x1, x3 - x0 + h * x3, x0, y1 - y0 + g * y1, y3 - y0 + h * y3, y0, g, h, 1];
-}
-function inv3(m) {
-  const [a, b, c, d, e, f, g, h, i] = m, A = e * i - f * h, Bv = -(d * i - f * g), C = d * h - e * g, det = a * A + b * Bv + c * C;
-  return [A / det, -(b * i - c * h) / det, (b * f - c * e) / det, Bv / det, (a * i - c * g) / det, -(a * f - c * d) / det, C / det, -(a * h - b * g) / det, (a * e - b * d) / det];
-}
-function mul3(m, n) {
-  const r = [];
-  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) r.push(m[i * 3] * n[j] + m[i * 3 + 1] * n[3 + j] + m[i * 3 + 2] * n[6 + j]);
-  return r;
-}
-const m3d = (H) => `matrix3d(${H[0]},${H[3]},0,${H[6]},${H[1]},${H[4]},0,${H[7]},0,0,1,0,${H[2]},${H[5]},0,${H[8]})`;
-// The room painting is warped so its painted screen lands exactly on the desktop's quad: the vector desktop and the
-// painted bezel can never drift apart, even while the desktop straightens out to fill the frame.
-const roomWarp = (src, dst) => m3d(mul3(sq2q(dst), inv3(sq2q(src))));
-
-// Camera move toward the laptop: scale k about the screen centre while that centre slides to the frame centre.
-function zoomPose(q, t) {
-  const pc = centerOf(q), kEnd = W0 / widthOf(q);
-  const e = inOut(t), k = Math.exp(Math.log(kEnd) * e);
-  const c = [lerp(pc[0], W0 / 2, e), lerp(pc[1], H0 / 2, e)];
-  const map = ([x, y], kk = k) => [c[0] + kk * (x - pc[0]), c[1] + kk * (y - pc[1])];
-  return { k, c, pc, map, kEnd };
-}
-const css = (k, c, pc) => `translate(${c[0] - k * pc[0]}px,${c[1] - k * pc[1]}px) scale(${k})`;
 // Edge feather for the desktop plate: about 2.5% of the screen's on-screen width, at most 5 screen px.
 function featherDesk(q) {
   const ws = widthOf(q) * cover, fs = Math.min(5, ws * .025);
@@ -740,6 +715,7 @@ function grabPile(o) {
   const pile = floorFree().filter((t) => t.cluster === o.cluster)
     .sort((a, b) => Math.hypot(a.group.position.x - o.group.position.x, a.group.position.z - o.group.position.z) - Math.hypot(b.group.position.x - o.group.position.x, b.group.position.z - o.group.position.z));
   pile.forEach((t, k) => grab(t, Math.min(k, 16) * 24));
+  if (pile.length) sound.play("pick");
 }
 // While something is in hand, the boxes answer: they hop in turn, and dots run from the hand to the box in that column.
 let callT0 = -1e9, heldSince = 0;
@@ -828,6 +804,8 @@ function depositInto(list, box) {
   deposits[box] += list.length;
   folders[box].bump = 1;
   if (!list.length) return;
+  // 첫 장이 상자에 닿을 즈음(날아가는 520 ms). 장수만큼 불러 툭 → 톡톡톡(줄 세우기는 js/sound.js boxHit, 8장까지)
+  setTimeout(() => { for (let i = 0; i < Math.min(list.length, 8); i++) sound.play("box"); }, 480);
   depositCount++;
   // Nothing is put away for you: one click picks up a whole pile, so four round trips empty the floor.
   // The last pile: the camera starts rising while its cards are still dropping into the box.
@@ -875,7 +853,7 @@ function resetTry() {
 }
 
 // ───────────── per-frame scene composition ─────────────
-let lastBeat = "", glReady = false, tidyBuilt = false;
+let glReady = false, tidyBuilt = false;
 const autoBoxed = (o) => o.user == null || o.user.mode === "dropped";
 function boxCounts(p) {
   const counts = [...deposits];
@@ -1140,9 +1118,10 @@ function roomQuad(t) {
   return q.map(([x, y]) => [(x - ox) / cover, (y - oy) / cover]);
 }
 const insidePass = renderer ? new StyledPass(renderer, room.style) : null;
-// the review panel: always on the prototype page, on the real landing only with ?lab
-const showLab = stage.dataset.lab === "always" || new URLSearchParams(location.search).has("lab");
-const lab = initLab({ room, insidePass, seek: (v) => jump(v), get progress() { return prog; }, B, GATE, panel: showLab, posterPath: (cam) => `./assets/landing/room-3d/poster-${cam}.webp` });
+// 방 그림 효과(카메라·빛·재질·외곽선·디더·흔들림)는 room-layer.js의 기본값 하나로 고정.
+// 그 값을 고르던 ?lab 「렌더 테스트」 패널은 디자인이 확정돼 11-08에 뺐다(_archive/claude-cleanup-20261108/).
+const roomLook = { ...room.style, rays: true, inside: true };
+room.setStyle(roomLook); insidePass?.set(roomLook);
 
 // ───────────── the way in: the button → into the laptop → app.html (10-09 plan, 10-11 3D) ─────────────
 // One button on the tidied room. It plays the walk-in once more, into the tidied laptop; when the screen fills the
@@ -1217,10 +1196,11 @@ skipBtn.addEventListener("click", () => {
 const intro = { phase: cameBack || noGL ? "done" : "laptop", t0: performance.now(), readyAt: 0, dove: false };
 const BOOT_MS = 1700, WELCOME_MS = 3400; // 11-03 사용자: 환영 화면이 너무 짧음
 const DESK_FULL = B.dive[1] - 2e-4; // 방 → 노트북 걸어 들어가기의 끝, 바탕화면(HTML)이 화면을 꽉 채운 자리
+const HOP_LANDS = [[.26, .55], [.52, .2]]; // 노트북 통통이 책상에 닿는 때(초)와 소리 크기
+let hopTau = 0;
 let bubbleHot = false, glow = 0; // 11-07 사용자: 「시작해볼까요」에 올리면 노트북 화면이 살짝 켜짐
 const SUCK_DIVE = 1.5; // 빨려 들어가기 시작 몇 초 뒤 카메라가 노트북으로 걸어 들어가기 시작(남은 파일이 카메라 앞을 지나 화면으로)
 let deskEmpty = false; // 11-06 사용자 「처음 바탕화면엔 아무것도 없는 깔끔한 상태」: 아이콘 없이 배경화면·작업 표시줄만
-const ioEase = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 function introSet(phase) {
   intro.phase = phase; intro.t0 = performance.now();
   stage.dataset.intro = phase;
@@ -1234,6 +1214,7 @@ function introStartLaptop() {
   const L = room.laptopPose();
   room.poseFn = () => L;
   introSet("laptop");
+  sound.prime(); // 통통 소리: 브라우저가 누르기 전 소리를 허락하면 이때부터 난다
 }
 introHit.addEventListener("click", () => {
   if (intro.phase !== "laptop" || !room.ready) return;
@@ -1241,10 +1222,12 @@ introHit.addEventListener("click", () => {
   const L = room.laptopPose(), E = room.endPose();
   if (reduced) { room.poseFn = () => E; introSet("welcome"); welcome.dataset.on = "true"; return; }
   const t0 = performance.now();
-  room.poseFn = (now) => RoomLayer.mixPose(L, E, ioEase(clamp((now - t0) / BOOT_MS)));
+  room.poseFn = (now) => RoomLayer.mixPose(L, E, inOut(clamp((now - t0) / BOOT_MS)));
   introSet("boot");
 });
 for (const [ev, on] of [["pointerenter", true], ["pointerleave", false], ["focus", true], ["blur", false]]) bubble.addEventListener(ev, () => { bubbleHot = on; });
+// 「···」이 「정리 시작해볼까요?」로 부풀 때 퐁(11-09 사용자). 누를 때 소리는 index.html data-sfx="go"
+bubble.addEventListener("pointerenter", (e) => { if (intro.phase === "ready" && e.pointerType !== "touch") sound.play("pop", { ifRunning: true }); });
 bubble.addEventListener("click", () => {
   if (intro.phase !== "ready") return;
   auto = { t0: performance.now(), kick: 0 };
@@ -1266,6 +1249,9 @@ function introTick(now) {
     // 가끔 통통(2.6초마다, 파일 더미 튀는 것과 같은 말)
     const tau = (now / 1000) % 2.6;
     room.setHop(tau < .7 ? Math.abs(Math.sin(tau * Math.PI / .26)) * Math.exp(-tau * 5) * .03 : 0);
+    // 책상에 닿는 순간(.26초 큰 통, .52초 작은 통) 소리(11-09 사용자). 첫 클릭 전엔 브라우저가 허락할 때만 난다
+    for (const [at, gain] of HOP_LANDS) if (hopTau < at && tau >= at) sound.play("laptop", { gain, ifRunning: true });
+    hopTau = tau;
   }
   if (ph === "boot" && sec * 1000 >= BOOT_MS) { introSet("welcome"); welcome.dataset.on = "true"; }
   if (ph === "welcome" && sec * 1000 >= WELCOME_MS) {
@@ -1412,9 +1398,8 @@ function frameDOM(p, counts) {
     const q3 = roomQuad(dive);
     roomCanvas.style.opacity = String(1 - smooth(.9, 1, dive));
     // depth of field: the camera focuses on the screen, so the room goes soft as it closes in
-    const blur = lab.blur ? 6 * smooth(.18, .75, dive) : 0;
+    const blur = 6 * smooth(.18, .75, dive);
     roomCanvas.style.filter = blur > .15 ? `blur(${blur.toFixed(2)}px)` : "none";
-    if (paintRef) paintRef.style.opacity = lab.overlay && dive < .02 ? ".42" : "0";
     if (deskMode !== "messy") buildDesk("messy");
     if (q3) {
       // the walk-in ends square on the screen; the last stretch only squares the 1.72:1 screen to the 16:9 plate
@@ -1436,7 +1421,7 @@ function frameDOM(p, counts) {
     fitChrome(smooth(.8, 1, dive));
     desk.hidden = false;
   } else if (p < B.out[0]) {
-    roomCanvas.hidden = true; desk.hidden = true; if (paintRef) paintRef.style.opacity = "0";
+    roomCanvas.hidden = true; desk.hidden = true;
     const fall = fallU(p), back = local("back", p);
     deskChrome.style.transform = "none"; desk.style.setProperty("--fe", "0px");
     fitChrome(1);
@@ -1446,12 +1431,12 @@ function frameDOM(p, counts) {
     // tidy desktop on the laptop, the camera stepping back into the tidied room (the same walk, reversed)
     if (deskMode !== "tidy" || !tidyBuilt) { buildDesk("tidy", counts); tidyBuilt = true; }
     room.setState("tidy");
-    roomCanvas.hidden = false; if (paintRef) paintRef.style.opacity = "0";
+    roomCanvas.hidden = false;
     // after the button: the same walk-in again, into the tidied laptop (enterU 0 → 1)
     const eu = enterU(performance.now()), walk = Math.max(1 - out, inOut(eu));
     const q3 = roomQuad(walk);
     roomCanvas.style.opacity = String(smooth(0, .12, out) * (1 - smooth(.9, 1, eu)));
-    const blur = lab.blur ? 6 * Math.max(1 - smooth(.25, .82, out), smooth(.18, .75, eu)) : 0;
+    const blur = 6 * Math.max(1 - smooth(.25, .82, out), smooth(.18, .75, eu));
     roomCanvas.style.filter = blur > .15 ? `blur(${blur.toFixed(2)}px)` : "none";
     if (q3) {
       const w = Math.max(1 - smooth(0, .2, out), smooth(.8, 1, eu));
@@ -1513,6 +1498,22 @@ function announce(p) {
   for (const [r, text] of SCENE_TEXT) if (Math.abs(r - p) < 1e-4) { sceneStatus.textContent = text; return; }
 }
 
+// ───────────── 소리(11-09 사용자): 다락방이 보일 때만 음악 ─────────────
+// 노트북 속(바탕화면·바닥 체험·깨끗해진 바탕화면)과 걸어 들어가기는 조용히. 첫 화면(노트북만)·환영 화면도 조용히.
+// 방 → 노트북 걸어 들어가기(dive)의 절반을 넘으면 페이드 아웃, 돌아 나올 때(out) 페이드 인. 소리 모양·크기는 js/sound.js
+const soundBtn = $("#soundToggle");
+const QUIET_INTRO = new Set(["laptop", "boot", "welcome"]);
+sound.bindToggle(soundBtn);
+pencilize(soundBtn); // 정리방 단추와 같은 연필 테두리
+clickSoundFor(document.body);
+function frameSound(p) {
+  const quietIntro = QUIET_INTRO.has(intro.phase);
+  const inRoom = p < B.dive[0] + (B.dive[1] - B.dive[0]) * .5 || p >= B.out[0] + .03;
+  sound.setRoom(inRoom && !enter && !quietIntro);
+  const hideBtn = quietIntro || !inRoom; // 노트북 속에선 작업 표시줄 자리라 숨김(효과음 켜짐/꺼짐은 그대로)
+  if (soundBtn.hidden !== hideBtn) soundBtn.hidden = hideBtn;
+}
+
 function loop(now) {
   introTick(now);
   autoplayTick(now);
@@ -1540,6 +1541,7 @@ function loop(now) {
   frameCaption(p);
   finishEnter(now);
   stage.dataset.scene = p < .1 || p >= B.out[0] + .03 ? "room" : "inside";
+  frameSound(p);
   announce(p);
   requestAnimationFrame(loop);
 }
@@ -1566,7 +1568,7 @@ else buildGL().then(() => {
 }).catch((e) => console.error("landing GL", e));
 // room.glb (4 MB); the poster shows the same camera until they are in, then fades out
 facesReady.then(() => room.load("./models/room.glb")).then(() => {
-  room.setStyle(lab.style);
+  room.setStyle(roomLook);
   stage.dataset.room = "ready";
   if (pendingTo != null) { const to = pendingTo; pendingTo = null; arrivedAt = 0; goTo(to); } // scrolled while it loaded
   if (cameBack) restAtEnd();

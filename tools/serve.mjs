@@ -24,6 +24,7 @@ const MIME = {
   ".gltf": "model/gltf+json",
   ".bin": "application/octet-stream",
   ".hdr": "image/vnd.radiance",
+  ".mp3": "audio/mpeg",
 };
 
 createServer(async (request, response) => {

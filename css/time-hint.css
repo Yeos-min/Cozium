@@ -8,4 +8,14 @@
 .time-hint .th-s{stroke-width:2.4}
 .time-hint .th-s2{stroke-width:1.2;opacity:.6}
 .time-hint .th-f{fill:#f8f1dc}
+/* 노트북 위 이름표(다 치웠을 때 늘 뜸, 11-07): 알약 대신 같은 연필 체크 + 글자. 숨 쉬기는 opacity로(CSS2D라 transform 금지) */
+.laptop-label-3d{display:flex;flex-direction:column;align-items:center;pointer-events:none;white-space:nowrap}
+.laptop-label-3d .th-icon{overflow:visible;filter:drop-shadow(0 1px 2px #0009) drop-shadow(0 0 8px rgb(28 18 12 / .45))}
+.laptop-label-3d .th-s,.laptop-label-3d .th-s2{fill:none;stroke:#f8f1dc;stroke-linecap:round;stroke-linejoin:round}
+.laptop-label-3d .th-s{stroke-width:2.4}
+.laptop-label-3d .th-s2{stroke-width:1.2;opacity:.6}
+.laptop-label-3d .th-label{margin-top:4px;color:#f8f1dc;font:800 15px/1 "NanumSquareRound",sans-serif;text-shadow:0 1px 2px #0009,0 0 10px rgb(28 18 12 / .5)}
+.laptop-label-3d[data-calling="true"]{animation:laptop-call 1.96s ease-in-out infinite}
+@keyframes laptop-call{50%{opacity:.6}}
+@media (prefers-reduced-motion:reduce){.laptop-label-3d[data-calling="true"]{animation:none}}
 .time-hint .th-label{margin-top:4px;color:#f8f1dc;font:800 15px/1 "NanumSquareRound",sans-serif;white-space:nowrap;text-shadow:0 1px 2px #0009,0 0 10px rgb(28 18 12 / .5)}

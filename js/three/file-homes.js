@@ -2,25 +2,19 @@
  * file-homes.js — 다락방에서 파일이 처음 나타나는 자리. (사용자 아이디어 10-10, Claude 구현 10-11)
  *
  *   벽 핀보드  이미지(사진), txt·md(메모지)
- *   책 더미    pdf, doc·docx, hwp·hwpx, rtf (사용자: pdf·docx·hwp, 같은 종류를 함께)
  *   바닥       나머지 전부 (pptx, xlsx 포함, 사용자 결정)
+ * 11-07 사용자: 문서(pdf·docx·hwp)를 책으로 쌓던 「책 더미」는 뺌 — 책장을 만들지 않았고 책 모델도 없으니 그냥 파일처럼 바닥에.
  *
  * 생김새·자리만 정한다. 어느 폴더로 갈지는 정하지 않는다(CLAUDE.md §11). 정원이 차면 바닥으로 간다.
  * 사용자가 집어서 내려놓으면 그때부터 바닥에 있는 파일이다.
  */
 const PINBOARD = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp", "heic", "heif", "avif", "svg", "tif", "tiff", "txt", "md"]);
-const BOOKS = new Set(["pdf", "doc", "docx", "hwp", "hwpx", "rtf"]);
 
-/** @returns {"pinboard"|"books"|"floor"} */
+/** @returns {"pinboard"|"floor"} */
 export function fileHome(item) {
   const ext = (item?.extension ?? "").toLowerCase();
   if (PINBOARD.has(ext)) return "pinboard";
-  if (BOOKS.has(ext)) return "books";
   return "floor";
-}
-
-export function isBookExtension(extension) {
-  return BOOKS.has((extension ?? "").toLowerCase());
 }
 
 /**

@@ -76,14 +76,14 @@ export class Onboarding {
       webDrop.classList.remove("is-dragging");
       const items = event.dataTransfer?.items;
       if (!items || items.length === 0) {
-        this.#status.notice("파일 시스템 핸들을 받을 수 있는 항목이 없습니다.", "error");
+        this.#status.notice("끌어다 놓은 것 중에 읽을 수 있는 항목이 없어요.", "error");
         return;
       }
       this.#guard(async () => {
         this.#webProvider ??= this.#createWebProvider();
         const result = await this.#webProvider.importDropped(items);
         this.#status.logImport(result, { source: "드롭" });
-      }, "드롭한 항목을 읽지 못했습니다");
+      }, "끌어다 놓은 항목을 읽지 못했어요");
     });
 
     startWeb.addEventListener("click", () => {
@@ -110,7 +110,7 @@ export class Onboarding {
   /** 랜딩 CTA와 기존 체험 버튼이 같은 시작 경로를 쓴다. */
   async startSample() {
     if (!this.#memoryProvider) return false;
-    return this.#guard(() => this.#start(this.#memoryProvider), "가상 파일을 열지 못했습니다");
+    return this.#guard(() => this.#start(this.#memoryProvider), "샘플 파일을 열지 못했어요");
   }
 
   /** 떠나는 연출 → 시작 → (아직 이 화면이면) 연출 되돌리기. */
@@ -132,7 +132,7 @@ export class Onboarding {
   /** URL의 #helper=PORT&token=…(예전 Helper는 ?helper=…)로도, 폼으로도 온다. */
   async connectHelper(port, token) {
     if (!port || !token) {
-      this.#status.notice("포트와 토큰을 모두 입력하세요. Helper 창에 나옵니다.", "warn");
+      this.#status.notice("포트와 토큰을 모두 넣어 주세요. Helper 창에 나와요.", "warn");
       return false;
     }
     this.#els.helperPort.value = port;
@@ -146,10 +146,10 @@ export class Onboarding {
       this.#els.helperState.textContent = `연결됨 · Desktop Helper v${info.version} · '${info.desktopName}'`;
       this.#els.helperState.dataset.tone = "success";
       connected = true;
-    }, "Desktop Helper에 연결하지 못했습니다");
+    }, "Desktop Helper에 연결하지 못했어요");
     if (!connected) {
       this.#helperProvider = null;
-      this.#els.helperState.textContent = "연결 안 됨. Helper가 실행 중인지, 포트와 토큰이 맞는지 확인하세요.";
+      this.#els.helperState.textContent = "연결 안 됨. Helper가 켜져 있는지, 포트와 토큰이 맞는지 확인해 주세요.";
       this.#els.helperState.dataset.tone = "error";
     }
     this.refresh();

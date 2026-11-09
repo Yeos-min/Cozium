@@ -142,10 +142,6 @@ export class SessionStore {
     return { done: this.placedCount, total: this.files.filter((entry) => entry.tracked !== false).length };
   }
 
-  get batches() {
-    return this.#batches.map((batch) => ({ ...batch, fileIds: [...batch.fileIds] }));
-  }
-
   get lastBatch() {
     const batch = this.#batches.at(-1);
     return batch ? { ...batch, fileIds: [...batch.fileIds] } : null;
@@ -461,7 +457,7 @@ export class SessionStore {
   // ───────────────────────── 위치 ─────────────────────────
 
   /**
-   * 파일을 처음 자리(핀보드·책 더미)로 되돌린다(다락방, 10-11). 그 자리의 정원(layout.homeCapacity)까지만.
+   * 파일을 처음 자리(핀보드)로 되돌린다(다락방, 10-11). 그 자리의 정원(layout.homeCapacity)까지만.
    * 칸은 장면이 정한다. 바닥 좌표는 그대로 둔다(나중에 내려놓으면 덮어쓴다).
    * @returns {string[]} 실제로 그 자리에 간 id
    */
@@ -490,7 +486,7 @@ export class SessionStore {
     for (const { id, x, y } of list) {
       const entry = this.#files.get(id);
       if (!entry || !entry.position) continue;
-      // 사용자가 내려놓은 자리는 바닥이다. 핀보드·책 더미 같은 처음 자리(home)는 여기서 끝난다.
+      // 사용자가 내려놓은 자리는 바닥이다. 핀보드 같은 처음 자리(home)는 여기서 끝난다.
       const { home: _home, ...rest } = entry.position;
       entry.position = {
         ...rest,

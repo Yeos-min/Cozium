@@ -72,7 +72,7 @@ test("a failed sample start reports the error and permits a later attempt", asyn
     if (attempt++ === 0) throw new Error("could not prepare sample");
   } });
   assert.equal(await onboarding.startSample(), false);
-  assert.deepEqual(errors, [["가상 파일을 열지 못했습니다", "could not prepare sample"]]);
+  assert.deepEqual(errors, [["샘플 파일을 열지 못했어요", "could not prepare sample"]]);
   assert.equal(elements.get("#load-sample").disabled, false);
   assert.equal(await onboarding.startSample(), true);
 });

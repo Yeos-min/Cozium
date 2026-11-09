@@ -1,3 +1,5 @@
+// Desktop Helper 파일 작업 테스트. 임시 폴더를 바탕화면인 척 쓰고 실제 바탕화면은 건드리지 않는다(helper/README.md 「테스트」).
+// 동명 충돌·동시 이동, 되돌리기의 정체 대조, 정션 건너뛰기, 이름 규칙, Origin·토큰·본문 크기 거부.
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -28,12 +30,16 @@ async function makeOutside() {
   return dir;
 }
 
-test("isInside and validateName enforce the desktop sandbox rules", () => {
+// Windows 경로(C:\\…) 규칙이라 Windows에서만 돈다. 다른 OS의 path 모듈은 이 경로를 다르게 풀어서 늘 실패했다(11-08 정리).
+test("isInside keeps Windows paths inside the desktop", { skip: process.platform !== "win32" && "Windows 경로 규칙 — Windows에서만" }, () => {
   assert.equal(isInside("C:\\Users\\u\\Desktop\\a.txt", "C:\\Users\\u\\Desktop"), true);
   assert.equal(isInside("C:\\Users\\u\\Desktop", "C:\\Users\\u\\Desktop"), true);
   assert.equal(isInside("C:\\Users\\u\\Desktop2\\a.txt", "C:\\Users\\u\\Desktop"), false, "접두어만 같은 형제 폴더");
   assert.equal(isInside("C:\\Users\\u\\Desktop\\..\\Documents\\a.txt", "C:\\Users\\u\\Desktop"), false, "path traversal");
   assert.equal(isInside("C:\\Windows", "C:\\Users\\u\\Desktop"), false);
+});
+
+test("validateName enforces the desktop naming rules", () => {
   assert.equal(validateName("  새 폴더 "), "새 폴더");
   for (const bad of ["", "..", "a/b", "a\\b", "con", "COM1.txt", "x.", "a:b"]) {
     assert.throws(() => validateName(bad), (error) => error instanceof HelperError && error.code === "BAD_NAME", bad);

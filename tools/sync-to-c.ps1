@@ -8,8 +8,10 @@
 # GitHub too. C's .git folder is never touched. Afterwards commit and push in C as usual (git add -A).
 # Never copied (and never removed from C if they happen to be there):
 #   .git  _archive  Cozium  "Claude outputs"  output  .claude  .codex  .agents  node_modules
-#   the files the 10-11 clean-up retired (same list as tools\archive-unused.ps1 and .gitignore)
 #   tools\sync-target.txt (where this script remembers the C folder)
+# 11-08: the retired files used to be skipped here too, so they stayed in C (and on GitHub) forever. Now
+# tools\cleanup.bat moves them out of D into _archive\, and this script removes them from C like any other
+# file that is no longer in D. Run cleanup.bat first, then this.
 # Nothing is ever deleted in D.
 param(
   [string]$Target = "",
@@ -36,43 +38,14 @@ Set-Content -LiteralPath $Saved -Value $full -Encoding ASCII
 # folders skipped by name anywhere
 $skipNames = @(".git", "node_modules")
 # folders skipped at these exact places (relative to the project root)
-$skipDirs = @(
-  "_archive", "Cozium", "Claude outputs", "output", ".claude", ".codex", ".agents",
-  "js\landing", "assets\landing\box", "assets\landing\parts\desktop-v3",
-  "tools\attic-icons", "tools\attic-blockout", "tools\intro-video", "docs\prototypes",
-  "assets\landing\parts\desktop-v2", "assets\landing\parts\room-v3"  # 10-18: the old import screen's art (the import screen is now the laptop desktop)
-)
+$skipDirs = @("_archive", "Cozium", "Claude outputs", "output", ".claude", ".codex", ".agents")
 # files skipped at these exact places
-$skipFiles = @(
-  "tools\sync-target.txt", "js\ui\onboarding-room.js",
-  "landing-classic.html", "css\landing.css", "js\landing-story\godrays.js",
-  "js\three\cozy-room.js", "js\three\shelf-frame.js", "tests\shelf-frame.test.js",
-  "models\Bed.glb", "tools\bed-preview.html", "tools\optimize-landing-assets.py", "tools\landing-assets-report.json",
-  "docs\screenshots\landing.png",
-  "assets\landing\room-3d\inside-floor.webp",
-  "assets\landing\parts\desktop-v2\cozium-box.svg", "assets\landing\parts\desktop-v2\cozium-box-front.svg",
-  "assets\landing\parts\desktop-v2\validation-report.json",
-  "assets\landing\parts\room-v3\prompts.json", "assets\landing\parts\room-v3\alpha-report.json"
-)
-# files skipped by pattern in one folder (the old landing's tests, PNG originals, prompts)
-$skipPatterns = @(
-  @("tests\landing", "*.test.mjs", "preload.test.mjs"),
-  @("assets\landing\parts", "*.png", ""), @("assets\landing\parts", "*.txt", ""), @("assets\landing\parts", "*.json", ""),
-  @("assets\landing\parts\room-v3", "*.png", ""), @("assets\landing\parts\room-v3", "closed-box-room-v3.*", ""),
-  @("docs\design", "landing-audit-*.jpg", "")
-)
+$skipFiles = @("tools\sync-target.txt")
 
 $xd = @() + $skipNames
 foreach ($d in $skipDirs) { $xd += (Join-Path $Root $d); $xd += (Join-Path $full $d) }
 $xf = @("*.exe")  # 10-20: CoziumHelper.exe goes to GitHub Releases, not into C / the repository
 foreach ($f in $skipFiles) { $xf += (Join-Path $Root $f); $xf += (Join-Path $full $f) }
-foreach ($p in $skipPatterns) {
-  foreach ($base in @($Root, $full)) {
-    $dir = Join-Path $base $p[0]
-    if (-not (Test-Path -LiteralPath $dir)) { continue }
-    Get-ChildItem -LiteralPath $dir -File -Filter $p[1] | Where-Object { $_.Name -ne $p[2] } | ForEach-Object { $xf += $_.FullName }
-  }
-}
 
 Write-Host ""
 Write-Host "From : $Root"

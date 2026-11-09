@@ -137,6 +137,7 @@ export class CardObject {
       this.weight = Math.min(1, Math.max(0, Math.log(this.thicknessScale / min) / Math.log(max / min)));
     }
     this.flight = null;
+    this.onLand = null; // 손을 떠나 날아간 뒤 내려앉는 순간(board-3d.js가 소리를 낸다)
     this.inHand = false;
     this.thickness = baseThickness * this.thicknessScale;
     this.mesh.scale.y = this.thicknessScale;
@@ -227,6 +228,7 @@ export class CardObject {
       Object.assign(s, { x: tg.x, y: tg.y, z: tg.z, vx: 0, vz: 0, vy: land.vy, spinV: 0 });
       s.scaleV += land.scaleV;
       this.flight = null;
+      this.onLand?.(this);
       return false;
     }
     Object.assign(s, tossPose(f.from, tg, this.weight, u, f.plan, toss, f.side));
@@ -242,6 +244,7 @@ export class CardObject {
       Object.assign(s, { x: p.x, y: Math.max(p.y, tg.y), z: p.z, vx: p.vx * 0.15, vz: p.vz * 0.15, vy: land.vy, spinV: 0 });
       s.scaleV += land.scaleV;
       this.flight = null;
+      this.onLand?.(this);
       return false;
     }
     const tumble = TUNING.card.throw.tumble, speed = Math.hypot(p.vx, p.vz) || 1;

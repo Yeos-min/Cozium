@@ -8,6 +8,8 @@
  * 보이는 것만 맡는다. 무엇을 기다릴지는 Board3D.whenReady가 정한다.
  */
 
+import { mouseIcon, pencilize } from "./pencil.js";
+
 const STEPS = {
   room: { from: 0, to: 0.72, label: "다락방 불러오는 중" },
   boxes: { from: 0.72, to: 0.8, label: "상자 꺼내는 중" },
@@ -28,26 +30,23 @@ const MIN_LOADING_MS = 900; // 너무 빨리 끝나도 한 번은 읽힐 만큼
 const GIVE_UP_MS = 25000; // 무엇이 멈춰도 이 뒤에는 들어갈 수 있게
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** 마우스 그림. button: none | left | right */
-function mouseIcon(button) {
-  const fill = (side) => (button === side ? ' class="on"' : "");
-  return `<svg viewBox="0 0 16 22" width="15" height="21" aria-hidden="true">
-    <path${fill("left")} d="M7.4 1.2C4 1.4 1.3 4 1.3 7.4V9h6.1z"/>
-    <path${fill("right")} d="M8.6 1.2c3.4.2 6.1 2.8 6.1 6.2V9H8.6z"/>
-    <rect x="1.3" y="1.2" width="13.4" height="19.6" rx="6.7" fill="none"/>
-    <path d="M1.3 9h13.4M8 1.2V9" fill="none"/>
-  </svg>`;
-}
-
 export function mountRoomIntro({ root, onEnter }) {
   const $ = (selector) => root.querySelector(selector);
   const bar = $(".intro-bar"), fill = $(".intro-bar > span"), stepLabel = $("#intro-step"), percent = $("#intro-percent");
   const tip = $("#intro-tip"), mode = $("#intro-mode"), enterButton = $("#intro-enter");
   for (const el of root.querySelectorAll("i.mouse")) el.innerHTML = mouseIcon(el.dataset.btn);
+  pencilize(root); // 11-07 사용자 A안: 조작 안내도 연필 + 크림 종이(css/room-paper.css)
 
   // 화면 크기에 맞춰 키운다(10-18 사용자: "너무 작다"). 1280 × 720을 1로, 큰 모니터일수록 같은 비율로 커진다.
-  const fit = () => root.style.setProperty("--intro-scale", Math.min(2.6, Math.max(1, Math.min(innerWidth / 1280, innerHeight / 720))).toFixed(3));
+  // 11-07 사용자 「너무 꽉 참, 여백이 없음」: 조작 안내 종이가 화면 높이의 80%를 넘지 않게 줄인다(offsetHeight = 배율 전 크기).
+  const sheet = $(".intro-ready");
+  const fit = () => {
+    let k = Math.min(2.6, Math.max(1, Math.min(innerWidth / 1280, innerHeight / 720)));
+    if (sheet.offsetHeight) k = Math.min(k, (innerHeight * 0.8) / sheet.offsetHeight);
+    root.style.setProperty("--intro-scale", k.toFixed(3));
+  };
   fit();
+  document.fonts?.ready.then(fit);
   addEventListener("resize", fit);
 
   let shown = 0, target = 0, done = false, startedAt = 0, raf = 0, tipTimer = 0, phase = "idle", fileLabel = "";
@@ -55,6 +54,7 @@ export function mountRoomIntro({ root, onEnter }) {
   const setPhase = (next) => {
     phase = next;
     root.dataset.phase = next;
+    if (next === "loading" || next === "ready") fit(); // 보이고 나서야 종이 높이를 잴 수 있다
   };
 
   let last = 0;

@@ -77,8 +77,3 @@ export function enableDrag(win, bar, { container, inset = { left: 30, top: 30, r
     bar.addEventListener("pointercancel", up);
   });
 }
-
-/** 다시 열 때 손으로 바꾼 자리·크기를 지운다. */
-export function resetFrame(win) {
-  for (const key of ["left", "top", "right", "width", "height", "maxHeight", "transition", "animation"]) win.style[key] = "";
-}

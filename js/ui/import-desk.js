@@ -5,16 +5,14 @@
  * 창 끌기·앞으로 오기, 작업표시줄 시계, Helper 트레이 불, 드롭한 항목을 바탕화면 아이콘으로 깔기, 방으로 떠나는 연출.
  * 파일 읽기·연결·시작은 전부 onboarding.js(Onboarding)가 한다. 이 모듈은 파일을 읽지 않는다.
  */
-import { extensionOf, familyOf } from "./layout.js";
+import { DESK_ICONS as ICONS, deskIconFor, extensionOf } from "./layout.js";
 import { enableResize } from "./win-frame.js";
 
-const ICONS = "./assets/landing/parts/desktop-v4/icons/";
-const ICON_BY_FAMILY = { image: "photo", design: "photo", video: "video", audio: "audio", archive: "archive" };
 const CELL = { w: 100, h: 104 };
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function iconFor(item) {
-  return `${ICONS}${ICON_BY_FAMILY[familyOf(item.extension ?? extensionOf(item.name))] ?? "document"}.webp`;
+  return deskIconFor(item.extension ?? extensionOf(item.name));
 }
 
 /**

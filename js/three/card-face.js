@@ -208,34 +208,6 @@ function drawNoteFace(ctx, ink, item, width, height) {
   ctx.closePath(); ctx.fill();
 }
 
-/** 다락방 책 더미의 책 표지(10-11). 표지 색은 이름으로 정해져 같은 파일은 늘 같은 책이다. */
-const BOOK_COVERS = ["#3f5d7a", "#a9483b", "#6f7d3a", "#b98232", "#3f736f", "#71506a", "#8b5a3c"];
-function drawBookFace(ctx, ink, item, width, height) {
-  let hash = 0;
-  for (const char of item.name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  const cover = BOOK_COVERS[hash % BOOK_COVERS.length];
-  ctx.fillStyle = cover;
-  ctx.fillRect(0, 0, width, height);
-  // 책등 쪽 접힘 선과 모서리 띠
-  ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
-  ctx.fillRect(0, 0, 26, height);
-  ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
-  ctx.fillRect(26, 0, 5, height);
-  // 제목 딱지
-  ctx.fillStyle = "#f3ead3";
-  roundRect(ctx, 58, 46, width - 96, height - 120, 8);
-  ctx.fill();
-  ctx.fillStyle = "#3a3226";
-  ctx.textBaseline = "middle";
-  ctx.font = "700 30px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
-  const lines = wrap(ctx, item.name, width - 130, 3);
-  const top = 46 + (height - 120) / 2 - (lines.length - 1) * 19;
-  lines.forEach((line, index) => drawText(ctx, ink, line, 74, top + index * 38));
-  ctx.fillStyle = "#f3ead3";
-  ctx.font = "600 19px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
-  drawText(ctx, ink, `${extLabel(item)} · ${formatSize(item.size)}`, 60, height - 38);
-}
-
 /**
  * @param {object} THREE
  * @param {{ id?: string, name: string, extension: string, size: number }} item
@@ -259,7 +231,6 @@ export function makeCardTexture(THREE, item, color, loadThumbnail) {
   ctx.imageSmoothingEnabled = true;
   const ink = inkCanvas.getContext("2d");
   if (style.kind === "note") drawNoteFace(ctx, ink, item, width, height);
-  else if (style.kind === "book") drawBookFace(ctx, ink, item, width, height);
   else if (style.kind === "photo") drawPhotoFace(ctx, ink, item, null, width, height);
   else drawPaperFace(ctx, ink, item, color, width, height);
 
