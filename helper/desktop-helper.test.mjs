@@ -1,3 +1,5 @@
+// Desktop Helper 파일 작업 테스트. 임시 폴더를 바탕화면인 척 쓰고 실제 바탕화면은 건드리지 않는다(helper/README.md 「테스트」).
+// 동명 충돌·동시 이동, 되돌리기의 정체 대조, 정션 건너뛰기, 이름 규칙, Origin·토큰·본문 크기 거부.
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";

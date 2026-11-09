@@ -1,3 +1,4 @@
+// npm test가 부르는 테스트 실행기: tests/와 helper/ 아래 *.test.js·*.test.mjs를 이름 순으로 모아 node --test로 한 번에 돌린다.
 import { readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";

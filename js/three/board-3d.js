@@ -24,6 +24,7 @@ import { CSS2DObject, SceneKit, THREE, toLogical, toWorld, toWorldSize } from ".
 import { TUNING, UNIT } from "./tuning.js";
 import { ATTIC_HALF, ATTIC_PILE, ATTIC_PINBOARD, atticCeilingAt, atticFloorBounds, pinboardPose } from "./attic-room.js";
 import { chargePower, throwPath, throwSpeed } from "./throw.js";
+import { sound } from "../sound.js";
 import { HomeSlots, fileHome } from "./file-homes.js";
 import { BoxPlacementState, rotateBox, supportsBox, validateBoxPlacement } from "./box-placement.js";
 import { FolderShelfAssignments } from "./folder-shelves.js";
@@ -731,6 +732,7 @@ export class Board3D {
         });
         this.#kit.world.add(card.group);
         this.#cards.set(entry.id, card);
+        card.onLand = () => this.#landSound(entry.id);
         if (this.#pendingSpill.has(entry.id)) {
           card.spillFrom({ x: pilePosition.x, z: pilePosition.z }, this.#spillIndex * TUNING.supplyStagger);
           this.#spillIndex += 1;
@@ -769,6 +771,15 @@ export class Board3D {
       const slot = assigned.get(entry.id);
       if (slot?.home === "pinboard") this.#homePoses.set(entry.id, pinboardPose(slot.index));
     }
+  }
+
+  /** 손을 떠난 카드가 내려앉았다: 상자 안이면 「툭」, 핀보드면 「틱」, 바닥이면 「탁」(11-09, js/sound.js) */
+  #landSound(id) {
+    const entry = this.#store.entry(id);
+    if (!entry) return;
+    if (entry.status === "moving" || entry.status === "placed") sound.play("box");
+    else if (entry.position?.home === "pinboard") sound.play("pin");
+    else sound.play("throw");
   }
 
   #applyCardTarget(card, entry, trayIndex, restHeight = 0) {
@@ -882,7 +893,7 @@ export class Board3D {
       level === null
         ? store.visibleTargets.length
           ? "" // 11-07 사용자: 늘 떠 있을 필요 없음 → 상자를 빈손으로 겨눌 때만 조준선 위 「눌러서 폴더 열기」(#updateTimeHint)
-          : "폴더가 없어요 · 오른쪽 위 「새 폴더」로 만들어요"
+          : "폴더가 없어요 · Esc 설정에서 「새 폴더」로 만들어요"
         : `${store.folderLabel(level)} · Esc 뒤로`;
     if (this.#breadcrumb.textContent !== crumb) this.#breadcrumb.textContent = crumb;
     this.#breadcrumb.dataset.level = level === null ? "root" : "inner";
@@ -1075,6 +1086,7 @@ export class Board3D {
     }
     if (pick.kind === "card") {
       this.#store.select(pick.id, { additive: true });
+      sound.play("pick");
       this.#gathering = TUNING.firstPerson.gather.sweep;
       return;
     }
@@ -1104,6 +1116,7 @@ export class Board3D {
     const pick = this.#pickAt(event);
     if (pick.kind !== "card" || this.#store.isSelected(pick.id)) return;
     this.#store.select(pick.id, { additive: true });
+    sound.play("pick");
   }
 
   /**
@@ -1704,6 +1717,8 @@ export class Board3D {
       const folderId = this.#boxUnder(event);
       if (folderId) {
         this.sync(); // 실패하면 제자리로 튕겨 돌아가야 하므로 위치는 그대로 둔다
+        // 끌어 놓기는 날아가지 않고 바로 들어간다. 장수만큼 불러 툭 → 톡톡톡(js/sound.js boxHit, 8장까지)
+        for (let i = 0; i < Math.min(drag.ids.size, 8); i++) sound.play("box");
         this.#onDropToFolder?.([...drag.ids], folderId);
         return;
       }

@@ -27,6 +27,7 @@ import { mountImportDesk } from "./ui/import-desk.js";
 import { mountRoomIntro } from "./ui/room-intro.js";
 import { mouseIcon, pencilize } from "./ui/pencil.js";
 import { mountFinishDesk } from "./ui/finish-desk.js";
+import { sound, clickSoundFor } from "./sound.js";
 import { buildPlan, loadPendingPlan, parsePlan, pathLabel, planGroups, splitPlan } from "./state/cleanup-plan.js";
 import { StatusPanel } from "./ui/status.js";
 import { FolderInterior } from "./ui/folder-interior.js";
@@ -62,12 +63,12 @@ const elements = {
   undoButton: $("#undo-button"),
   planTitle: $("#plan-title"),
   plan: $("#plan"),
-  panelToggle: $("#panel-toggle"),
   arrangeToggle: $("#arrange-toggle"),
   finish: $("#finish"),
-  stageSide: $("#settings-sheet"), // 10-25: ⚙ 설정 창(옛 오른쪽 패널)
+  stageSide: $("#settings-sheet"), // 10-25: 설정 창(옛 오른쪽 패널). Esc로 연다 — 11-10부터 새 폴더·기록·소리도 이 안에
   logSheet: $("#log-sheet"),
   logToggle: $("#log-toggle"),
+  panelToggle: $("#panel-toggle"), // 위 「톱니바퀴 [Esc]」(11-10)
   progressHud: $("#progress-hud"),
   progressDone: $("#progress-done"),
   progressTotal: $("#progress-total"),
@@ -350,6 +351,7 @@ async function startWith(nextProvider) {
   elements.newFolderForm.hidden = !canCreateFolder;
   // 게임 화면은 뷰포트를 채운다. 온보딩(나중에는 랜딩 페이지)은 평소 레이아웃 그대로다.
   document.body.classList.add("is-playing");
+  sound.setRoom(true); // 노트북 속(가져오기 화면)은 조용히, 방에 들어오면 음악(11-09 사용자)
 
   elements.outlineThickness.value = TUNING.outline.thickness;
   elements.dithering.value = TUNING.dithering.preset;
@@ -385,6 +387,11 @@ async function startWith(nextProvider) {
 
 // 11-07 사용자 A안: 정리방 UI(위·아래 버튼, 키 안내, 설정·기록 창)는 연필 + 크림 종이. 모양은 css/room-paper.css
 pencilize(elements.stage);
+pencilize(elements.onboarding); // 가져오기·결과 창도 같은 연필 + 크림 종이(11-08 사용자: 정리방처럼 A안으로)
+pencilize(elements.finish);
+// 소리(js/sound.js): 설정 창 「소리」 켜기/끄기, 화면 단추마다 「연필 톡」. 방 안의 소리(집기·넣기·던지기·꽂기)는 board-3d.js
+sound.bindToggle($("#sound-toggle"));
+clickSoundFor(document.body);
 for (const el of elements.stage.querySelectorAll("i.mouse")) el.innerHTML = mouseIcon(el.dataset.btn);
 const roomIntro = mountRoomIntro({ root: $("#room-intro"), onEnter: () => { session.startedAt = performance.now(); board?.enter(); } });
 
@@ -442,6 +449,9 @@ elements.newFolderForm.addEventListener("submit", (event) => {
   if (!name.trim()) return;
   createFolder(name);
   elements.newFolderName.value = "";
+  // 설정 창 안에서 만들었으니(11-10) 창을 닫고 방으로 — 새 상자를 바로 보게. Enter·클릭이 사용자 동작이라 시점도 다시 잡힌다
+  closeSheets();
+  resumeAfterSheet();
 });
 function updateRenderQuality({ mode, active, profile, effects: on, scale = 1 }) {
   const effects = profile ? profile.effects : on ?? active !== "low";
@@ -466,11 +476,13 @@ elements.vertexWobble.addEventListener("change", (event) => {
 
 elements.undoButton.addEventListener("click", undoLastBatch);
 
-// 10-25: 오른쪽 패널 → 방 위에 뜨는 창 둘. ⚙ = 설정(그래픽 + 조작 표), 「기록」 = 정리 계획 + 한 일. 하나만 열린다.
+// 10-25: 오른쪽 패널 → 방 위에 뜨는 창 둘. 설정(그래픽 + 조작 표), 「기록」 = 정리 계획 + 한 일. 하나만 열린다.
+// 11-10 사용자 「정말 큰 버그」: 방에선 커서가 시점에 잡혀 있어 위 단추를 누를 틈이 없었다 → 새 폴더·기록·소리는 설정 창 안으로.
+// 위에는 「파일 정리 모드 [Tab]」과 「톱니바퀴 [Esc]」만 남아 무슨 키인지 보여 준다(커서가 풀렸을 때는 눌러도 된다).
 function setSheet(sheet, button, open, label) {
   sheet.dataset.open = String(open);
-  button.setAttribute("aria-pressed", String(open));
-  if (label) button.setAttribute("aria-label", open ? `${label} 닫기` : `${label} 열기`);
+  button?.setAttribute("aria-pressed", String(open));
+  if (label) button?.setAttribute("aria-label", open ? `${label} 닫기` : `${label} 열기`);
   if (open && document.pointerLockElement) document.exitPointerLock();
   if (open) sheet.querySelector("[data-close]")?.focus({ preventScroll: true });
 }
@@ -594,8 +606,8 @@ async function initialize() {
   if (!memoryMode && !WebDropProvider.isSupported()) {
     onboarding.showUnsupported(
       window.isSecureContext
-        ? "웹 체험은 최신 데스크톱 Chrome 또는 Edge에서 됩니다. Desktop Helper 연결은 그대로 쓸 수 있습니다."
-        : "HTTPS 또는 localhost에서 열어야 합니다. file:// 로는 동작하지 않습니다.",
+        ? "웹 체험은 최신 데스크톱 Chrome이나 Edge에서 돼요. Desktop Helper 연결은 그대로 쓸 수 있어요."
+        : "HTTPS나 localhost에서 열어야 해요. file:// 로는 동작하지 않아요.",
     );
   }
   // 연결 정보: v0.2.2부터는 주소의 # 뒤(서버로 안 감), 그 전 Helper는 ? 뒤(10-20).
@@ -672,6 +684,7 @@ async function openFinish() {
   if (board.arranging) toggleArrangement();
   toggleSidePanel(false);
   diving = true;
+  sound.setRoom(false); // 노트북 속으로 들어가며 음악 페이드 아웃
   document.body.classList.add("is-diving"); // HUD·이름표를 걷고 노트북 화면만(css/finish.css)
   let dove = false;
   try {
@@ -683,12 +696,13 @@ async function openFinish() {
   // 이 탭이 이미 Helper에 붙어 있으면(Helper가 연 탭에서 웹 체험으로 정리한 경우) 포트·토큰을 다시 묻지 않는다.
   const report = buildFinishReport();
   finishDesk.show(report, { connected: report.modeKind === "web" ? onboarding.helperProvider : null, from: dove ? "laptop" : null });
+  sound.play("done");
   setTimeout(() => { if (finishDesk.open) board?.setPaused(true); }, dove ? 500 : 1000); // 바탕화면이 다 덮은 뒤
 }
 
 async function connectHelperForFinish(port, token) {
   if (!port || !token) {
-    status.notice("포트와 토큰을 모두 넣어 주세요. Helper 창에 나옵니다.", "warn");
+    status.notice("포트와 토큰을 모두 넣어 주세요. Helper 창에 나와요.", "warn");
     return null;
   }
   try {
@@ -697,7 +711,7 @@ async function connectHelperForFinish(port, token) {
     status.logConnect(info);
     return helper;
   } catch (error) {
-    status.logError("Desktop Helper에 연결하지 못했습니다", error?.message);
+    status.logError("Desktop Helper에 연결하지 못했어요", error?.message);
     return null;
   }
 }
@@ -710,6 +724,7 @@ const finishDesk = mountFinishDesk({
   onBack: async (report) => {
     if (report.variant === "plan") return; // 가져오기 화면에서 연 계획: 그 화면으로 돌아간다
     board?.setPaused(false);
+    sound.setRoom(true); // 방으로 빠져나오며 음악이 하던 자리부터 페이드 인
     await board?.surfaceFromLaptop(); // 노트북 화면 속에서 서 있던 자리로 빠져나온다
     document.body.classList.remove("is-diving");
     board?.setSuspended(false); // 「게임으로 돌아가기」 알약이 뜬다

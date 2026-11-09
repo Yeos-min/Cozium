@@ -38,13 +38,17 @@ body.is-playing kbd, .room-intro kbd, .room-sheet kbd {
 body.is-playing kbd + kbd, .room-intro kbd + kbd, .room-sheet kbd + kbd { margin-left: 4px; }
 
 /* ── 버튼·칩 공통: 종이 위 먹 글자 ── */
-body.is-playing :is(#undo-button, #arrange-toggle, #log-toggle, #panel-toggle, .new-folder-form button) {
+body.is-playing :is(#undo-button, #arrange-toggle, #panel-toggle, #log-toggle, #sound-toggle, .new-folder-form button) {
   position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 0; height: 42px; padding: 0 16px;
   border: 0; border-radius: 0; background: none; box-shadow: none; filter: none;
   color: var(--pen-ink); font: 800 15px/1 var(--font-ui); cursor: pointer; pointer-events: auto;
 }
-body.is-playing :is(#undo-button, #arrange-toggle, #log-toggle, #panel-toggle, .new-folder-form button):hover:not(:disabled) { filter: none; transform: translateY(-1px); }
-body.is-playing :is(#undo-button, #arrange-toggle, #log-toggle, #panel-toggle, .new-folder-form button):focus-visible { outline: 2px solid var(--pen-cream); outline-offset: 3px; }
+body.is-playing :is(#undo-button, #arrange-toggle, #panel-toggle, #log-toggle, #sound-toggle, .new-folder-form button):hover:not(:disabled) { filter: none; transform: translateY(-1px); }
+body.is-playing :is(#undo-button, #arrange-toggle, #panel-toggle, #log-toggle, #sound-toggle, .new-folder-form button):focus-visible { outline: 2px solid var(--pen-cream); outline-offset: 3px; }
+/* 설정 창(크림 종이) 안에서는 크림 테두리가 안 보인다 → 연필 선을 굵게(다른 연필 단추와 같다) */
+.room-sheet [data-pen]:focus-visible { outline: none; }
+.room-sheet [data-pen]:focus-visible > svg.pen .s { stroke-width: 4.2; }
+.room-sheet [data-pen]:focus-visible > svg.pen .s2 { stroke-width: 2; }
 body.is-playing #undo-button:disabled { opacity: 1; color: #9a8a76; cursor: default; } /* 종이는 그대로, 글자만 흐리게 */
 body.is-playing #undo-button:disabled kbd { color: #9a8a76; }
 /* 주 버튼(새 폴더)·켜진 버튼은 먹으로 채움 */
@@ -53,18 +57,29 @@ body.is-playing :is(#arrange-toggle, #log-toggle)[aria-pressed="true"] { color: 
 body.is-playing :is(#arrange-toggle, #log-toggle)[aria-pressed="true"] svg.pen .f { fill: var(--pen-ink); }
 body.is-playing :is(#arrange-toggle)[aria-pressed="true"] kbd { color: var(--pen-paper); }
 body.is-playing :is(#arrange-toggle)[aria-pressed="true"] kbd svg.pen .s, body.is-playing #arrange-toggle[aria-pressed="true"] kbd svg.pen .s2 { stroke: var(--pen-paper); }
-body.is-playing #panel-toggle { width: 42px; padding: 0; justify-content: center; }
-body.is-playing #panel-toggle .gear { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+body.is-playing #sound-toggle { width: 42px; padding: 0; justify-content: center; }
+/* 톱니바퀴 [Esc](11-10): 「파일 정리 모드 [Tab]」과 같은 종이 칩, 아이콘은 소리 단추와 같은 선(20px · 2px) */
+body.is-playing #panel-toggle { padding: 0 10px 0 14px; }
+body.is-playing #panel-toggle .gear { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linejoin: round; }
+/* 11-09 소리 켜기/끄기(js/sound.js): 네모 종이 단추, 선 아이콘(20px · 2px · 채움 없음). 켜짐 = 물결, 꺼짐 = ×
+   (23:32 사용자: 글자 없이 다른 단추와 통일). 11-10부터 설정 창 「정리 › 소리」 줄에 있다 */
+body.is-playing #sound-toggle .sound-ic { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#sound-toggle[data-sound="on"] .off, #sound-toggle[data-sound="off"] .on { display: none; }
 body.is-playing #undo-button { position: fixed; right: 28px; bottom: 24px; }
 body.is-playing #undo-button .undo-label { max-width: 220px; }
-body.is-playing .new-folder-form { gap: 10px; }
 body.is-playing .pen-field { display: inline-flex; align-items: center; }
-body.is-playing .new-folder-form input {
-  width: 190px; height: 42px; padding: 0 16px; border: 0; border-radius: 0; background: none; box-shadow: none;
+/* 설정 창 「정리」 줄(11-10): 새 폴더 [이름 칸][만들기] · 기록 [보기] · 소리 [켜기/끄기]. 칸은 화면 품질 선택칸과 같은 연필 종이 칸 */
+.sheet-row.new-folder-form { grid-template-columns: 110px minmax(0, 1fr) auto; }
+.sheet-row.new-folder-form .pen-field { grid-column: auto; display: flex; height: 42px; }
+.sheet-row.new-folder-form input {
+  width: 100%; min-width: 0; height: 100%; box-sizing: border-box; padding: 0 16px; border: 0; border-radius: 0; background: none; box-shadow: none;
   color: var(--pen-ink); font: 800 15px/1 var(--font-ui);
 }
-body.is-playing .new-folder-form input::placeholder { color: #9a8a76; }
-body.is-playing .new-folder-form input:focus-visible { outline: 2px solid var(--pen-cream); outline-offset: 3px; }
+.sheet-row.new-folder-form input::placeholder { color: #9a8a76; }
+.sheet-row.new-folder-form .pen-field:focus-within svg.pen .s { stroke-width: 3.2; }
+.sheet-row.new-folder-form input:focus-visible { outline: none; }
+.sheet-row > :is(#log-toggle, #sound-toggle) { grid-column: 2 / -1; justify-self: start; }
+.sheet-sec h4 + .sheet-rows + h4 { margin-top: 34px; } /* 「정리」 다음 「화면」 */
 body.is-playing .stage-bar-group { gap: 10px; }
 
 /* 왼쪽 위: 판 없이 크림 글자 + 둘레 번짐(랜딩 제목과 같은 결) */

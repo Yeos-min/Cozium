@@ -1,4 +1,4 @@
-# 정리대 Desktop Helper
+# Cozium Desktop Helper
 
 바탕화면 전용 최소 파일 작업 서버. 웹 앱(GitHub Pages)이 실제 바탕화면을 읽고, 옮기고, 되돌리고, 새 폴더를 만들 수 있게 한다.
 Electron이 아니다. 창도 없다. 실행하면 콘솔 하나가 뜨고 브라우저가 열린다.
@@ -11,8 +11,11 @@ Node 20 이상.
 node helper/desktop-helper.mjs
 ```
 
-실행하면 랜덤 포트와 일회용 토큰을 만들고 지정한 `--app` 주소 뒤에 `#helper=PORT&token=…`를 붙여 브라우저를 연다(v0.2.2부터 # 뒤 — 서버로 가지 않는다. 웹은 예전 `?helper=`도 받는다). 기본은 `https://yeos-min.github.io/Cozium/app.html`이며, 랜딩(index.html)으로 와도 연결 정보를 보존해 `app.html`로 이어 준다. 웹 페이지는 주소창에서 토큰을 지우고 메모리에만 둔다.
-브라우저가 안 열리면 콘솔의 포트와 토큰을 페이지에 직접 넣는다.
+실행하면 일회용 토큰을 만들고 **고정 포트 47821**(`HELPER_PORT`)에서 기다린다(v0.2.3, 이미 쓰이고 있으면 랜덤 포트).
+
+1. 정리방의 Helper 창(가져오기 화면)이나 결과 화면 「Helper로 적용」이 열려 있으면, 그 페이지가 2초마다 `GET /v1/pair`로 Helper를 찾다가 토큰을 받아 저절로 붙는다(`js/providers/native-helper-provider.js` `waitForHelper`). 토큰은 허용 출처 페이지에만 준다.
+2. 5초 안에 붙는 탭이 없으면(또는 고정 포트를 못 썼으면 바로) `--app` 주소 뒤에 `#helper=PORT&token=…`를 붙여 브라우저를 연다(v0.2.2부터 # 뒤 — 서버로 가지 않는다. 웹은 예전 `?helper=`도 받는다). 기본은 `https://yeos-min.github.io/Cozium/app.html`이며, 랜딩(index.html)으로 와도 연결 정보를 보존해 `app.html`로 이어 준다. 웹 페이지는 주소창에서 토큰을 지우고 메모리에만 둔다.
+3. 그래도 안 되면 콘솔의 포트와 토큰을 페이지의 접어 둔 칸에 직접 넣는다.
 
 개발용(localhost:5173 페이지 + 가짜 바탕화면):
 
@@ -26,7 +29,7 @@ node helper/desktop-helper.mjs --dev --app http://localhost:5173/app.html --desk
 | `--origin <url>` | 허용할 페이지 출처. 여러 번 가능. 기본은 배포 origin |
 | `--dev` | `http://localhost:5173`, `http://127.0.0.1:5173`도 허용 |
 | `--app <url>` | 브라우저로 열 페이지. 기본은 첫 허용 출처. 배포 주소를 직접 지정할 때는 저장소 경로와 `app.html`까지 포함 |
-| `--port <n>` | 고정 포트. 기본 0 = 랜덤 |
+| `--port <n>` | 포트. 기본은 47821(쓰이고 있으면 랜덤), `0`이면 랜덤 |
 | `--no-open` | 브라우저를 열지 않음 |
 | `--idle-minutes <n>` | 요청 없이 이 시간이 지나면 종료. 기본 15 |
 
@@ -34,6 +37,7 @@ node helper/desktop-helper.mjs --dev --app http://localhost:5173/app.html --desk
 
 | 메서드 | 경로 | 하는 일 |
 |---|---|---|
+| GET | `/pair` | **토큰 없이 부르는 유일한 경로.** 허용 출처의 페이지에만 토큰을 준다(다른 출처·출처 없음은 403). v0.2.3 |
 | GET | `/hello` | 버전, 바탕화면 이름 |
 | GET | `/scan` | 바탕화면 바로 아래 파일·폴더. id만 준다 |
 | GET | `/folders/:id/children` | 하위 폴더 한 단계 |
@@ -57,7 +61,7 @@ node helper/desktop-helper.mjs --dev --app http://localhost:5173/app.html --desk
 
 ## 보안
 
-- `127.0.0.1`에만 listen. 포트는 매번 랜덤.
+- `127.0.0.1`에만 listen. 포트는 47821(v0.2.3, 페이지가 찾을 수 있게). 포트를 알아도 토큰은 `/pair`가 허용 출처에만 준다.
 - 세션마다 랜덤 토큰. 상수 시간 비교.
 - `Origin`이 없거나 허용 목록에 없으면 403. curl도 막힌다.
 - 웹은 절대경로를 보내지도 받지도 않는다. id ↔ 경로 대응표는 프로세스 안에만 있다.
@@ -72,7 +76,7 @@ npm test
 ```
 
 `helper/desktop-helper.test.mjs`는 임시 폴더를 바탕화면인 척 쓴다. 실제 바탕화면은 건드리지 않는다.
-정션 스킵, 동명 충돌, 되돌리기, 원래 자리에 새 파일이 생긴 경우, 이름 규칙, Origin·토큰·본문 크기 거부를 확인한다.
+정션 스킵, 동명 충돌, 되돌리기, 원래 자리에 새 파일이 생긴 경우, 이름 규칙, Origin·토큰·본문 크기 거부를 확인한다. `helper/pair.test.mjs`는 짝짓기(`/pair`가 허용 출처에만 토큰을 주고 다른 경로는 여전히 토큰이 필요한지)를 본다.
 덮어쓰기 금지는 같은 이름을 동시에 노리는 12개를 한 틱에 출발시켜 정확히 하나만 성공하는지로 확인하고,
 되돌리기의 정체 대조는 옮긴 파일을 밖에서 빼내고 같은 이름의 다른 파일을 놓아 재현한다.
 
@@ -94,7 +98,7 @@ node tools/build-helper-exe.mjs --node <Windows용 node.exe 경로>
 ```
 
 - `helper/exe-entry.mjs` + `desktop-helper.mjs`를 CommonJS 한 파일로 묶고(esbuild) Node 단일 실행 파일(SEA)로 만든다. 결과는 `output/helper/CoziumHelper.exe`(약 82 MB).
-- **스크립트를 돌리는 node와 `--node`의 node.exe 버전이 같아야 한다.** 10-19 빌드는 둘 다 v22.22.0(npm `node-win-x64@22.22.0`, OpenJS 서명 해시 일치 확인 후 서명을 떼고 넣음).
+- **스크립트를 돌리는 node와 `--node`의 node.exe 버전이 같아야 한다.** 10-19 빌드와 11-07 v0.2.3 빌드는 둘 다 v22.22.0(npm `node-win-x64@22.22.0`, OpenJS 서명 해시 일치 확인 후 서명을 떼고 넣음). 결과 경로는 `--out <경로>`로 바꿀 수 있다.
 - 인자는 node 실행과 같다. 테스트할 때는 `CoziumHelper.exe --desktop "<더미 폴더>"`.
 - exe 창은 시작에 실패하면 Enter를 누를 때까지 안 닫힌다(오류를 읽을 수 있게).
 - 서명이 없다 → Chrome "흔히 다운로드되지 않는 파일", SmartScreen "추가 정보 → 실행". 코드 서명은 다음 단계.

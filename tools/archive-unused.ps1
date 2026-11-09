@@ -84,7 +84,9 @@ $files = @(
   "tools\landing-assets-report.json",
   "tools\make-clean-desktop.mjs",
   "tools\optimize-landing-assets.py",
-  "tools\watercolor-study.md"
+  "tools\watercolor-study.md",
+  # 11-10: README 옛 스크린샷(밤 랜딩은 11-03에 아침 다락방으로 바뀜 → landing-morning.webp)
+  "docs\screenshots\landing-night.webp"
 )
 # 같은 폴더의 원본 그림·프롬프트(사이트는 webp만 씀)
 $patterns = @("assets\landing\parts\*.png", "assets\landing\parts\*.txt", "assets\landing\parts\*.json")

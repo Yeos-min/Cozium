@@ -455,8 +455,6 @@ body.is-playing .progress-hud { top: 64px; }
 #helper-state[data-tone="error"] { color: #f2c4b8; }
 
 /* 보드 상단 새 폴더 */
-.new-folder-form { display: flex; gap: 8px; align-items: center; }
-.new-folder-form input { width: 180px; height: 36px; padding: 0 10px; border-radius: 9px; color: var(--text); border: 1px solid var(--line); background: var(--surface-2); font-size: 12px; }
 
 /* 정리 계획 / 결과 */
 .plan-panel { margin-top: 14px; padding: 14px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface); }
@@ -496,7 +494,6 @@ body.is-playing .stage-bar { z-index: 40; padding: 22px 28px; background: none; 
 .room-brand { color: #fff8e8; text-shadow: 0 2px 12px #51442b80; }
 .room-brand strong { display: block; font: 900 24px/1 var(--font-logo); letter-spacing: -.025em; }
 .room-brand small { display: block; margin-top: 5px; font-size: 11px; letter-spacing: .12em; }
-body.is-playing #panel-toggle { width: 42px; height: 42px; padding: 0; border: 1px solid #fff3d633; background: #554c3899; border-radius: 12px; font-size: 25px; color: #fff8e8; }
 body.is-playing #undo-button { position: fixed; bottom: 20px; right: 24px; padding: 10px 13px; border-radius: 10px; color: #fff4df; background: #514734b8; border-color: #fff2cd26; }
 body.is-playing #undo-button .undo-label { max-width: 145px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body.is-playing .progress-hud { top: 89px; left: 29px; right: auto; width: 104px; padding: 0; text-align: left; background: none; border: 0; box-shadow: none; text-shadow: 0 1px 8px #51442b80; }
@@ -534,7 +531,6 @@ body.is-playing kbd { color: #fff6e5; background: #37362966; border-color: #d7cb
 .arrange-hint { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); max-width: 80%; padding: 12px 20px; border: 1px solid #d8dcc09c; border-radius: 12px; background: #3e4939e8; color: #fff7e5; font-size: 14px; text-align: center; }
 body.is-playing :is(#arrange-toggle, #log-toggle) { background: #514734c9; color: #fff4df; border: 1px solid #fff2cd40; pointer-events: auto; } /* 10-25: 기록 버튼도 같은 모양, 둘 다 위 막대 안에 나란히 */
 body.is-playing #log-toggle[aria-pressed="true"] { background: #6a5e45e8; }
-body.is-playing .new-folder-form input { height: 34px; color: #fff4df; background: #3a352899; border-color: #fff2cd40; }
 body.is-playing #arrange-toggle[aria-pressed="true"] { background: #64734de8; border-color: #d4dfb5; }
 .board-viewport[data-arranging="true"] .hover-label { display: none; }
 .board-viewport[data-arranging="true"] .breadcrumb { display: none; }

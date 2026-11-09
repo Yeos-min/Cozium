@@ -66,12 +66,14 @@
     <p><i></i>환영합니다</p><!-- 윈도우 「환영합니다」 그대로가 모티브라 말투 규칙(~해요)의 예외(11-03 사용자) -->
   </div>
   <!-- 11-03 사용자 선택 B: 연필 손그림 말풍선(진한 연필 두 번 겹쳐 긋기 — 3D 외곽선과 같은 선). 평소 「···」, 올리면 「정리 시작해볼까요?」 -->
-  <button class="bubble" id="bubble" type="button" hidden aria-label="정리 시작해볼까요?">
+  <button class="bubble" id="bubble" type="button" data-sfx="go" hidden aria-label="정리 시작해볼까요?">
     <span class="b-idle" aria-hidden="true"><svg class="b-shape" width="70" height="62" viewBox="-2 -2 74 64" aria-hidden="true"><path class="f" d="M18 2 Q35.0 -1.0 52 2 Q71 1 69 18 L68 26 Q69 43 52 42 L38 43 L14 60 L22 42 L18 43 Q1 43 2 26 L1 18 Q1 1 18 2"/><path class="s" d="M18 2 Q35.0 -1.0 52 2 Q71 1 69 18 L68 26 Q69 43 52 42 L38 43 L14 60 L22 42 L18 43 Q1 43 2 26 L1 18 Q1 1 18 2"/><path class="s2" d="M19.3 0.7 Q35.0 -0.35 52 3.3 Q71 1 67.7 18 L69.3 26 Q69 43 52 43.3 L39.3 43 L12.7 60 L23.3 42 L18 41.7 Q1 43 3.3 26 L-0.30000000000000004 18 Q1 1 19.3 0.7"/></svg><span class="b-t">···</span></span>
     <span class="b-open" aria-hidden="true"><svg class="b-shape" width="220" height="80" viewBox="-2 -2 224 82" aria-hidden="true"><path class="f" d="M18 2 Q110.0 -1.0 202 2 Q221 1 219 18 L218 44 Q219 61 202 60 L38 61 L14 78 L22 60 L18 61 Q1 61 2 44 L1 18 Q1 1 18 2"/><path class="s" d="M18 2 Q110.0 -1.0 202 2 Q221 1 219 18 L218 44 Q219 61 202 60 L38 61 L14 78 L22 60 L18 61 Q1 61 2 44 L1 18 Q1 1 18 2"/><path class="s2" d="M19.3 0.7 Q110.0 -0.35 202 3.3 Q221 1 217.7 18 L219.3 44 Q219 61 202 61.3 L39.3 61 L12.7 78 L23.3 60 L18 59.7 Q1 61 3.3 44 L-0.30000000000000004 18 Q1 1 19.3 0.7"/></svg><span class="b-t">정리 시작해볼까요?</span></span>
   </button>
   <div class="story-bubble" id="storyCap" data-on="false" aria-hidden="true"><svg></svg><p class="sb-text"><b class="story-n"></b><span class="story-t"></span></p></div>
   <button class="skip" id="skip" type="button" hidden>건너뛰고 바로 시작 →</button>
+  <!-- 11-09 소리 켜기/끄기(js/sound.js), 오른쪽 아래. 첫 화면(노트북만)·환영 화면에선 숨김 -->
+  <button class="sound-toggle" id="soundToggle" type="button" data-pen="paper" data-sound="on" aria-pressed="true" aria-label="소리 끄기" hidden><svg class="sound-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.4h3.3l4.7-3.9v13l-4.7-3.9H4z"/><path class="on" d="M15.4 9.2q1.6 2.8 0 5.6M18.2 7q3.2 5 0 10"/><path class="off" d="M15.6 9.6l4.8 4.8M20.4 9.6l-4.8 4.8"/></svg></button>
   <div class="loading" aria-hidden="true"><i></i></div>
   <div class="veil" id="veil" aria-hidden="true"></div>
   <p class="sr-only" id="sceneStatus" aria-live="polite"></p>

@@ -20,6 +20,8 @@ import { RoomLayer, StyledPass, TEXT_LAYER, SUCK_END } from "./room-layer.js";
 import { GLTFLoader } from "../../vendor/three/addons/loaders/GLTFLoader.js";
 import { toonGradient } from "../three/materials.js";
 import { deskScale, DESK_BASE } from "../ui/desk-scale.js";
+import { sound, clickSoundFor } from "../sound.js";
+import { pencilize } from "../ui/pencil.js";
 
 // ───────────── helpers ─────────────
 const $ = (s) => document.querySelector(s);
@@ -713,6 +715,7 @@ function grabPile(o) {
   const pile = floorFree().filter((t) => t.cluster === o.cluster)
     .sort((a, b) => Math.hypot(a.group.position.x - o.group.position.x, a.group.position.z - o.group.position.z) - Math.hypot(b.group.position.x - o.group.position.x, b.group.position.z - o.group.position.z));
   pile.forEach((t, k) => grab(t, Math.min(k, 16) * 24));
+  if (pile.length) sound.play("pick");
 }
 // While something is in hand, the boxes answer: they hop in turn, and dots run from the hand to the box in that column.
 let callT0 = -1e9, heldSince = 0;
@@ -801,6 +804,8 @@ function depositInto(list, box) {
   deposits[box] += list.length;
   folders[box].bump = 1;
   if (!list.length) return;
+  // 첫 장이 상자에 닿을 즈음(날아가는 520 ms). 장수만큼 불러 툭 → 톡톡톡(줄 세우기는 js/sound.js boxHit, 8장까지)
+  setTimeout(() => { for (let i = 0; i < Math.min(list.length, 8); i++) sound.play("box"); }, 480);
   depositCount++;
   // Nothing is put away for you: one click picks up a whole pile, so four round trips empty the floor.
   // The last pile: the camera starts rising while its cards are still dropping into the box.
@@ -1191,6 +1196,8 @@ skipBtn.addEventListener("click", () => {
 const intro = { phase: cameBack || noGL ? "done" : "laptop", t0: performance.now(), readyAt: 0, dove: false };
 const BOOT_MS = 1700, WELCOME_MS = 3400; // 11-03 사용자: 환영 화면이 너무 짧음
 const DESK_FULL = B.dive[1] - 2e-4; // 방 → 노트북 걸어 들어가기의 끝, 바탕화면(HTML)이 화면을 꽉 채운 자리
+const HOP_LANDS = [[.26, .55], [.52, .2]]; // 노트북 통통이 책상에 닿는 때(초)와 소리 크기
+let hopTau = 0;
 let bubbleHot = false, glow = 0; // 11-07 사용자: 「시작해볼까요」에 올리면 노트북 화면이 살짝 켜짐
 const SUCK_DIVE = 1.5; // 빨려 들어가기 시작 몇 초 뒤 카메라가 노트북으로 걸어 들어가기 시작(남은 파일이 카메라 앞을 지나 화면으로)
 let deskEmpty = false; // 11-06 사용자 「처음 바탕화면엔 아무것도 없는 깔끔한 상태」: 아이콘 없이 배경화면·작업 표시줄만
@@ -1207,6 +1214,7 @@ function introStartLaptop() {
   const L = room.laptopPose();
   room.poseFn = () => L;
   introSet("laptop");
+  sound.prime(); // 통통 소리: 브라우저가 누르기 전 소리를 허락하면 이때부터 난다
 }
 introHit.addEventListener("click", () => {
   if (intro.phase !== "laptop" || !room.ready) return;
@@ -1218,6 +1226,8 @@ introHit.addEventListener("click", () => {
   introSet("boot");
 });
 for (const [ev, on] of [["pointerenter", true], ["pointerleave", false], ["focus", true], ["blur", false]]) bubble.addEventListener(ev, () => { bubbleHot = on; });
+// 「···」이 「정리 시작해볼까요?」로 부풀 때 퐁(11-09 사용자). 누를 때 소리는 index.html data-sfx="go"
+bubble.addEventListener("pointerenter", (e) => { if (intro.phase === "ready" && e.pointerType !== "touch") sound.play("pop", { ifRunning: true }); });
 bubble.addEventListener("click", () => {
   if (intro.phase !== "ready") return;
   auto = { t0: performance.now(), kick: 0 };
@@ -1239,6 +1249,9 @@ function introTick(now) {
     // 가끔 통통(2.6초마다, 파일 더미 튀는 것과 같은 말)
     const tau = (now / 1000) % 2.6;
     room.setHop(tau < .7 ? Math.abs(Math.sin(tau * Math.PI / .26)) * Math.exp(-tau * 5) * .03 : 0);
+    // 책상에 닿는 순간(.26초 큰 통, .52초 작은 통) 소리(11-09 사용자). 첫 클릭 전엔 브라우저가 허락할 때만 난다
+    for (const [at, gain] of HOP_LANDS) if (hopTau < at && tau >= at) sound.play("laptop", { gain, ifRunning: true });
+    hopTau = tau;
   }
   if (ph === "boot" && sec * 1000 >= BOOT_MS) { introSet("welcome"); welcome.dataset.on = "true"; }
   if (ph === "welcome" && sec * 1000 >= WELCOME_MS) {
@@ -1485,6 +1498,22 @@ function announce(p) {
   for (const [r, text] of SCENE_TEXT) if (Math.abs(r - p) < 1e-4) { sceneStatus.textContent = text; return; }
 }
 
+// ───────────── 소리(11-09 사용자): 다락방이 보일 때만 음악 ─────────────
+// 노트북 속(바탕화면·바닥 체험·깨끗해진 바탕화면)과 걸어 들어가기는 조용히. 첫 화면(노트북만)·환영 화면도 조용히.
+// 방 → 노트북 걸어 들어가기(dive)의 절반을 넘으면 페이드 아웃, 돌아 나올 때(out) 페이드 인. 소리 모양·크기는 js/sound.js
+const soundBtn = $("#soundToggle");
+const QUIET_INTRO = new Set(["laptop", "boot", "welcome"]);
+sound.bindToggle(soundBtn);
+pencilize(soundBtn); // 정리방 단추와 같은 연필 테두리
+clickSoundFor(document.body);
+function frameSound(p) {
+  const quietIntro = QUIET_INTRO.has(intro.phase);
+  const inRoom = p < B.dive[0] + (B.dive[1] - B.dive[0]) * .5 || p >= B.out[0] + .03;
+  sound.setRoom(inRoom && !enter && !quietIntro);
+  const hideBtn = quietIntro || !inRoom; // 노트북 속에선 작업 표시줄 자리라 숨김(효과음 켜짐/꺼짐은 그대로)
+  if (soundBtn.hidden !== hideBtn) soundBtn.hidden = hideBtn;
+}
+
 function loop(now) {
   introTick(now);
   autoplayTick(now);
@@ -1512,6 +1541,7 @@ function loop(now) {
   frameCaption(p);
   finishEnter(now);
   stage.dataset.scene = p < .1 || p >= B.out[0] + .03 ? "room" : "inside";
+  frameSound(p);
   announce(p);
   requestAnimationFrame(loop);
 }

@@ -10,6 +10,7 @@
  */
 import { DESK_ICONS as ICONS, deskIconFor, extensionOf } from "./layout.js";
 import { enableDrag, enableResize } from "./win-frame.js";
+import { sound } from "../sound.js";
 import { applyPlan, checkPlan, clearPendingPlan, pathLabel, planFileName, savePendingPlan, splitPlan, undoApplied } from "../state/cleanup-plan.js";
 
 const CELL = { w: 100, h: 104 };
@@ -23,6 +24,20 @@ const el = (tag, className, text) => {
   if (className) node.className = className;
   if (text != null) node.textContent = text;
   return node;
+};
+/** 단추(11-08 A안 연필 + 크림 종이): 주 단추(win-go)는 먹으로 채우고, 나머지(win-button·win-link 칩)는 종이. 테두리는 js/ui/pencil.js */
+const button = (className, text) => {
+  const node = el("button", className, text);
+  node.type = "button";
+  node.dataset.pen = className === "win-go" ? "ink" : "paper";
+  return node;
+};
+/** 입력 칸도 연필 종이 칸으로 감싼다(정리방 「새 폴더 이름」과 같은 모양) */
+const penField = (input) => {
+  const field = el("span", "pen-field");
+  field.dataset.pen = "paper";
+  field.append(input);
+  return field;
 };
 
 export function formatElapsed(ms) {
@@ -245,6 +260,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
         if (id !== runId) return;
         counts.set(item.to, (counts.get(item.to) ?? 0) + 1);
         gulp(target, counts.get(item.to));
+        sound.play("gulp"); // 쏙 — 줄줄이 들어가면 드르르륵(11-09 사용자, js/sound.js)
         counter.bump();
       }, delay + duration - 40);
     });
@@ -271,7 +287,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
     const r = report;
     root.dataset.variant = r.variant;
     kicker.textContent = r.modeText;
-    setTitle(r.variant === "done" ? ["다 치웠어요", "!"] : r.variant === "plan" ? ["저장한 ", "정리 계획"] : ["여기까지 ", "정리했어요"]);
+    setTitle(r.variant === "done" ? ["다 ", "치웠어요!"] : r.variant === "plan" ? ["저장한 ", "정리 계획"] : ["여기까지 ", "정리했어요"]);
     const folderCount = r.folders.length;
     lede.textContent = r.variant === "plan"
       ? `${r.planDate} 방에서 정리한 그대로, 파일 ${r.done}개를 폴더 ${folderCount}개로 옮겨요.`
@@ -343,12 +359,10 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
       );
       if (manual.length) box.append(el("p", "finish-apply-note", `폴더 안에서 꺼낸 파일 ${manual.length}개는 Helper가 못 옮겨요 — 직접 옮겨 주세요.`));
       const row = el("div", "finish-apply-row");
-      const go = el("button", "win-go", "Helper로 적용");
-      go.type = "button";
+      const go = button("win-go", "Helper로 적용");
       go.disabled = !auto.length;
       go.addEventListener("click", () => (helper ? renderApply("ready") : renderApply("connect")));
-      const save = el("button", "win-button", "계획 파일 저장");
-      save.type = "button";
+      const save = button("win-button", "계획 파일 저장");
       save.addEventListener("click", downloadPlan);
       row.append(go, save);
       box.append(row, el("p", "finish-apply-note", "계획은 이 브라우저에도 기억해 둬요 — 나중에 Helper를 켜면 열리는 화면에서 바로 적용돼요."));
@@ -391,8 +405,8 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
       form.autocomplete = "off";
       const port = el("input"); port.placeholder = "포트"; port.inputMode = "numeric"; port.setAttribute("aria-label", "Helper 포트");
       const token = el("input"); token.placeholder = "토큰"; token.setAttribute("aria-label", "Helper 토큰");
-      const submit = el("button", "win-button", "연결"); submit.type = "submit";
-      form.append(port, token, submit);
+      const submit = button("win-button", "연결"); submit.type = "submit";
+      form.append(penField(port), penField(token), submit);
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         if (busy) return;
@@ -404,7 +418,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
         }
         if (helper) renderApply("ready");
       });
-      const cancel = el("button", "win-link", "← 돌아가기"); cancel.type = "button";
+      const cancel = el("button", "win-link", "← 돌아가기"); cancel.type = "button"; // 글자만(물러나는 길은 칩 없이)
       cancel.addEventListener("click", () => renderApply("idle"));
       manual.append(form);
       box.append(manual, cancel);
@@ -439,7 +453,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
         );
         if (missing.length) box.append(missingList(true));
         if (manual.length) box.append(el("p", "finish-apply-note", `폴더 안에서 꺼낸 파일 ${manual.length}개는 Helper가 못 옮겨요 — 직접 옮겨 주세요.`));
-        const go = el("button", "win-go", "옮길 파일 없음"); go.type = "button"; go.disabled = true;
+        const go = button("win-go", "옮길 파일 없음"); go.disabled = true;
         box.append(go);
         return;
       }
@@ -449,7 +463,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
         : el("p", null, `파일 ${present.length}개를 폴더로 옮겨요. 같은 이름이 이미 있는 파일은 건너뛰어요.`));
       if (missing.length) box.append(missingList(false));
       if (manual.length) box.append(el("p", "finish-apply-note", `폴더 안에서 꺼낸 파일 ${manual.length}개는 Helper가 못 옮겨요 — 직접 옮겨 주세요.`));
-      const go = el("button", "win-go", `파일 ${present.length}개 적용`); go.type = "button";
+      const go = button("win-go", `파일 ${present.length}개 적용`);
       go.addEventListener("click", runApply);
       box.append(go);
       return;
@@ -474,7 +488,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
         box.append(details);
       }
       if (a.batchIds.length) {
-        const undo = el("button", "win-button", "방금 적용한 것 되돌리기"); undo.type = "button";
+        const undo = button("win-button", "방금 적용한 것 되돌리기");
         undo.addEventListener("click", runUndo);
         box.append(undo, el("p", "finish-apply-note", "되돌리기는 이 화면을 닫기 전까지만 돼요. 새로 만든 폴더는 그대로 남아요(지우는 기능은 없어요)."));
       }
