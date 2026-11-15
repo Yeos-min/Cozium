@@ -86,8 +86,9 @@ export class Onboarding {
       }, "끌어다 놓은 항목을 읽지 못했어요");
     });
 
+    // 세 시작 경로가 같은 잠금(#guard)을 쓴다. 화면 전환 중에 두 번 눌러도 한 번만 시작한다(11-16 검수 #6).
     startWeb.addEventListener("click", () => {
-      if (this.#webProvider) this.#start(this.#webProvider);
+      if (this.#webProvider) this.#guard(() => this.#start(this.#webProvider), "웹 체험을 시작하지 못했어요");
     });
 
     helperForm.addEventListener("submit", (event) => {
@@ -96,7 +97,7 @@ export class Onboarding {
     });
 
     startHelper.addEventListener("click", () => {
-      if (this.#helperProvider) this.#start(this.#helperProvider);
+      if (this.#helperProvider) this.#guard(() => this.#start(this.#helperProvider), "바탕화면 정리를 시작하지 못했어요");
     });
 
     loadSample.addEventListener("click", () => this.startSample());

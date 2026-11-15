@@ -627,6 +627,9 @@ export class SceneKit {
   refreshRenderStyle() {
     const profile = this.renderQuality.profile;
     Object.assign(this.outlineEffect.outline, TUNING.outline, { thickness: profile.effects ? TUNING.outline.thickness : 0 });
+    // 「가볍게」는 디더링 후처리도 끈다. 외곽선만 0으로 하면 디더링 때문에 렌더 3회·프레임버퍼 복사 1회가 남았다(11-16 검수 #10).
+    // 켜진 단계에서는 TUNING.dithering을 그대로 물어 설정 창의 변경이 바로 보인다.
+    this.outlineEffect.dithering = profile.effects ? TUNING.dithering : { ...TUNING.dithering, preset: "off" };
   }
 
   #applyRenderQuality() {

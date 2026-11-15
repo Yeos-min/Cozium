@@ -318,7 +318,19 @@ function renderPlan() {
   );
 }
 
+let starting = false;
 async function startWith(nextProvider) {
+  // 보드는 한 번만 만든다. 두 번째 시작은 렌더 루프·이벤트를 겹쳐 붙이므로 막는다(11-16 검수 #6).
+  if (board || starting) return;
+  starting = true;
+  try {
+    await startOnce(nextProvider);
+  } finally {
+    starting = false;
+  }
+}
+
+async function startOnce(nextProvider) {
   provider = nextProvider;
   const { realFiles, kind, canScan, canCreateFolder } = provider.capabilities;
   labels = realFiles ? { verb: "옮김", mode: "실제" } : { verb: "옮김 (체험)", mode: "체험" };
@@ -469,6 +481,7 @@ elements.outlineThickness.addEventListener("input", (event) => {
 });
 elements.dithering.addEventListener("change", (event) => {
   TUNING.dithering.preset = event.target.value;
+  board?.refreshRenderStyle?.();
 });
 elements.vertexWobble.addEventListener("change", (event) => {
   TUNING.vertexWobble.preset = event.target.value;

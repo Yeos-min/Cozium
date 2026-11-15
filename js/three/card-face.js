@@ -17,6 +17,8 @@ export const THUMBNAIL_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif"
 const MAX_THUMBNAIL_BYTES = 25 * 1024 * 1024;
 
 const cache = new Map();
+/** 상자 하나 → 지금 쓰는 텍스처의 cache 키. 개수가 바뀔 때 이전 텍스처를 놓으려고 둔다. */
+const boxSlots = new Map();
 
 export function canPreview(item) {
   return THUMBNAIL_EXTENSIONS.has((item.extension ?? "").toLowerCase()) && item.size > 0 && item.size <= MAX_THUMBNAIL_BYTES;
@@ -73,31 +75,120 @@ function makeInkCanvas(width, height) {
   return canvas;
 }
 
-function drawPaperFace(ctx, ink, item, color, width, height) {
-  ctx.fillStyle = TUNING.card.faceColor;
-  ctx.fillRect(0, 0, width, height);
+/* ── 문서 카드(11-16 사용자 A2): 정리방 UI와 같은 「연필 + 크림 종이」 ──
+   크림 종이 안쪽에 손으로 두 번 그은 테두리(js/ui/pencil.js와 같은 결), 연필 문서 아이콘(안은 파일 색으로 옅게),
+   먹 글자 파일 이름 + 색연필 밑줄, 확장자는 키캡 같은 연필 칩, 크기는 옅은 먹. 색은 board-layout.js fileColor(앱 색).
+   선은 종이(map)에, 글자는 글자 층(ink)에 — 후처리(디더·외곽선)에서 글자만 빼려고. */
+const PEN = { ink: "#2f231a", ink2: "#6b5a4a", paper: "#fbf7ec" };
+const UI_FONT = "'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
+const KEY_FONT = "'Nunito', 'NanumSquareRound', system-ui, sans-serif";
 
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, width, 14);
-  // A printed document glyph, not a synthetic preview of the user's file.
-  ctx.fillStyle = "#d2d7da";
-  roundRect(ctx, 143, 22, 114, 102, 6); ctx.fill();
-  ctx.fillStyle = "#63758e";
-  for (let line = 0; line < 5; line++) ctx.fillRect(159, 41 + line * 14, line === 4 ? 48 : 82, 5);
-  ctx.fillStyle = "#3b3c32";
+/** 이름에서 고정 손떨림 값(다시 그려도 같은 선) */
+const seedOf = (text) => [...text].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 997, 7) / 97;
+
+/** 연필 선: 진한 선 + 살짝 비낀 옅은 선 */
+function penLine(ctx, points, seed, width = 2.4, color = PEN.ink) {
+  const wobble = (k) => Math.sin(seed * 12.9 + k * 7.3) * 0.9;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const [shift, alpha, lineWidth] of [[0, 1, width], [1.1, 0.45, width * 0.55]]) {
+    ctx.globalAlpha = alpha; ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    points.forEach(([x, y], i) => {
+      const px = x + shift + wobble(i), py = y - shift * 0.8 + wobble(i + 3);
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    });
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** 연필로 그린 둥근 사각 */
+function penRoundRect(ctx, x, y, w, h, r, seed, width) {
+  const points = [];
+  const line = (ax, ay, bx, by, n) => { for (let i = 0; i <= n; i++) points.push([ax + (bx - ax) * i / n, ay + (by - ay) * i / n]); };
+  const corner = (cx, cy, from) => { for (let i = 0; i <= 4; i++) { const a = from + i * Math.PI / 8; points.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); } };
+  line(x + r, y, x + w - r, y, 6); corner(x + w - r, y + r, -Math.PI / 2);
+  line(x + w, y + r, x + w, y + h - r, 4); corner(x + w - r, y + h - r, 0);
+  line(x + w - r, y + h, x + r, y + h, 6); corner(x + r, y + h - r, Math.PI / 2);
+  line(x, y + h - r, x, y + r, 4); corner(x + r, y + r, Math.PI);
+  penLine(ctx, points, seed, width);
+}
+
+/** 연필 문서 아이콘(오른쪽 위 접힌 귀 + 줄 셋). 안은 파일 색으로 옅게 칠한다 */
+function penDocument(ctx, x, y, w, h, seed, color) {
+  const fold = w * 0.3;
+  ctx.save();
+  ctx.globalAlpha = 0.55; ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w - fold, y); ctx.lineTo(x + w, y + fold); ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  penLine(ctx, [[x, y], [x + w - fold, y], [x + w, y + fold], [x + w, y + h], [x, y + h], [x, y]], seed, 2.6);
+  penLine(ctx, [[x + w - fold, y], [x + w - fold, y + fold], [x + w, y + fold]], seed + 1, 2);
+  for (let i = 0; i < 3; i++) {
+    const ly = y + h * (0.45 + i * 0.17);
+    penLine(ctx, [[x + w * 0.2, ly], [x + w * (i === 2 ? 0.55 : 0.8), ly]], seed + 2 + i, 2, PEN.ink2);
+  }
+}
+
+/**
+ * 파일 이름 줄바꿈: 확장자(「.blend」)는 한 덩어리로 둬서 「초안.b / lend」처럼 끊기지 않게(11-16).
+ * 넘치면 마지막 줄 끝을 「…」으로 줄이되 확장자는 남긴다.
+ */
+export function wrapFileName(ctx, name, maxWidth, maxLines) {
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 && name.length - dot <= 8 ? name.slice(dot) : "";
+  const tokens = [...(ext ? name.slice(0, dot) : name)];
+  if (ext) tokens.push(ext);
+  const lines = [];
+  let line = "";
+  let used = 0;
+  for (const token of tokens) {
+    if (line && ctx.measureText(line + token).width > maxWidth) {
+      if (lines.length === maxLines - 1) break;
+      lines.push(line);
+      line = "";
+    }
+    line += token;
+    used++;
+  }
+  if (used < tokens.length) {
+    // 다 못 넣었다: 마지막 줄을 줄이고 「…」 + 확장자
+    let body = line.endsWith(ext) && ext ? line.slice(0, -ext.length) : line;
+    while (body && ctx.measureText(`${body}…${ext}`).width > maxWidth) body = body.slice(0, -1);
+    line = `${body}…${ext}`;
+  }
+  lines.push(line);
+  return lines;
+}
+
+function drawPaperFace(ctx, ink, item, color, width, height) {
+  const seed = seedOf(item.name);
+  ctx.fillStyle = PEN.paper;
+  ctx.fillRect(0, 0, width, height);
+  penRoundRect(ctx, 10, 10, width - 20, height - 20, 14, seed, 2.4);
+  penDocument(ctx, 26, 28, 46, 58, seed, color);
+
+  // 파일 이름: 먹 글자, 마지막 줄 아래 색연필 밑줄
   ctx.textBaseline = "middle";
-  ctx.font = "600 25px 'NanumSquareRound', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif";
-  wrap(ctx, item.name, width - 40, 2).forEach((line, index) => drawText(ctx, ink, line, 20, 153 + index * 29));
+  ctx.fillStyle = PEN.ink;
+  ctx.font = `800 27px ${UI_FONT}`;
+  const nameX = 90, nameWidth = width - 120;
+  const lines = wrapFileName(ctx, item.name, nameWidth, 2);
+  lines.forEach((line, index) => drawText(ctx, ink, line, nameX, 44 + index * 32));
+  const underY = 66 + (lines.length - 1) * 32;
+  const underWidth = Math.min(nameWidth, ctx.measureText(lines.at(-1) ?? "").width);
+  penLine(ctx, [[nameX, underY], [nameX + underWidth * 0.5, underY - 2], [nameX + underWidth, underY]], seed + 9, 5, color);
+
+  // 확장자: 키캡 같은 연필 칩(오른쪽 아래). 크기: 옅은 먹(왼쪽 아래)
   const ext = extLabel(item);
-  ctx.font = "700 17px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
-  const chipWidth = ctx.measureText(ext).width + 16;
-  ctx.fillStyle = color;
-  roundRect(ctx, width - chipWidth - 20, height - 32, chipWidth, 24, 4); ctx.fill();
-  ctx.fillStyle = "#494935";
-  drawText(ctx, ink, ext, width - chipWidth - 12, height - 19);
-  ctx.fillStyle = "#888575";
-  ctx.font = "16px 'NanumSquareRound', 'Segoe UI', system-ui, sans-serif";
-  drawText(ctx, ink, formatSize(item.size), 20, height - 19);
+  ctx.font = `800 19px ${KEY_FONT}`;
+  const chipWidth = ctx.measureText(ext).width + 22;
+  penRoundRect(ctx, width - chipWidth - 26, height - 58, chipWidth, 32, 9, seed + 3, 2.2);
+  ctx.fillStyle = PEN.ink;
+  drawText(ctx, ink, ext, width - chipWidth - 15, height - 41);
+  ctx.fillStyle = PEN.ink2;
+  ctx.font = `700 17px ${UI_FONT}`;
+  drawText(ctx, ink, formatSize(item.size), 28, height - 41);
 }
 
 /** 아직 별도 형태를 정하지 않은 이미지 형식의 기존 카드. */
@@ -276,6 +367,17 @@ export function makeCardTexture(THREE, item, color, loadThumbnail) {
 export function makeBoxTexture(THREE, { index, name, subtitle, accent, bodyColor = "#a99775" }) {
   const key = `box|${index}|${name}|${subtitle}|${accent}|${bodyColor}`;
   if (cache.has(key)) return cache.get(key);
+  // subtitle에는 파일 개수가 들어 있어 넣을 때마다 새 텍스처가 생기고 옛것은 그대로 쌓였다(11-16 검수 #13).
+  // 상자 하나(번호·이름·색)에는 마지막 텍스처 하나만 남기고 이전 것은 놓는다.
+  const slot = `box|${index}|${name}|${accent}|${bodyColor}`;
+  const previous = boxSlots.get(slot);
+  if (previous && previous !== key) {
+    const old = cache.get(previous);
+    cache.delete(previous);
+    old?.userData.textTexture?.dispose();
+    old?.dispose();
+  }
+  boxSlots.set(slot, key);
 
   const width = 512;
   const height = 256;
@@ -371,4 +473,5 @@ export function disposeCardTextures() {
     texture.dispose();
   }
   cache.clear();
+  boxSlots.clear();
 }

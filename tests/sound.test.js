@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+// .pathname은 Windows에서 /C:/... 가 되어 C:\C:\... 를 읽는다. fileURLToPath로 바꾼다(11-16 검수 #9).
+const root = fileURLToPath(new URL("..", import.meta.url));
 const source = readFileSync(join(root, "js/sound.js"), "utf8");
 const recipes = source.slice(source.indexOf("const RECIPES"), source.indexOf("const MIN_GAP"));
 const known = new Set([...recipes.matchAll(/^\s+(\w+): \(v[^)]*\)/gm)].map((m) => m[1]));

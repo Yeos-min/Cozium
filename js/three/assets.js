@@ -80,11 +80,9 @@ export async function loadModel(THREE, kind, family) {
 
   try {
     if (!cache.has(url)) {
-      const loader = await getLoader();
-      cache.set(
-        url,
-        loader.loadAsync(url).then((gltf) => gltf.scene),
-      );
+      // 로더를 기다리기 **전에** 약속을 캐시에 넣는다. 기다린 뒤에 넣으면 그사이 다른 호출도 캐시가 비었다고 보고
+      // 같은 모델을 또 받았다(상자 20개 동시 → loadAsync 20번, 11-16 검수 #12).
+      cache.set(url, getLoader().then((loader) => loader.loadAsync(url)).then((gltf) => gltf.scene));
     }
     const source = await cache.get(url);
     const selected = slot.nodeName ? source.getObjectByName(slot.nodeName) : source;

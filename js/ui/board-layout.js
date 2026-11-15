@@ -93,6 +93,23 @@ export function familyColor(family) {
   return cssColorCache[family] ?? cssColorCache.other;
 }
 
+/**
+ * 바닥 카드 한 장의 색(11-16 사용자: 「일러스트는 주황, PDF는 빨강」). 사람들은 바탕화면에서 파일을 앱 아이콘 색으로 찾으니,
+ * 자주 보는 확장자는 그 앱의 익숙한 색을 방 톤에 맞춰 낮춘 파스텔로. 나머지는 계열 색(--family-*) 그대로.
+ * 주황(ai·blend·pptx)·파랑(psd·doc·hwp)이 겹치지만 카드에 확장자 칩이 있어 헷갈리지 않는다.
+ */
+const APP_COLORS = {
+  pdf: "#ee8a7c",                 // Acrobat 빨강
+  ai: "#f4a55c",                  // Illustrator 주황
+  psd: "#7fb4ec",                 // Photoshop 파랑
+  doc: "#8eabec", docx: "#8eabec", // Word 파랑
+  hwp: "#7fcbe6", hwpx: "#7fcbe6", // 한글 하늘
+  ppt: "#f2926c", pptx: "#f2926c", // PowerPoint 주황빨강
+};
+export function fileColor(extension, family) {
+  return APP_COLORS[(extension ?? "").toLowerCase()] ?? familyColor(family);
+}
+
 /** 가운데 생략. 확장자는 남긴다. */
 export function truncateMiddle(name, max = 28) {
   if (name.length <= max) return name;
