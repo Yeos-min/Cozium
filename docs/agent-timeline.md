@@ -1010,3 +1010,35 @@ helper/README.md: 제목 「정리대」 → Cozium, v0.2.3 연결 순서(페이
 덜어내기: 옛 스크린샷 docs/screenshots/landing-night.webp를 tools/archive-unused.ps1 목록에 더함(cleanup.bat 다시 돌리면 _archive로). 코드 쪽 안 쓰는 것 다시 훑음 — 안에서만 쓰는 export 몇 개와 sound.muted 게터뿐이라 그대로 둠(소리 채팅이 고치는 중인 파일).
 백업: _archive/claude-docs-20261110/.
 검증: 테스트 191개 중 190 통과·1 건너뜀. README 안 링크 전부 있는 파일. 헤드리스로 스크린샷 3장 찍을 때 콘솔 오류 0.
+
+## 2026-11-16 01:39–02:00 Claude(디자인 채팅) — 바닥 문서 카드를 연필 + 크림 종이(A2) + 앱 색으로
+사용자: 「진짜 거의 끝인데 딱 하나 디자인이 안 맞는 게 실제 파일 옮길 때 쓰는 파일 모델」 → 「문서 카드만」. 시안 A 연필 종이 / B 줄 쳐진 인덱스 카드 / C 크라프트 서류철(샘플 방 같은 각도) → 「A가 제일 좋긴 한데 심심」 → A2(옆면·아이콘에 파일 색) → 「일러스트 파일은 주황, pdf는 빨강」 → 확장자별 앱 색으로.
+js/three/card-face.js drawPaperFace(문서 카드 윗면만 — 사진·메모·사진 미리보기 카드는 그대로): 크림 종이 #fbf7ec + 안쪽 연필 테두리(두 번 그은 선, pencil.js와 같은 결), 왼쪽 위 연필 문서 아이콘(안은 파일 색 55%), 이름 먹 27px 800 + 마지막 줄 아래 색연필 밑줄, 확장자 Nunito 연필 칩(오른쪽 아래), 크기 옅은 먹(왼쪽 아래). 옛 회색 문서 그림·위 색 띠·색 칩 삭제. 선은 종이(map), 글자는 글자 층(ink) 그대로.
+이름 줄바꿈: 새 wrapFileName — 확장자를 한 덩어리로(「초안.b / lend」 → 「초안 / .blend」), 넘치면 「…」 + 확장자.
+js/ui/board-layout.js 새 fileColor(ext, family): pdf 빨강 #ee8a7c · ai 주황 #f4a55c · psd 파랑 #7fb4ec · doc/docx 파랑 #8eabec · hwp/hwpx 하늘 #7fcbe6 · ppt/pptx 주황빨강 #f2926c, 나머지는 계열 색(--family-*) 그대로. js/three/card-object.js가 familyColor 대신 fileColor(옆면 색도 이걸로 — 옆면 = 파일 색과 크림 반반, 원래 규칙).
+「파일 크기 = 두께」 규칙, 카드 모양·크기, 손맛 코드는 그대로. 텍스처는 카드마다 한 번 그려 캐시라 무게 변화 없음.
+새 테스트 tests/card-face.test.js(줄바꿈 3 + 색 1).
+바뀐 파일: js/three/card-face.js, js/three/card-object.js, js/ui/board-layout.js, 새 tests/card-face.test.js.
+백업: _archive/claude-card-20261116/.
+검증: 로컬 테스트 170/170. 헤드리스 1600×900 샘플 방 바닥 카드 캡처(지금 / A / B / C / A2 / 최종), 콘솔 오류 0. 실기기 미확인.
+
+## 2026-11-16 02:01–02:16 KST — Claude(검수 수정 채팅): Codex 검수 15건 수정
+
+사용자가 준 Codex 검수(C:\dev\Cozium 기준, 15건)를 전부 고침. **C:\dev\Cozium에 씀(사용자 지정). D에는 아직 안 씀 — D → C 동기화(sync-to-c)를 돌리면 이 변경이 지워진다.**
+1 Helper 이동: 원본 이름을 바로 unlink하지 않고 새 retireLink(임시 이름으로 rename → inode가 우리 파일일 때만 unlink, 아니면 원래 이름으로 되돌림). 하드 링크를 못 만들거나 inode를 못 읽으면 UNSAFE_FS로 거부 — 옛 「빈 파일 선점 → rename」 대체 경로 삭제(exFAT 바탕화면은 이제 옮기지 않음).
+2 일부만 적용돼도 계획 전체를 지우던 것 → 새 remainingPlan으로 옮긴 것만 빼고 보관. 되돌리면 원래 계획 다시 보관.
+3 되돌리기 실패 시 배치를 버리던 것 → undoApplied가 pendingBatchIds를 돌려주고 「못 돌린 것 다시 되돌리기」 단추 + 이유 목록.
+4 0바이트 크기 검사 건너뜀 → 크기가 숫자면 0도 비교(checkPlan·applyPlan 같은 sizeChanged).
+5 한 폴더 501개 이상 → HELPER_BATCH_LIMIT(500)씩 나눠 보내고 배치 id 모두 모음.
+6 웹·Helper 시작 단추도 #guard. app.js startWith는 보드가 있거나 시작 중이면 무시.
+7 체험 충돌 대소문자 무시(nameKey), 하위 폴더 이름도 자리 차지, 새 폴더는 같은 자리 파일 이름과 겹치면 거부, 웹 예약어 검사에 확장자(CON.txt) 포함.
+8 랜딩 RoomLayer 생성 실패 → 빈 방(stillRoom)으로 받고 노트북 속 렌더러도 안 만들어 정지 화면으로.
+9 sound.test.js .pathname → fileURLToPath.
+10 「가볍게」에서 디더링도 끔(scene-kit refreshRenderStyle, TUNING은 안 바꿈). 설정 창 디더링 변경도 바로 반영.
+11 랜딩 노트북 속 렌더러에 renderPixelRatio(픽셀 예산) 적용.
+12 상자 모델: 로더를 기다리기 전에 약속을 캐시에 넣음.
+13 다 멈춘 카드는 상태·목표·표시가 그대로면 update를 건너뜀(CardObject #rest). 상자 텍스처는 상자 하나에 하나만 남기고 개수 바뀌면 옛것 dispose. 완료 카드 표시 개수 제한은 안 함(디자인 결정이라).
+14 드롭 중복 검사: 이름·종류가 같은 후보만 isSameEntry.
+15 serve.mjs: path.relative + sep로 범위 검사.
+바뀐 파일: helper/desktop-helper.mjs(CRLF 유지), helper/desktop-helper.test.mjs, helper/README.md, js/app.js, js/landing-story/story.js, js/providers/file-system-provider.js, js/providers/virtual-move-provider.js, js/providers/web-drop-provider.js, js/state/cleanup-plan.js, js/three/assets.js, js/three/card-face.js, js/three/card-object.js, js/three/scene-kit.js, js/ui/finish-desk.js, js/ui/onboarding.js, tests/cleanup-plan.test.js, tests/providers.test.js, tests/sound.test.js, tools/serve.mjs(CRLF 유지).
+검증: C 사본(Linux, Node 22)에서 npm test 204개 중 201 통과·1 건너뜀·2 실패 — 실패 2는 preload 테스트의 이미지·모델 파일 존재 검사(사본에 그림을 안 받아서, 코드 무관). 새 테스트: retireLink(원본 자리 바꿔치기), 0바이트, 501개 분할, 남은 계획, 되돌리기 재시도, 대소문자 충돌, 새 폴더-파일 이름 충돌, CON.txt, 드롭 중복 검사 호출 수. 쓸 때 expectedMtimeMs로 거부 0. **브라우저 확인 안 함**(랜딩 정지 화면, 결과 화면 되돌리기 재시도 단추, 카드 멈춤 건너뛰기 후 집기·튕김), Windows npm test·실제 Helper exe 다시 빌드 안 함. 카드 #rest는 단위 테스트 없음.

@@ -2,7 +2,7 @@
 // 사용: node tools/serve.mjs [port]   → http://localhost:5173
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -33,7 +33,9 @@ createServer(async (request, response) => {
     let pathname = decodeURIComponent(url.pathname);
     if (pathname.endsWith("/")) pathname += "index.html";
     const filePath = normalize(join(root, pathname));
-    if (!filePath.startsWith(root)) {
+    // startsWith(root)는 C:\dev\Cozium-other 같은 형제 폴더도 통과시킨다. 상대 경로로 판정한다(11-16 검수 #15).
+    const inside = relative(root, filePath);
+    if (inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside)) {
       response.writeHead(403).end();
       return;
     }

@@ -218,3 +218,49 @@ test("NativeHelperProvider keeps the helper awake while connected and stops on d
   await Promise.resolve();
   assert.equal(calls.filter((url) => url.endsWith("/hello")).length, 4);
 });
+
+// ── 11-16 Codex 검수 #7: 체험의 이름·충돌 규칙이 Helper와 같아야 한다 ──
+test("체험 이동은 대소문자만 다른 이름도 충돌로 본다", async () => {
+  const provider = new MemoryProvider({ delay: false, folders: [{ name: "과제" }] });
+  await provider.scan();
+  const folder = provider.folders[0];
+  const [a, b] = provider.files;
+  a.name = "note.txt";
+  b.name = "NOTE.txt";
+  const first = await provider.moveBatch([a.id], folder.id);
+  assert.equal(first.moved.length, 1);
+  const second = await provider.moveBatch([b.id], folder.id);
+  assert.equal(second.moved.length, 0);
+  assert.equal(second.failed[0].code, "DESTINATION_EXISTS");
+});
+
+test("체험 새 폴더는 같은 자리의 파일 이름과 겹치면 안 된다", async () => {
+  const provider = new MemoryProvider({ delay: false, folders: [] });
+  await provider.scan();
+  const name = provider.files[0].name;
+  await assert.rejects(provider.createFolder(null, name.toUpperCase()), (error) => error.code === "DESTINATION_EXISTS");
+});
+
+test("웹 이름 검사도 확장자가 붙은 Windows 예약어를 막는다", () => {
+  assert.ok(validateFolderName("CON.txt"));
+  assert.ok(validateFolderName("lpt1.zip"));
+  assert.equal(validateFolderName("console"), null);
+});
+
+test("드롭 중복 검사는 이름이 같은 후보만 isSameEntry로 비교한다 (11-16 검수 #14)", async () => {
+  let calls = 0;
+  const handles = Array.from({ length: 200 }, (_, i) => {
+    const handle = new FakeFileHandle(`f${i}.txt`, "x");
+    const original = handle.isSameEntry?.bind(handle);
+    handle.isSameEntry = async (other) => { calls += 1; return original ? original(other) : handle === other; };
+    return handle;
+  });
+  const provider = new WebDropProvider();
+  const first = await provider.importHandles(handles);
+  assert.equal(first.added ?? provider.files.length, provider.files.length);
+  assert.equal(provider.files.length, 200);
+  assert.equal(calls, 0, "이름이 다른 파일끼리는 비교하지 않는다");
+  const again = await provider.importHandles([handles[5]]);
+  assert.equal(again.skipped, 1, "같은 파일은 여전히 건너뛴다");
+  assert.equal(provider.files.length, 200);
+});

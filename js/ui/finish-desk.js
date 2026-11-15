@@ -11,7 +11,7 @@
 import { DESK_ICONS as ICONS, deskIconFor, extensionOf } from "./layout.js";
 import { enableDrag, enableResize } from "./win-frame.js";
 import { sound } from "../sound.js";
-import { applyPlan, checkPlan, clearPendingPlan, pathLabel, planFileName, savePendingPlan, splitPlan, undoApplied } from "../state/cleanup-plan.js";
+import { applyPlan, checkPlan, clearPendingPlan, pathLabel, planFileName, remainingPlan, savePendingPlan, splitPlan, undoApplied } from "../state/cleanup-plan.js";
 
 const CELL = { w: 100, h: 104 };
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -496,6 +496,19 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
     }
     if (state === "undone") {
       box.append(el("p", "finish-apply-ok", `↶ ${extra.restored}개를 원래 자리로 돌려놨어요${extra.failed ? ` · ${extra.failed}개는 못 돌림` : ""}.`));
+      if (extra.reasons?.length) {
+        const details = el("details", "finish-problems");
+        details.append(el("summary", null, `못 돌린 이유 ${extra.reasons.length}개`));
+        const ul = el("ul");
+        ul.append(...extra.reasons.map((f) => el("li", null, f.fileName ? `${f.fileName} — ${f.message}` : f.message)));
+        details.append(ul);
+        box.append(details);
+      }
+      if (applied?.batchIds.length) {
+        const retry = button("win-button", "못 돌린 것 다시 되돌리기");
+        retry.addEventListener("click", runUndo);
+        box.append(retry, el("p", "finish-apply-note", "다른 프로그램이 파일을 쓰고 있으면 못 돌려요. 그 프로그램을 닫고 다시 눌러 주세요."));
+      }
     }
   }
 
@@ -525,7 +538,10 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
         },
       });
       if (applied.moved.length) {
-        clearPendingPlan();
+        // 옮긴 것만 계획에서 뺀다. 실패·직접 옮길 것은 남겨 다음에 다시 열 수 있게(11-16 검수 #2).
+        const rest = remainingPlan(report.plan, applied);
+        if (rest) savePendingPlan(rest);
+        else clearPendingPlan();
         setTitle(["바탕화면에 ", "적용했어요"]);
       }
       renderApply("applied");
@@ -552,8 +568,13 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
     busy = true;
     try {
       const result = await undoApplied(applied, helper);
-      applied = null;
-      renderApply("undone", { restored: result.restored.length, failed: result.failed.length });
+      // 못 돌린 배치는 버리지 않는다 — 파일 잠금이 풀리면 다시 누를 수 있게(11-16 검수 #3).
+      applied = result.pendingBatchIds.length ? { ...applied, batchIds: result.pendingBatchIds } : null;
+      // 되돌린 파일은 다시 바탕화면 위에 있다. 계획을 처음 모양으로 다시 보관해 둔다.
+      if (result.restored.length && report.plan) savePendingPlan(report.plan);
+      renderApply("undone", { restored: result.restored.length, failed: result.failed.length, reasons: result.failed });
+    } catch (error) {
+      notice(`되돌리지 못했어요: ${error?.message ?? error}`, "error");
     } finally {
       busy = false;
     }

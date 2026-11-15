@@ -9,7 +9,11 @@
  *   _listChildren(folderEntry)  → Promise<Array<{ name: string }>>   하위 폴더 한 단계
  *   _listNames(folderEntry)     → Promise<Set<string>>               폴더 안의 실제 항목 이름
  */
+
 import { FileSystemProvider, ProviderError, emptyImport, folderLabel, validateFolderName } from "./file-system-provider.js";
+
+/** Windows 이름은 대소문자를 가리지 않는다. Helper와 같은 규칙으로 충돌을 판정한다(11-16 검수 #7). */
+const nameKey = (name) => String(name).toLocaleLowerCase("en-US");
 
 const nameCollator = new Intl.Collator("ko", { numeric: true, sensitivity: "base" });
 
@@ -154,15 +158,17 @@ export class VirtualMoveProvider extends FileSystemProvider {
     if (!entry) throw new ProviderError("FOLDER_UNKNOWN", "배송지를 찾지 못했습니다.");
     if (!entry.names) {
       try {
-        entry.names = new Set(await this._listNames(entry));
+        entry.names = new Set((await this._listNames(entry)).map(nameKey));
       } catch {
         entry.names = new Set();
       }
     }
     // 이번 세션에서 가상으로 넣은 파일도 이름을 차지한다
     for (const [fileId, placedIn] of this._placement) {
-      if (placedIn === folderId) entry.names.add(this._files.get(fileId).item.name);
+      if (placedIn === folderId) entry.names.add(nameKey(this._files.get(fileId).item.name));
     }
+    // 하위 폴더도 이름을 차지한다 — Windows는 같은 자리에 같은 이름의 파일과 폴더를 둘 수 없다
+    for (const folder of this.folders) if (folder.parentId === folderId) entry.names.add(nameKey(folder.name));
     return entry.names;
   }
 
@@ -196,7 +202,7 @@ export class VirtualMoveProvider extends FileSystemProvider {
         fail(fileId, "ALREADY_THERE", `'${entry.item.name}'은(는) 이미 그 폴더에 있습니다.`);
         continue;
       }
-      if (names.has(entry.item.name)) {
+      if (names.has(nameKey(entry.item.name))) {
         // §5-2 동명 파일: 경고하고 이 항목만 중단. 덮어쓰지 않는다.
         fail(fileId, "DESTINATION_EXISTS", `'${label}'에 '${entry.item.name}'이(가) 이미 있습니다. 덮어쓰지 않았습니다.`);
         continue;
@@ -204,7 +210,7 @@ export class VirtualMoveProvider extends FileSystemProvider {
       onItem(fileId, "moving");
       if (this._delay) await new Promise((resolve) => setTimeout(resolve, Math.min(900, 120 + entry.item.size / (1024 * 1024) * 4)));
       this._placement.set(fileId, folderId);
-      names.add(entry.item.name);
+      names.add(nameKey(entry.item.name));
       log.push({ fileId, from, to: folderId });
       const move = { moveId: crypto.randomUUID(), batchId, fileId, folderId, fileName: entry.item.name, folderName: label, movedAt: Date.now() };
       result.moved.push(move);
@@ -242,7 +248,7 @@ export class VirtualMoveProvider extends FileSystemProvider {
       if (!entry) continue;
       if (this._delay) await new Promise((resolve) => setTimeout(resolve, 60));
       this._placement.set(step.fileId, step.from);
-      this._folders.get(step.to)?.names?.delete(entry.item.name);
+      this._folders.get(step.to)?.names?.delete(nameKey(entry.item.name));
       result.restored.push({
         moveId: crypto.randomUUID(),
         batchId,
@@ -264,8 +270,13 @@ export class VirtualMoveProvider extends FileSystemProvider {
     const trimmed = name.trim();
     if (parentId && !this._folders.has(parentId)) throw new ProviderError("FOLDER_UNKNOWN", "상위 폴더를 찾지 못했습니다.");
     const siblings = this.folders.filter((folder) => folder.parentId === parentId);
-    if (siblings.some((folder) => folder.name.localeCompare(trimmed, undefined, { sensitivity: "accent" }) === 0)) {
+    if (siblings.some((folder) => nameKey(folder.name) === nameKey(trimmed))) {
       throw new ProviderError("DESTINATION_EXISTS", `'${trimmed}' 폴더가 이미 있습니다.`);
+    }
+    // 같은 자리의 파일 이름도 막는다. Helper(mkdir)는 이름이 겹치면 실패한다(11-16 검수 #7).
+    const taken = parentId ? await this._namesIn(parentId) : new Set(this.files.filter((file) => (this._placement.get(file.id) ?? null) === null).map((file) => nameKey(file.name)));
+    if (taken.has(nameKey(trimmed))) {
+      throw new ProviderError("DESTINATION_EXISTS", `'${trimmed}'과(와) 같은 이름의 파일이 이미 있습니다.`);
     }
     return this._addFolder({ name: trimmed, parentId, virtual: true });
   }

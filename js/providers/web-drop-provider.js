@@ -45,7 +45,11 @@ export class WebDropProvider extends VirtualMoveProvider {
 
   async #hasHandle(entries, candidate) {
     for (const entry of entries) {
-      if (entry.source && (await handlesMatch(entry.source, candidate))) return true;
+      const source = entry.source;
+      // 이름·종류가 다르면 같은 항목일 수 없다. 비싼 isSameEntry는 그 후보에만 부른다 —
+      // 전부와 비교하면 서로 다른 파일 500개에 124,750번이었다(11-16 검수 #14).
+      if (!source || source.kind !== candidate.kind || source.name !== candidate.name) continue;
+      if (await handlesMatch(source, candidate)) return true;
     }
     return false;
   }

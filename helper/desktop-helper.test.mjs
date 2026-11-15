@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { HelperError, createDesktopSession, createHelperServer, identityOf, isInside, moveNoOverwrite, parseArgs, validateName } from "./desktop-helper.mjs";
+import { HelperError, createDesktopSession, createHelperServer, identityOf, isInside, moveNoOverwrite, parseArgs, retireLink, validateName } from "./desktop-helper.mjs";
 
 // 진짜 파일 시스템 위에서 돌지만, 임시 폴더를 바탕화면인 척 쓴다. 실제 바탕화면은 건드리지 않는다.
 
@@ -175,8 +175,32 @@ test("moveNoOverwrite refuses when the file at the source is not the one we reco
 
   // 진짜 그 파일이면 옮긴다
   const moved = await moveNoOverwrite(path.join(dir, "다른곳.txt"), path.join(dir, "b.txt"), identity);
-  assert.ok(["link", "reserve"].includes(moved));
+  assert.equal(moved, "link");
   assert.equal(await fs.readFile(path.join(dir, "b.txt"), "utf8"), "원래 파일");
+});
+
+test("retireLink removes only the file it was told about, even if the name was swapped", async () => {
+  // 11-16 검수 #1: 링크를 건 뒤 원본 자리에 새 파일이 들어오면 unlink(src)가 그 새 파일을 지웠다.
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "cozium-retire-"));
+  const src = path.join(dir, "a.txt");
+  const dest = path.join(dir, "b.txt");
+  await fs.writeFile(src, "원래 파일");
+  await fs.link(src, dest);
+  const ours = await identityOf(dest);
+
+  // 링크와 원본 정리 사이에 밖에서 원본 자리를 다른 파일로 바꿨다
+  await fs.writeFile(path.join(dir, "new.txt"), "남의 새 파일");
+  await fs.rename(path.join(dir, "new.txt"), src);
+
+  assert.equal(await retireLink(src, ours), false, "남의 파일은 지우지 않는다");
+  assert.equal(await fs.readFile(src, "utf8"), "남의 새 파일", "원래 이름 그대로 돌려놓았다");
+  assert.equal(await fs.readFile(dest, "utf8"), "원래 파일");
+  assert.deepEqual((await fs.readdir(dir)).sort(), ["a.txt", "b.txt"], "임시 이름이 남지 않았다");
+
+  // 진짜 우리 링크면 지운다
+  await fs.link(dest, path.join(dir, "c.txt"));
+  assert.equal(await retireLink(path.join(dir, "c.txt"), ours), true);
+  assert.deepEqual((await fs.readdir(dir)).sort(), ["a.txt", "b.txt"]);
 });
 
 test("undo refuses when a different file took the moved file's place", async () => {

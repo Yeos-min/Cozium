@@ -22,6 +22,7 @@ import { toonGradient } from "../three/materials.js";
 import { deskScale, DESK_BASE } from "../ui/desk-scale.js";
 import { sound, clickSoundFor } from "../sound.js";
 import { pencilize } from "../ui/pencil.js";
+import { renderPixelRatio } from "../three/render-quality.js";
 
 // ───────────── helpers ─────────────
 const $ = (s) => document.querySelector(s);
@@ -118,7 +119,28 @@ const roomCanvas = $("#room"), poster = $("#poster");
 // back from app.html (see "the way in"): read before anything else rewrites the address
 const cameBack = location.hash === "#end";
 // The 3D room. Its file things use the same faces as the floor scene inside the laptop (drawFace, below).
-const room = new RoomLayer(roomCanvas, { faceCanvas: (k) => drawFace(k) });
+// RoomLayer는 생성자에서 WebGL 렌더러를 만든다. 못 만들면 여기서 던져 아래 정지 화면 처리까지 못 갔다(11-16 검수 #8).
+// 그때는 같은 모양의 빈 방을 두고, 노트북 속 렌더러도 만들지 않아 정지 화면(noGL)으로 간다.
+let roomError = null;
+const room = (() => {
+  try {
+    return new RoomLayer(roomCanvas, { faceCanvas: (k) => drawFace(k) });
+  } catch (e) {
+    roomError = e;
+    console.warn("landing: WebGL unavailable for the room, showing the still landing", e);
+    return stillRoom(e);
+  }
+})();
+function stillRoom(error) {
+  const none = () => null;
+  return {
+    ready: false, intro: false, poseFn: null, onQuality: null, style: {},
+    quality: { profile: { maxDpr: 1, maxPixels: 1_000_000, effects: false }, scale: 1 },
+    load: () => Promise.reject(error),
+    render: none, resize: none, setStyle: none, setIntro: none, hideFiles: none, showFiles: none, laptopPose: none, endPose: none,
+    screenQuad: none, setGlow: none, setHop: none, setLook: none, setState: none, suckAt: none, warm: none,
+  };
+}
 const desk = $("#desk"), deskIcons = $("#deskIcons"), deskChrome = $("#deskChrome");
 const introCue = $("#introCue"), introRays = introCue.querySelector(".boil"), introHit = $("#introHit"), welcome = $("#welcome"), bubble = $("#bubble");
 const caption = $("#storyCap"), capSvg = caption.querySelector("svg"), capN = caption.querySelector(".story-n"), capT = caption.querySelector(".story-t"), heroStart = $("#heroStart"), heroEnd = $("#heroEnd"), endGo = $("#endGo"), screenGlow = $("#screenGlow"), title = $("#title"), cta = $("#cta"), startLink = cta.querySelector(".start"), startLabel = cta.querySelector(".start-label"), skipBtn = $("#skip"), veil = $("#veil"), sceneStatus = $("#sceneStatus");
@@ -240,7 +262,7 @@ function layoutWorld() {
 const canvas = $("#gl");
 // Without WebGL the story cannot run; the page falls back to the first room with both buttons.
 let renderer = null;
-try {
+if (!roomError) try {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1550,7 +1572,8 @@ function resize() {
   if (renderer) {
     // the inside-the-laptop scene follows the room's device quality (render-quality.js): same pixel cap and scale
     const q = room.quality;
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.profile.maxDpr) * q.scale);
+    // 방과 같은 픽셀 예산(maxPixels)까지 적용한다. DPR만 막으면 4K 화면에서 low도 약 829만 px였다(11-16 검수 #11).
+    renderer.setPixelRatio(renderPixelRatio(vw, vh, devicePixelRatio || 1, q.profile, q.scale));
     renderer.setSize(vw, vh, false); insidePass?.resize();
   }
   room.resize(vw, vh);

@@ -48,6 +48,13 @@ export function parsePlan(input) {
   return { ...plan, moves };
 }
 
+/** Helper가 한 요청에 받는 파일 수(helper/desktop-helper.mjs MAX_BATCH). 넘으면 요청 전체가 거부된다. */
+export const HELPER_BATCH_LIMIT = 500;
+
+/** 0바이트도 유효한 크기다(11-16 검수 #4): 계획 때 0이던 파일이 지금 99바이트면 다른 파일로 본다. */
+const sizeChanged = (move, file) => Number.isFinite(move.size) && file.size !== move.size;
+const moveKey = (name, to) => `${lower(name)}\u0001${pathKey(to)}`;
+
 /** 폴더별로 묶은 요약: [{ to, label, names }] */
 export function planGroups(plan) {
   const groups = new Map();
@@ -85,7 +92,7 @@ export function checkPlan(plan, files) {
   for (const move of auto) {
     const file = byName.get(move.name) ?? byLower.get(lower(move.name));
     if (!file || taken.has(file.id)) missing.push({ name: move.name, reason: "이 폴더에 없음" });
-    else if (move.size > 0 && file.size !== move.size) missing.push({ name: move.name, reason: "크기가 달라 다른 파일로 봄" });
+    else if (sizeChanged(move, file)) missing.push({ name: move.name, reason: "크기가 달라 다른 파일로 봄" });
     else { taken.add(file.id); present.push(move); }
   }
   return { present, missing, manual };
@@ -140,7 +147,7 @@ export async function applyPlan(plan, helper, { onProgress = () => {} } = {}) {
     const file = byName.get(move.name) ?? byLower.get(lower(move.name));
     const fail = (reason) => report.failed.push({ name: move.name, to: move.to, reason });
     if (!file || taken.has(file.id)) { fail("바탕화면에 없어요 (이미 옮겼거나 이름이 바뀜)"); continue; }
-    if (move.size > 0 && file.size !== move.size) { fail("크기가 달라져서 다른 파일로 보고 건너뜀"); continue; }
+    if (sizeChanged(move, file)) { fail("크기가 달라져서 다른 파일로 보고 건너뜀"); continue; }
     let folderId;
     try {
       folderId = await folderFor(move.to);
@@ -156,36 +163,65 @@ export async function applyPlan(plan, helper, { onProgress = () => {} } = {}) {
 
   let done = 0;
   for (const [folderId, group] of groups) {
-    onProgress({ step: "move", done, total: taken.size, folder: pathLabel(group.to) });
-    let result;
-    try {
-      result = await helper.moveBatch(group.ids, folderId);
-    } catch (error) {
-      for (const id of group.ids) report.failed.push({ name: group.names.get(id), to: group.to, reason: error?.message ?? "옮기지 못함" });
-      continue;
+    // Helper는 요청당 HELPER_BATCH_LIMIT개까지 받는다. 넘기면 전부 거부되므로 나눠 보낸다(11-16 검수 #5).
+    for (let start = 0; start < group.ids.length; start += HELPER_BATCH_LIMIT) {
+      const ids = group.ids.slice(start, start + HELPER_BATCH_LIMIT);
+      onProgress({ step: "move", done, total: taken.size, folder: pathLabel(group.to) });
+      let result;
+      try {
+        result = await helper.moveBatch(ids, folderId);
+      } catch (error) {
+        for (const id of ids) report.failed.push({ name: group.names.get(id), to: group.to, reason: error?.message ?? "옮기지 못함" });
+        done += ids.length;
+        continue;
+      }
+      if (result.batchId && result.moved.length) report.batchIds.push(result.batchId);
+      for (const move of result.moved) report.moved.push({ name: group.names.get(move.fileId) ?? move.fileName, to: group.to });
+      for (const failure of result.failed) report.failed.push({ name: group.names.get(failure.fileId) ?? failure.fileName, to: group.to, reason: failure.message });
+      done += ids.length;
     }
-    if (result.batchId && result.moved.length) report.batchIds.push(result.batchId);
-    for (const move of result.moved) report.moved.push({ name: group.names.get(move.fileId) ?? move.fileName, to: group.to });
-    for (const failure of result.failed) report.failed.push({ name: group.names.get(failure.fileId) ?? failure.fileName, to: group.to, reason: failure.message });
-    done += group.ids.length;
   }
   onProgress({ step: "done", done, total: taken.size });
   return report;
 }
 
-/** 방금 적용한 것을 되돌린다(rename 역방향). 새로 만든 폴더는 지우지 않는다 — 삭제 기능은 없다(§9). */
+/**
+ * 적용 뒤에 남길 계획: 실제로 옮긴 항목만 빼고, 실패·직접 옮길 것·건너뛴 것은 남긴다(11-16 검수 #2).
+ * 전부 옮겼으면 null — 보관한 계획을 지워도 된다.
+ */
+export function remainingPlan(plan, report) {
+  const moved = new Map();
+  for (const m of report.moved) moved.set(moveKey(m.name, m.to), (moved.get(moveKey(m.name, m.to)) ?? 0) + 1);
+  const moves = plan.moves.filter((move) => {
+    if (move.from.length !== 0) return true; // 직접 옮길 것
+    const key = moveKey(move.name, move.to);
+    const left = moved.get(key) ?? 0;
+    if (!left) return true;
+    moved.set(key, left - 1);
+    return false;
+  });
+  return moves.length ? { ...plan, moves } : null;
+}
+
+/**
+ * 방금 적용한 것을 되돌린다(rename 역방향). 새로 만든 폴더는 지우지 않는다 — 삭제 기능은 없다(§9).
+ * pendingBatchIds: 하나라도 못 돌린 배치. Helper는 못 돌린 항목을 같은 배치 id로 남겨 두므로
+ * 그 id로 다시 시도할 수 있다(11-16 검수 #3).
+ */
 export async function undoApplied(report, helper) {
-  const restored = [], failed = [];
+  const restored = [], failed = [], pendingBatchIds = [];
   for (const batchId of [...report.batchIds].reverse()) {
     try {
       const result = await helper.undoBatch(batchId);
       restored.push(...result.restored);
       failed.push(...result.failed);
+      if (result.failed.length) pendingBatchIds.unshift(batchId);
     } catch (error) {
       failed.push({ fileName: "", message: error?.message ?? "되돌리지 못함" });
+      pendingBatchIds.unshift(batchId);
     }
   }
-  return { restored, failed };
+  return { restored, failed, pendingBatchIds };
 }
 
 // ── 브라우저 보관(같은 컴퓨터·같은 브라우저에서만). 실패해도 조용히 넘어간다. ──

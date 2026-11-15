@@ -5,7 +5,7 @@
  * `assets.js`의 MODEL_MANIFEST.card에 .glb를 넣으면 이 판 대신 그 모델이 들어간다.
  * 스프링·기울기·그림자 같은 손맛 코드는 모델이 바뀌어도 그대로 쓰인다.
  */
-import { familyColor } from "../ui/board-layout.js";
+import { fileColor } from "../ui/board-layout.js";
 import { loadModel } from "./assets.js";
 import { makeCardTexture } from "./card-face.js";
 import { makeTextOverlay } from "./text-overlay.js";
@@ -14,6 +14,10 @@ import { thicknessMultiplier } from "./stacking.js";
 import { tossLanding, tossPlan, tossPose } from "./toss.js";
 import { sampleThrow } from "./throw.js";
 import { TUNING, springStep } from "./tuning.js";
+
+const REST_VELOCITIES = ["vx", "vy", "vz", "spinV", "tiltXV", "tiltZV", "scaleV", "facePitchV"];
+const REST_TARGETS = ["x", "y", "z", "spin", "scale", "facePitch"];
+const prefixed = (target) => Object.fromEntries(REST_TARGETS.map((key) => [`t_${key}`, target[key]]));
 import { surfaceMaterial } from "./materials.js";
 
 const sharedGeometries = new Map();
@@ -90,7 +94,7 @@ export class CardObject {
     this.width = width = footprint.width;
     this.depth = depth = footprint.height;
     this.form = style.kind;
-    this.color = familyColor(item.family);
+    this.color = fileColor(item.extension, item.family); // 윗면 아이콘·밑줄과 옆면 색(11-16: 앱 색)
     this.disposed = false;
 
     const baseThickness = TUNING.card.thickness * style.thickness;
@@ -293,6 +297,10 @@ export class CardObject {
       if (this.delay > 0) return;
       this.delay = 0;
     }
+    // 다 멈춘 카드(상자에 들어간 카드 등)는 값이 그대로면 계산을 건너뛴다(11-16 검수 #13).
+    // 상태·목표·표시 상태 중 하나라도 바뀌면(place, 선택, 튕김 등) 비교가 어긋나 다시 움직인다.
+    if (this.#rest && !this.flight && this.#stillAtRest()) return;
+    this.#rest = null;
     const s = this.state;
     const spring = this.spring;
     const scaled = { freq: spring.freq * this.follow, damping: spring.damping };
@@ -323,7 +331,38 @@ export class CardObject {
     const statusColor = this.statusColors[this.status];
     this.sideMaterial.color.lerp(statusColor ?? this.baseSideColor, Math.min(1, dt * 9));
 
+    if (!flying && this.#settled(glowTarget, statusColor ?? this.baseSideColor)) {
+      // 남은 아주 작은 차이를 목표값에 붙이고 멈춘 순간을 적어 둔다.
+      Object.assign(s, { x: this.target.x, y: this.target.y, z: this.target.z, spin: this.target.spin, scale: this.target.scale, facePitch: this.target.facePitch });
+      for (const key of REST_VELOCITIES) s[key] = 0;
+      s.tiltX = 0; s.tiltZ = 0;
+      this.glow = glowTarget;
+      this.sideMaterial.color.copy(statusColor ?? this.baseSideColor);
+      this.#apply();
+      this.#rest = { ...s, ...prefixed(this.target), selected: this.selected, hovered: this.hovered, status: this.status, flash: this.flash };
+      return;
+    }
     this.#apply();
+  }
+
+  #rest = null;
+
+  #settled(glowTarget, color) {
+    const s = this.state, t = this.target, eps = 1e-4;
+    if (this.flash > 0) return false;
+    for (const key of REST_VELOCITIES) if (Math.abs(s[key]) > eps) return false;
+    if (Math.abs(s.tiltX) > eps || Math.abs(s.tiltZ) > eps) return false;
+    for (const key of REST_TARGETS) if (Math.abs(s[key] - t[key]) > eps) return false;
+    if (Math.abs(this.glow - glowTarget) > 1e-3) return false;
+    const c = this.sideMaterial.color;
+    return Math.abs(c.r - color.r) + Math.abs(c.g - color.g) + Math.abs(c.b - color.b) < 3e-3;
+  }
+
+  #stillAtRest() {
+    const r = this.#rest, s = this.state, t = this.target;
+    for (const key in s) if (s[key] !== r[key]) return false;
+    for (const key of REST_TARGETS) if (t[key] !== r[`t_${key}`]) return false;
+    return this.selected === r.selected && this.hovered === r.hovered && this.status === r.status && this.flash === r.flash;
   }
 
   #apply() {

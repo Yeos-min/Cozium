@@ -103,3 +103,68 @@ test("checkPlan counts only files that sit directly in the Helper folder (10-19:
   assert.equal(manual.length, 1);
   assert.equal(checkPlan(plan, []).present.length, 0);
 });
+
+// ── 11-16 Codex 검수 #2~#5 ──
+
+test("0바이트였던 파일이 지금 다른 크기면 다른 파일로 보고 옮기지 않는다", async () => {
+  const helper = fakeHelper({ files: [{ name: "빈.txt", size: 99 }], folders: [{ name: "과제" }] });
+  const plan = buildPlan({ moves: [{ name: "빈.txt", size: 0, from: [], to: ["과제"] }] });
+  assert.equal(checkPlan(plan, helper.files).present.length, 0);
+  const report = await applyPlan(plan, helper);
+  assert.equal(report.moved.length, 0);
+  assert.equal(report.failed.length, 1);
+  assert.equal(helper.state.moves.length, 0, "Helper에 요청하지 않았다");
+});
+
+test("한 폴더로 가는 파일이 500개를 넘으면 나눠 보내고 배치를 모두 모은다", async () => {
+  const files = Array.from({ length: 501 }, (_, i) => ({ name: `f${i}.txt`, size: 1 }));
+  const helper = fakeHelper({ files, folders: [{ name: "과제" }] });
+  const sizes = [];
+  const moveBatch = helper.moveBatch.bind(helper);
+  helper.moveBatch = async (ids, folderId) => {
+    sizes.push(ids.length);
+    if (ids.length > 500) throw new Error("한 번에 500개까지입니다.");
+    return moveBatch(ids, folderId);
+  };
+  const plan = buildPlan({ moves: files.map((f) => ({ name: f.name, size: 1, from: [], to: ["과제"] })) });
+  const report = await applyPlan(plan, helper);
+  assert.deepEqual(sizes, [500, 1]);
+  assert.equal(report.moved.length, 501);
+  assert.equal(report.failed.length, 0);
+  assert.equal(report.batchIds.length, 2);
+});
+
+test("일부만 옮겨지면 옮긴 것만 계획에서 빠지고, 실패·직접 옮길 것은 남는다", async () => {
+  const { remainingPlan } = await import("../js/state/cleanup-plan.js");
+  const helper = fakeHelper({ files: [{ name: "a.txt", size: 1 }, { name: "b.txt", size: 1, clash: true }], folders: [{ name: "과제" }] });
+  const plan = buildPlan({ moves: [
+    { name: "a.txt", size: 1, from: [], to: ["과제"] },
+    { name: "b.txt", size: 1, from: [], to: ["과제"] },
+    { name: "c.txt", size: 1, from: ["옛폴더"], to: ["과제"] },
+  ] });
+  const report = await applyPlan(plan, helper);
+  assert.equal(report.moved.length, 1);
+  const rest = remainingPlan(plan, report);
+  assert.deepEqual(rest.moves.map((m) => m.name), ["b.txt", "c.txt"]);
+
+  const all = buildPlan({ moves: [{ name: "a.txt", size: 1, from: [], to: ["과제"] }] });
+  assert.equal(remainingPlan(all, { moved: [{ name: "A.TXT", to: ["과제"] }] }), null, "전부 옮겼으면 null");
+});
+
+test("되돌리기에 실패한 배치는 다시 시도할 수 있게 남는다", async () => {
+  let locked = true;
+  const helper = {
+    async undoBatch(batchId) {
+      if (batchId === "b2" && locked) return { restored: [], failed: [{ fileId: "x", fileName: "x.txt", message: "잠김" }] };
+      if (batchId === "b3") throw new Error("연결 끊김");
+      return { restored: [{ fileId: batchId }], failed: [] };
+    },
+  };
+  const first = await undoApplied({ batchIds: ["b1", "b2", "b3"] }, helper);
+  assert.deepEqual(first.pendingBatchIds, ["b2", "b3"]);
+  assert.equal(first.restored.length, 1);
+  locked = false;
+  const second = await undoApplied({ batchIds: ["b2"] }, helper);
+  assert.deepEqual(second.pendingBatchIds, []);
+  assert.equal(second.restored.length, 1);
+});
