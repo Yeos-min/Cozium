@@ -105,6 +105,7 @@
 - **2026-09-02, 드롭 핸들:** `remove()` 동작. 권한 프롬프트는 핸들마다. `requestPermission()`은 클릭 후 약 5초 안에만 호출 가능 (지나면 `SecurityError: User activation is required`). 새로고침 후 같은 세션에서는 `queryPermission()` granted 유지. 폴더 3개 동시 드롭 됨. 동명 파일은 해당 카드만 튕김.
 - **2026-09-03, Helper (가짜 바탕화면 폴더, `localhost:5173` 페이지):** URL 토큰으로 자동 연결, 스캔(desktop.ini 제외), 같은 볼륨 rename 이동, 동명 충돌 시 그 항목만 실패하고 기존 파일 불변, 하위 폴더 열기, 되돌리기(rename 역방향), 새 폴더 mkdir. 전부 디스크에서 확인.
   페이지 이탈 시 `/v1/bye`: 첫 시도에서는 unload 중 fetch가 끊겨 닿지 않았다 → `keepalive: true`로 고친 뒤 Helper가 "웹 페이지가 연결을 끝냈습니다"로 종료됨 확인. 안 닿아도 idle 타이머로 꺼진다.
+- **`CoziumHelper.exe` (사용자 보고):** 10-19 v0.2.0 실행·연결·정리 계획 적용. 11-07 v0.2.2·v0.2.3 실행·연결·더미 파일 이동·되돌리기, v0.2.3은 실제 GitHub Pages에서 저절로 찾아 붙음. **11-16 v0.2.4(GitHub 릴리스 Latest, SHA-256 `282cf97c…2907bd`) Windows 실행 테스트 완료.**
 
 ### 실기기 미확인 `[검증필요]`
 
@@ -113,7 +114,7 @@
 - **GitHub Pages(HTTPS) → `http://127.0.0.1` 연결.** Chrome 142+의 Local Network Access 권한 프롬프트가 뜨는지, 허용하면 그 뒤 프롬프트 없이 통하는지 (§8-8).
 - **실제 바탕화면 스캔 결과.** OneDrive 리디렉션 경로가 잡히는지(10-20 사용자: 주변·본인 대부분 OneDrive 안 씀 → 우선순위 낮음, 레지스트리 조회 코드는 그대로 둠), 바로가기(.lnk)·숨김 파일·Public Desktop 항목이 어떻게 보이는지.
 - **Ctrl+A 드롭(웹 체험)에서 휴지통·내 PC 같은 가상 항목이 `unresolved`로 빠지는지.**
-- **`CoziumHelper.exe`** — 10-19 사용자 PC에서 v0.2.0이 실행·연결·정리 계획 적용까지 됨(사용자 보고). SmartScreen / Chrome 다운로드 경고 / 백신 반응은 기록 없음. v0.2.1(10-20)은 아직.
+- **`CoziumHelper.exe`의 SmartScreen / Chrome 다운로드 경고 / 백신 반응** — 기록 없음(실행 자체는 위 「확인됨」).
 - 브라우저를 완전히 껐다 켠 뒤의 웹 체험 모드 동작 (핸들을 저장하지 않으므로 다시 드롭하면 된다 — 확인만).
 
 ### 다음 단계
@@ -264,7 +265,7 @@ Helper 모드에서는 바탕화면 안 어디든 실제로 만든다. 웹 체�
 빌드: `node tools/build-helper-exe.mjs --node <같은 버전의 Windows node.exe>` → `output/helper/CoziumHelper.exe`(저장소에 안 올림).
 exe는 저장소가 아니라 **GitHub Releases**에 `CoziumHelper.exe` 이름으로 올린다. 사이트 링크는 `https://github.com/Yeos-min/Cozium/releases/latest/download/CoziumHelper.exe`(app.html `#helper-download`, `js/ui/finish-desk.js`) — 새 릴리스에 같은 이름으로 올리면 링크는 안 바꿔도 된다.
 배포 origin `https://yeos-min.github.io`(`DEFAULT_ORIGINS`), Helper가 여는 페이지 `https://yeos-min.github.io/Cozium/app.html`(`DEFAULT_APP_URL`).
-서명 없음: Chrome 다운로드 경고·SmartScreen "추가 정보 → 실행"을 감수한다. 그래서 **릴리스 설명에 exe의 SHA-256을 꼭 적는다**(빌드 스크립트가 찍어 준다, 받은 사람은 PowerShell `Get-FileHash CoziumHelper.exe`로 대조). 코드 서명은 계속 2단계. exe 실행은 Windows 실기기에서 아직 미확인 `[검증필요]`.
+서명 없음: Chrome 다운로드 경고·SmartScreen "추가 정보 → 실행"을 감수한다. 그래서 **릴리스 설명에 exe의 SHA-256을 꼭 적는다**(빌드 스크립트가 찍어 준다, 받은 사람은 PowerShell `Get-FileHash CoziumHelper.exe`로 대조). 코드 서명은 계속 2단계. exe 실행은 Windows 실기기에서 확인됨(사용자 보고, 최신 v0.2.4 2026-11-16 — §3 「실기기 확인됨」). SmartScreen·백신 반응은 아직 기록 없음.
 
 ### 8-7. 바탕화면 경로 `[확정 / 검증필요]`
 
