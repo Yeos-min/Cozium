@@ -99,7 +99,7 @@ node tools/build-helper-exe.mjs --node <Windows용 node.exe 경로>
 ```
 
 - `helper/exe-entry.mjs` + `desktop-helper.mjs`를 CommonJS 한 파일로 묶고(esbuild) Node 단일 실행 파일(SEA)로 만든다. 결과는 `output/helper/CoziumHelper.exe`(약 82 MB).
-- **스크립트를 돌리는 node와 `--node`의 node.exe 버전이 같아야 한다.** 10-19 빌드와 11-07 v0.2.3 빌드는 둘 다 v22.22.0(npm `node-win-x64@22.22.0`, OpenJS 서명 해시 일치 확인 후 서명을 떼고 넣음). 결과 경로는 `--out <경로>`로 바꿀 수 있다.
+- **스크립트를 돌리는 node와 `--node`의 node.exe 버전이 같아야 한다.** 10-19 빌드, 11-07 v0.2.3 빌드, 11-16 v0.2.4 빌드(Linux에서 npm `node-linux-x64@22.22.0`로) 모두 v22.22.0(npm `node-win-x64@22.22.0`, OpenJS 서명 해시 일치 확인 후 서명을 떼고 넣음). 같은 소스라도 빌드마다 SHA-256이 달라진다 — 릴리스 설명의 값이 그 exe의 값이다. 결과 경로는 `--out <경로>`로 바꿀 수 있다.
 - 인자는 node 실행과 같다. 테스트할 때는 `CoziumHelper.exe --desktop "<더미 폴더>"`.
 - exe 창은 시작에 실패하면 Enter를 누를 때까지 안 닫힌다(오류를 읽을 수 있게).
 - 서명이 없다 → Chrome "흔히 다운로드되지 않는 파일", SmartScreen "추가 정보 → 실행". 코드 서명은 다음 단계.
