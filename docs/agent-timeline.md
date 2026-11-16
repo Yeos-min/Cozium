@@ -1024,7 +1024,7 @@ js/ui/board-layout.js 새 fileColor(ext, family): pdf 빨강 #ee8a7c · ai 주�
 
 ## 2026-11-16 02:01–02:16 KST — Claude(검수 수정 채팅): Codex 검수 15건 수정
 
-사용자가 준 Codex 검수(C:\dev\Cozium 기준, 15건)를 전부 고침. **C:\dev\Cozium에 씀(사용자 지정). D에는 아직 안 씀 — D → C 동기화(sync-to-c)를 돌리면 이 변경이 지워진다.**
+사용자가 준 Codex 검수(C:\dev\Cozium 기준, 15건)를 전부 고침. C:\dev\Cozium에 먼저 쓰고, 02:31 사용자 「d에 덮어쓰자」로 D에도 같은 파일을 씀(D 20개가 기준본과 바이트까지 같음 확인, expectedMtimeMs로 씀). 백업 D `_archive/claude-review-20261116/`. 이제 C와 D가 같다.
 1 Helper 이동: 원본 이름을 바로 unlink하지 않고 새 retireLink(임시 이름으로 rename → inode가 우리 파일일 때만 unlink, 아니면 원래 이름으로 되돌림). 하드 링크를 못 만들거나 inode를 못 읽으면 UNSAFE_FS로 거부 — 옛 「빈 파일 선점 → rename」 대체 경로 삭제(exFAT 바탕화면은 이제 옮기지 않음).
 2 일부만 적용돼도 계획 전체를 지우던 것 → 새 remainingPlan으로 옮긴 것만 빼고 보관. 되돌리면 원래 계획 다시 보관.
 3 되돌리기 실패 시 배치를 버리던 것 → undoApplied가 pendingBatchIds를 돌려주고 「못 돌린 것 다시 되돌리기」 단추 + 이유 목록.
@@ -1042,3 +1042,10 @@ js/ui/board-layout.js 새 fileColor(ext, family): pdf 빨강 #ee8a7c · ai 주�
 15 serve.mjs: path.relative + sep로 범위 검사.
 바뀐 파일: helper/desktop-helper.mjs(CRLF 유지), helper/desktop-helper.test.mjs, helper/README.md, js/app.js, js/landing-story/story.js, js/providers/file-system-provider.js, js/providers/virtual-move-provider.js, js/providers/web-drop-provider.js, js/state/cleanup-plan.js, js/three/assets.js, js/three/card-face.js, js/three/card-object.js, js/three/scene-kit.js, js/ui/finish-desk.js, js/ui/onboarding.js, tests/cleanup-plan.test.js, tests/providers.test.js, tests/sound.test.js, tools/serve.mjs(CRLF 유지).
 검증: C 사본(Linux, Node 22)에서 npm test 204개 중 201 통과·1 건너뜀·2 실패 — 실패 2는 preload 테스트의 이미지·모델 파일 존재 검사(사본에 그림을 안 받아서, 코드 무관). 새 테스트: retireLink(원본 자리 바꿔치기), 0바이트, 501개 분할, 남은 계획, 되돌리기 재시도, 대소문자 충돌, 새 폴더-파일 이름 충돌, CON.txt, 드롭 중복 검사 호출 수. 쓸 때 expectedMtimeMs로 거부 0. **브라우저 확인 안 함**(랜딩 정지 화면, 결과 화면 되돌리기 재시도 단추, 카드 멈춤 건너뛰기 후 집기·튕김), Windows npm test·실제 Helper exe 다시 빌드 안 함. 카드 #rest는 단위 테스트 없음.
+
+## 2026-11-16 02:36–03:05 KST — Claude(검수 수정 채팅): Helper v0.2.4 exe + PR
+
+정정: 02:35에 「PR #12에 검수 수정이 안 들어갔다」고 했던 건 내 계산 실수. 커밋 e576a02는 02:20:06이고 수정 19개가 전부 들어가 main에 머지됨(fa97fb0).
+helper/desktop-helper.mjs VERSION 0.2.3 → 0.2.4(위 #1 이동 변경이 exe에 들어가므로). C·D·GitHub 같은 줄.
+exe 빌드(이 채팅 Linux): Node v22.22.0(npm node-linux-x64) + npm node-win-x64@22.22.0 node.exe — osslsigncode로 OpenJS Foundation 서명, 서명 해시 = 계산 해시 확인(인증서 체인은 루트 없음으로 검증 못 함). 같은 소스도 빌드마다 SHA-256이 달라 v0.2.3 재현 비교는 안 됨.
+결과 CoziumHelper.exe 82.0 MB, SHA-256 282cf97c303b920ec8efdca2f326eb6ab90bae580407a5b135f1f2f7292907bd. exe 안에 0.2.4·retireLink 들어감 확인, 같은 코드 Linux node로 v0.2.4 시작 확인. **Windows에서 exe 실행은 미확인.** 이 세션은 GitHub 릴리스를 만들 권한이 없어(403) exe를 `output\helper\CoziumHelper.exe`(C·D, git 제외)에 둠 → 사용자가 Windows에서 켜 보고 릴리스 v0.2.4에 `CoziumHelper.exe`로 올리고 설명에 SHA-256. PR은 VERSION + 이 기록.
