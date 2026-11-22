@@ -31,8 +31,7 @@ const DEG = Math.PI / 180;
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 /**
- * 논리 좌표의 한 점 → 월드 XZ. 다락방(10-11)에서는 파일 바닥(ATTIC_FLOOR)의 왼쪽 위 모서리가 논리 (0, 0)이다.
- * 예전에는 1280×720 보드의 가운데가 월드 원점이었다.
+ * 논리 좌표의 한 점 → 월드 XZ. 다락방에서는 파일 바닥(ATTIC_FLOOR)의 왼쪽 위 모서리가 논리 (0, 0)이다.
  */
 export function toWorld(cx, cy) {
   return { x: ATTIC_FLOOR.minX + cx * UNIT, z: ATTIC_FLOOR.minZ + cy * UNIT };
@@ -107,7 +106,7 @@ export class SceneKit {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(TUNING.light.background ?? TUNING.desk.background);
     this.scene.fog = null;
-    this.sky = new SkyDome({ radius: 80 }); // 10-25 천창 너머 그림 하늘(랜딩과 같은 것): 밤엔 별, 낮엔 구름
+    this.sky = new SkyDome({ radius: 80 }); // 천창 너머 그림 하늘(랜딩과 같은 것): 밤엔 별, 낮엔 구름
     this.scene.add(this.sky.mesh);
 
     this.camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 100);
@@ -184,7 +183,7 @@ export class SceneKit {
   }
 
   /**
-   * 1인칭 방. 사용자의 다락방(`models/room.glb`, 10-11)을 ×2로 불러온다. 오기 전에는 같은 크기의 빈 방(벽 넷)이
+   * 1인칭 방. 다락방(`models/room.glb`)을 ×2로 불러온다. 오기 전에는 같은 크기의 빈 방(벽 넷)이
    * 서 있고, 오면 숨긴다. 불러오기에 실패해도 그 빈 방으로 놀 수 있다(가구 발자국·선반 자리는 같다).
    */
   #buildRoom() {
@@ -218,7 +217,7 @@ export class SceneKit {
       this.fallbackRoom.add(trim);
     }
     this.roomObstacles = ATTIC_OBSTACLES.map((obstacle) => ({ ...obstacle }));
-    // 상자 칸: −x 처마 벽을 따라 바닥에 한 줄, 위에 한 단(선반 틀 없음, 10-11 사용자)
+    // 상자 칸: −x 처마 벽을 따라 바닥에 한 줄, 위에 한 단(선반 틀 없음)
     this.shelfSlots = wallShelfSlots(ATTIC_SHELF_RUNS, ATTIC_BOX, { ...ATTIC_STACK, height: TUNING.box.height });
     this.roomReady = this.#loadAttic();
   }
@@ -226,7 +225,7 @@ export class SceneKit {
   async #loadAttic() {
     try {
       const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
-      // 받는 만큼 알린다(정리 시작 로딩 화면, 10-18). total을 모르면 0으로 온다.
+      // 받는 만큼 알린다(정리 시작 로딩 화면). total을 모르면 0으로 온다.
       const gltf = await new GLTFLoader().loadAsync(ATTIC_URL, (event) => {
         this.root.dispatchEvent(new CustomEvent("roomprogress", { detail: { loaded: event.loaded, total: event.lengthComputable ? event.total : 0 } }));
       });
@@ -251,7 +250,7 @@ export class SceneKit {
       });
       this.roomGroup.add(room);
       this.attic = room;
-      this.steam = steamFromMug(room, this.roomGroup, { opacity: 0.6 }); // 10-13: 책상 머그잔의 김(밝은 낮 벽이라 조금 진하게)
+      this.steam = steamFromMug(room, this.roomGroup, { opacity: 0.6 }); // 책상 머그잔의 김(밝은 낮 벽이라 조금 진하게)
       if (this.laptopScreen) this.#lightLaptop(this.laptopScreen);
       this.#placeNightLights(room);
       this.fallbackRoom.visible = false;
@@ -269,7 +268,7 @@ export class SceneKit {
 
   /** 책상 노트북 화면에 랜딩의 바탕화면을 띄운다. 랜딩에서 들어온 그 노트북이다. */
   #lightLaptop(mesh) {
-    new THREE.TextureLoader().load("./assets/landing/parts/desktop-v4/wallpaper.webp", (texture) => { // 10-13 새 바탕화면
+    new THREE.TextureLoader().load("./assets/landing/parts/desktop-v4/wallpaper.webp", (texture) => { // 노트북 화면의 바탕화면 그림
       if (this.disposed) { texture.dispose(); return; }
       texture.flipY = false; // glTF UV: 왼쪽 위가 (0, 0)
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -288,7 +287,7 @@ export class SceneKit {
     }
     const bed = room.getObjectByName("Bed001") ?? room.getObjectByName("Bed.001"); // GLTFLoader가 이름의 "."을 뺀다
     if (bed) this.bedBox = new THREE.Box3().setFromObject(bed);
-    // 노트북(몸통 `Laptop` + 화면 `Laptop.001`): 누르는 범위 = 둘을 합친 상자(10-20 정리 끝내기)
+    // 노트북(몸통 `Laptop` + 화면 `Laptop.001`): 누르는 범위 = 둘을 합친 상자(정리 끝내기)
     const laptop = new THREE.Box3();
     const body = room.getObjectByName("Laptop");
     if (body) laptop.expandByObject(body);
@@ -296,7 +295,7 @@ export class SceneKit {
     if (!laptop.isEmpty()) this.laptopBox = laptop;
   }
 
-  // ───────────────────────── 노트북 = 정리 끝내기 (10-20) ─────────────────────────
+  // ───────────────────────── 노트북 = 정리 끝내기 ─────────────────────────
 
   /** 화면이 시야를 꽉 채우는 카메라 자리. 화면 메시(사각형)의 꼭짓점·법선으로 잰다. */
   laptopView() {
@@ -437,7 +436,7 @@ export class SceneKit {
     this.rays = new GodRays(corners, direction, { dustSize: 32, drift: 0.1 });
   }
 
-  /** 다락방은 선반 틀 없이 상자를 바닥에 바로 둔다(10-11). 칸 목록만 기억한다. */
+  /** 다락방은 선반 틀 없이 상자를 바닥에 바로 둔다. 칸 목록만 기억한다. */
   setFolderShelf(slots) {
     this.lastShelfSlots = slots;
   }
@@ -602,8 +601,8 @@ export class SceneKit {
   }
 
   /**
-   * 크기는 컨테이너가 정한다. 예전에는 여기서 16:9로 높이를 박았는데,
-   * 전체 화면 모드에서는 뷰포트를 채워야 하므로 CSS(aspect-ratio 또는 height:100%)에 맡긴다.
+   * 크기는 컨테이너가 정한다. 전체 화면 모드에서는 뷰포트를 채워야 하므로 비율을 여기서 박지 않고
+   * CSS(aspect-ratio 또는 height:100%)에 맡긴다.
    */
   resize() {
     const width = this.root.clientWidth || 1280;
@@ -627,7 +626,7 @@ export class SceneKit {
   refreshRenderStyle() {
     const profile = this.renderQuality.profile;
     Object.assign(this.outlineEffect.outline, TUNING.outline, { thickness: profile.effects ? TUNING.outline.thickness : 0 });
-    // 「가볍게」는 디더링 후처리도 끈다. 외곽선만 0으로 하면 디더링 때문에 렌더 3회·프레임버퍼 복사 1회가 남았다(11-16 검수 #10).
+    // 「가볍게」는 디더링 후처리도 끈다. 외곽선만 0으로 하면 디더링 때문에 렌더 3회·프레임버퍼 복사 1회가 남는다.
     // 켜진 단계에서는 TUNING.dithering을 그대로 물어 설정 창의 변경이 바로 보인다.
     this.outlineEffect.dithering = profile.effects ? TUNING.dithering : { ...TUNING.dithering, preset: "off" };
   }
@@ -723,7 +722,7 @@ export class SceneKit {
     }
     this.renderer.setAnimationLoop(() => {
       const elapsed = this.clock.getDelta();
-      if (document.hidden || this.paused) { // paused: 결과 화면이 방을 덮고 있는 동안(10-18) 그리지 않는다
+      if (document.hidden || this.paused) { // paused: 결과 화면이 방을 덮고 있는 동안 그리지 않는다
         if (this.profiler?.active) this.profiler.startFrame(elapsed);
         this.clearLook(); this.renderQuality.resetSamples(); return;
       }

@@ -3,7 +3,7 @@ import test from "node:test";
 import { chargePower, sampleThrow, throwPath, throwSpeed } from "../js/three/throw.js";
 import { TUNING } from "../js/three/tuning.js";
 
-// 우클릭 던지기 (2026-10-13 21시): 시선 방향 그대로, 누른 만큼 세게, 떨어지는 자리는 궤적이 정한다.
+// 우클릭 던지기: 시선 방향 그대로, 누른 만큼 세게, 떨어지는 자리는 궤적이 정한다.
 const cfg = TUNING.card.throw;
 const open = { half: { x: 50, z: 50 }, solids: [] };
 const eye = { x: 0, y: 3, z: 0 };

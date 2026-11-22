@@ -8,7 +8,7 @@ const item = (id, extension) => ({ id, name: `${id}.${extension}`, extension, si
 const BOUNDS = { x: 0, y: 0, width: 1060, height: 810 };
 const CARD = { width: 110, height: 66 };
 
-test("images and text notes start on the pinboard, everything else (documents too, 11-07) on the floor", () => {
+test("images and text notes start on the pinboard, everything else (documents too) on the floor", () => {
   for (const ext of ["png", "JPG", "heic", "txt", "md"]) assert.equal(fileHome({ extension: ext }), "pinboard");
   for (const ext of ["pdf", "docx", "HWP", "hwpx", "doc", "pptx", "xlsx", "zip", "mp4", "", undefined]) assert.equal(fileHome({ extension: ext }), "floor");
 });

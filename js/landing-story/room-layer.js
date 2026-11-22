@@ -1,8 +1,7 @@
-// Cozium 3D landing (Claude, 2026-10-11): the user's attic (models/room.glb) as the landing's first and last scene.
-// Reviewed as a prototype page first (moved to _archive/ on 10-11; ?lab opens the same render panel here). The story, the beats and the laptop-inside scenes are the 10-07 landing's;
-// only the painted room plates were replaced by this layer.
+// Cozium 3D landing: the attic (models/room.glb) as the landing's first and last scene.
+// The story, the beats and the laptop-inside scenes are story.js; this layer draws the 3D room around them.
 //
-// Render style goes through the game's own effect code (js/three/outline-effect.js + vertex-snap.js, Codex), in the same
+// Render style goes through the game's own effect code (js/three/outline-effect.js + vertex-snap.js), in the same
 // order as SceneKit#renderWebGL: vertexSnap.prepare(scene) → outlineEffect.render(scene, camera). Changing the style
 // later is a settings change that the landing and the game share, not a second implementation.
 import * as THREE from "three";
@@ -22,7 +21,7 @@ export { TEXT_LAYER };
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (a, b, t) => { const x = clamp((t - a) / (b - a)); return x * x * (3 - 2 * x); };
-// CSS cubic-bezier(x1, y1, x2, y2) as a function of t (0…1), for the walk-in (10-24).
+// CSS cubic-bezier(x1, y1, x2, y2) as a function of t (0…1), for the walk-in.
 function cubicBezier(x1, y1, x2, y2) {
   const bx = (u) => 3 * x1 * u * (1 - u) ** 2 + 3 * x2 * u * u * (1 - u) + u ** 3;
   const by = (u) => 3 * y1 * u * (1 - u) ** 2 + 3 * y2 * u * u * (1 - u) + u ** 3;
@@ -39,34 +38,31 @@ const smooth01 = (a, b, t) => clamp((t - a) / (b - a)); // 범위만 자름(곡�
 function rng(seed) { return () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const DEG = Math.PI / 180;
 
-// Landing camera candidates (metres, room.glb space: floor y = 0, ridge along z, desk on the +x eave wall).
-// shift = lens shift down as a fraction of the frame height (Blender Shift Y), so the walls stay upright like the
-// painting while the floor gets the lower half. All three are proposals; the review panel switches between them.
+// Landing camera (metres, room.glb space: floor y = 0, ridge along z, desk on the +x eave wall).
+// shift = lens shift down as a fraction of the frame height (Blender Shift Y), so the walls stay upright while
+// the floor gets the lower half. The landing uses C (style.cam).
 export const CAMERAS = {
-  A: { label: "원화 구도", p: [-3.05, 1.5, -1.05], yaw: -93, hfov: 60, shift: .2 },
-  B: { label: "책상 가까이", p: [-1.35, 1.48, .35], yaw: -89, hfov: 58, shift: .18 },
-  // 10-24 사용자 블렌더 카메라(Location -0.9003, 2.7516, 1.0385 · Rotation 93.677°, 0°, -142.78° · 25.7 mm, Shift 0):
+  // Blender 카메라(Location -0.9003, 2.7516, 1.0385 · Rotation 93.677°, 0°, -142.78°, Shift 0)를 옮긴 것:
   // 천창이 글자 왼쪽으로 빠지고 갓레이가 바닥에 떨어지는 구도. 블렌더 (x, y, z) → 여기 (x, z, -y), Z 회전 = yaw,
-  // X 회전 − 90° = pitch(위로 +). 25.7 mm / 36 mm 센서 = 가로 70°. 옛 C: p [-3.15, 1.55, 2.4], yaw -72, shift .2
-  C: { label: "천창 대각", p: [-0.9003, 1.0385, -2.7516], yaw: -142.78, pitch: 3.677, hfov: 78.58, shift: 0 }, // 10-24 사용자: 22 mm(가로 78.58°)
+  // X 회전 − 90° = pitch(위로 +). 렌즈는 22 mm / 36 mm 센서 = 가로 78.58°. 구도는 Blender에서 잡은 그대로 둔다(바꾸면 갓레이 자리가 어긋난다)
+  C: { label: "천창 대각", p: [-0.9003, 1.0385, -2.7516], yaw: -142.78, pitch: 3.677, hfov: 78.58, shift: 0 },
 };
 const END_HFOV = 38;      // lens at the end of the walk-in, when the screen fills the frame
-// Mouse parallax (user, 10-13): standing in the room the camera leans a little towards the pointer — turns (deg) and
+// Mouse parallax: standing in the room the camera leans a little towards the pointer — turns (deg) and
 // slides (m, along its own axes), eased over `ease` s. It fades out as the walk-in starts, so the laptop's screen and
 // the desktop riding on it end exactly where they did. No extra cost: the room is drawn every frame anyway.
 export const LOOK = { yaw: 2.4, pitch: 1.4, slide: .06, rise: .03, ease: .35, fadeUntil: .3 };
 const SCREEN = "Laptop_screen";
-// 11-06 사용자: 흐름을 뒤집음 — 방바닥·핀보드에 널린 파일이 「정리 시작해볼까요?」에 노트북 화면으로 빨려 들어간다(suckAt).
+// 방바닥·핀보드에 널린 파일이 「정리 시작해볼까요?」에 노트북 화면으로 빨려 들어간다(suckAt).
 export const SUCK_END = 2.9; // 빨려 들어가기 길이(초): 마지막 파일이 화면에 닿는 때 ≈ 0.25 + 1.75 + 0.1 + 0.8
-// 11-06 사용자: 「모니터 화면이 HTML이라 이질감」 → 멀리선 빈 화면(방 빛을 받는 3D 화면), 화면이 커질 때만 HTML 바탕화면.
+// 멀리선 빈 화면(방 빛을 받는 3D 화면), 화면이 커질 때만 HTML 바탕화면(멀리서 HTML이 보이면 방과 따로 논다).
 // 빈 화면 색 = 바탕화면 그림의 평균색(#d3c5b1) 쪽, 조금 스스로 빛나게. 밤엔 푸른 화면빛
 const SCREEN_ON = { color: "#cdbfa9", emissive: "#453f35" }, SCREEN_NIGHT = { color: "#cdbfa9", emissive: "#2b3352" }, SCREEN_OFF = { color: "#0a0b0e", emissive: "#000000" };
 
-// 빛·재질 이름표(LIGHTS·MATERIALS)는 ?lab 패널 전용이라 11-08에 패널과 함께 뺐다. 실제 값은 아래 #applyLight·재질 코드.
 
 // metres: w, d, thickness. A little larger than life (×1.4), like the game's chunky cards, so the mess reads from the door.
 const FILE_SIZE = Object.fromEntries(Object.entries({
-  // w, d in the proportions of the faces (desktop-v4/faces, 10-13)
+  // w, d in the proportions of the faces (desktop-v4/faces)
   document: [.26, .256, .005], photo: [.16, .144, .003], video: [.22, .181, .016], audio: [.13, .13, .012], archive: [.27, .239, .035],
 }).map(([k, v]) => [k, v.map((x, i) => i === 2 ? Math.max(.012, x * 1.4) : x * 1.4)])); // ≥ 1.2 cm: thinner ones fought the floor under wobble
 const EDGE = { document: "#e9dfc7", photo: "#f3efe4", video: "#4a524c", audio: "#d8bf73", archive: "#a98258" };
@@ -90,14 +86,14 @@ export class RoomLayer {
     this.lookTarget = new THREE.Vector2(); this.lookNow = new THREE.Vector2(); // pointer, −1…1 (x right, y down)
     this.scene = new THREE.Scene();
     this.sky = new SkyDome({ radius: 40 }); this.scene.add(this.sky.mesh);
-    // 10-25 천창 너머 그림 하늘(밤 별, 낮 구름). 색은 빛마다(#applyLight): 아침은 맑은 하늘색, 늦은 오후는 지평선 쪽 노을빛
+    // 천창 너머 그림 하늘(밤 별, 낮 구름). 색은 빛마다(#applyLight): 아침은 맑은 하늘색, 늦은 오후는 지평선 쪽 노을빛
     this.camera = new THREE.PerspectiveCamera(50, 16 / 9, .04, 60);
     this.camera.rotation.order = "YXZ";
     this.outline = new OutlineEffect(this.renderer, { ...TUNING.outline }, { ...TUNING.dithering, levels: { ...TUNING.dithering.levels } });
     this.snap = new VertexSnapEffect(this.renderer, { ...TUNING.vertexWobble, cellSizes: { ...TUNING.vertexWobble.cellSizes } });
     this.snap.patchMaterial(this.outline.normalMaterial);
-    // The user's pick (10-11): camera C, toon, 1px outline in the surrounding colour, fine dither, wobble.
-    // 11-03 사용자: 어질러진 방은 아침(밤엔 정리 공간이 너무 어두움), 정리된 방은 늦은 오후 — 하루 걸려 치운 방.
+    // The landing's look: camera C, toon, 1px outline in the surrounding colour, fine dither, wobble.
+    // 어질러진 방은 아침(밤이면 방이 너무 어둡다), 정리된 방은 늦은 오후 — 하루 걸려 치운 방.
     // 그 앞의 「노트북만 덩그러니」는 책상 스탠드 빛 하나("desk", setIntro).
     this.style = { cam: "C", light: "morning", lightEnd: "sun", mat: "toon", outline: 1, ink: "around", dither: "fine", wobble: "wobble", tone: "none", rays: true };
     this.size = { w: 1, h: 1 };
@@ -106,11 +102,11 @@ export class RoomLayer {
     this.meshes = [];
     this.lights = {};
     this._q = new THREE.Quaternion(); this._v = new THREE.Vector3();
-    this.poseFn = null;      // 11-03 첫 화면 연출: 카메라를 이야기 진행(t) 대신 이 함수가 정할 때(now → pose)
+    this.poseFn = null;      // 첫 화면 연출: 카메라를 이야기 진행(t) 대신 이 함수가 정할 때(now → pose)
     this.hop = 0;            // 노트북이 통통 뛰는 높이(m)
     this.filesShown = true;  // 어질러진 방의 파일: 빨려 들어간 뒤엔 없음(suckAt)
     this.lightOverride = null;
-    this.glow = 0;           // 11-07 사용자: 「정리 시작해볼까요?」에 올리면 노트북 화면이 살짝 켜짐(0…1)
+    this.glow = 0;           // 「정리 시작해볼까요?」에 올리면 노트북 화면이 살짝 켜짐(0…1)
   }
 
   async load(roomUrl, boxUrl) {
@@ -128,7 +124,7 @@ export class RoomLayer {
       try { globalThis.createImageBitmap = undefined; return loader.parseAsync(bytes.buffer, ""); }
       finally { globalThis.createImageBitmap = cib; }
     };
-    boxUrl ??= "./models/box.glb"; // 10-25 사용자 A+B: 정리된 방에 상자 넷(10-11의 「바닥만 깨끗이」를 되돌림 — 텅 비어 보였음)
+    boxUrl ??= "./models/box.glb"; // 정리된 방에 상자 넷(상자가 없으면 방이 텅 비어 보인다)
     const [room, box] = await Promise.all([get(roomUrl), boxUrl ? get(boxUrl) : null]);
     this.room = room.scene;
     this.scene.add(this.room);
@@ -141,9 +137,9 @@ export class RoomLayer {
     this.#readScreen();
     this.#buildLights();
     this.#buildRays();
-    this.steam = steamFromMug(this.room, this.scene); // 10-13: 책상 머그잔의 김
+    this.steam = steamFromMug(this.room, this.scene); // 책상 머그잔의 김
     this.#buildFiles();
-    if (box) this.#buildBoxes(box.scene); // the tidied room: four labelled boxes under the cork board + pinned photos (10-25)
+    if (box) this.#buildBoxes(box.scene); // the tidied room: four labelled boxes under the cork board + pinned photos
     this.room.traverse((o) => { if (o.isMesh) this.meshes.push(o); });
     for (const g of [this.files, this.boxes].filter(Boolean)) g.traverse((o) => { if (o.isMesh) this.meshes.push(o); });
     for (const o of this.meshes) o.userData.orig = o.material;
@@ -198,18 +194,18 @@ export class RoomLayer {
     };
     // afternoon sun through the skylight on the +x slope; the roof shades everything else
     {
-      // 10-25 사용자 A+B: 낮이 휑함 → 늦은 오후. 햇빛은 주황으로 세게, 방은 조금 어둡게(예전 "#ffd9a0" 3.8, 반구 "#fff3dc"/"#8a6844" 1.7, 주변 .5)
+      // 늦은 오후: 햇빛은 주황으로 세게, 방은 조금 어둡게(한낮처럼 밝으면 방이 휑해 보인다)
       const sun = shadowed(new THREE.DirectionalLight("#ffbf78", 4.6)); sun.position.set(9.5, 11, -3.2); sun.target.position.set(0, 0, .4);
       add("sun", new THREE.HemisphereLight("#ffe2bd", "#5e3f26", 1.15), new THREE.AmbientLight("#f0c9a0", .3), sun, sun.target);
       L.sun.userData = { bg: "#cfe5ef", exposure: 1, sky: "evening", rays: { tint: "#ffc985", strength: .46 } };
     }
-    // 11-03 아침(어질러진 방): 같은 천창 해, 하얗고 서늘하게(끝 장면의 늦은 오후 주황과 구분)
+    // 아침(어질러진 방): 같은 천창 해, 하얗고 서늘하게(끝 장면의 늦은 오후 주황과 구분)
     {
       const sun = shadowed(new THREE.DirectionalLight("#fff4e0", 3.9)); sun.position.set(9.5, 11, -3.2); sun.target.position.set(0, 0, .4);
       add("morning", new THREE.HemisphereLight("#eef4ff", "#8a6844", 1.6), new THREE.AmbientLight("#f3ece2", .5), sun, sun.target);
       L.morning.userData = { bg: "#dcebf2", exposure: 1, sky: "morning", rays: { tint: "#fff0d0", strength: .32 } };
     }
-    // 11-03 첫 화면: 어둠 속 책상 위 스탠드 빛 웅덩이 하나(노트북·커피잔·공책만 보임)
+    // 첫 화면: 어둠 속 책상 위 스탠드 빛 웅덩이 하나(노트북·커피잔·공책만 보임)
     {
       const lap = new THREE.Box3().setFromObject(this.room.getObjectByName("Laptop") ?? this.screenMesh).getCenter(new THREE.Vector3());
       const spot = new THREE.SpotLight("#ffcf8f", 14, 4, .5, .65, 1.6);
@@ -307,11 +303,9 @@ export class RoomLayer {
     stray(-2.3, 1.9, -2.1, 2.4, 22);
     // on the desk, next to the laptop (desk top y ≈ .73)
     pile(3.42, 1.3, 6, .05, .735, ["document", "document", "photo"]);
-    // 11-06 사용자: 「핀보드도 뭔가 더럽게 파일들이 막 붙어 있어야 함」 — 정리된 방의 사진 판(#buildBoxes)과 같은 코르크
-    // 보드(x −0.7…0.7, y 1.33…2.25, 판 앞 z 2.862, 앞면 −z)에 사진·메모가 마구 겹치고 기울고 판 밖으로 삐져나오게.
-    // 바닥 파일과 같은 무리(this.files)라 같이 빨려 들어간다
-    // 11-07 사용자: 「반듯하게 배치됨, 갯수 줄이고 이상하게 겹친 거 없애고 회전」, 「문서 모서리 시커먼 거 → 핀보드에 꽂지 마」
-    // → 사진만 11장, 4×3 칸에 하나씩(한 칸 비움) 조금씩 비껴서, 판 면 안에서 기울임(로컬 y = 판의 법선 축)
+    // 어질러진 핀보드: 정리된 방의 사진 판(#buildBoxes)과 같은 코르크 보드(x −0.7…0.7, y 1.33…2.25, 판 앞 z 2.862, 앞면 −z).
+    // 사진만 11장(문서는 모서리가 검게 보여 안 꽂는다), 4×3 칸에 하나씩(한 칸 비움) 조금씩 비껴서, 판 면 안에서 기울임
+    // (로컬 y = 판의 법선 축). 바닥 파일과 같은 무리(this.files)라 같이 빨려 들어간다
     const P = rng(20261107), skip = 6;
     for (let i = 0, n = 0; i < 12; i++) {
       if (i === skip) continue;
@@ -334,7 +328,7 @@ export class RoomLayer {
         o.material = [].concat(o.material).map((m) => { const c = m.clone(); if (m.name === "box_body") c.color.set(tones[i]); return c; });
         if (o.material.length === 1) o.material = o.material[0];
       });
-      // 10-25 사용자 A+B: 코르크 보드 아래 두 줄로 두 개씩, 앞면(이름표)이 방 쪽. 이름은 이야기 속 상자와 같은 넷
+      // 코르크 보드 아래 두 줄로 두 개씩, 앞면(이름표)이 방 쪽. 이름은 이야기 속 상자와 같은 넷
       b.rotation.y = Math.PI + [.03, -.04, -.02, .05][i];
       b.position.set(i < 2 ? -.33 : .27, (i % 2) * .495, 2.5 + (i % 2) * .02);
       const cv = document.createElement("canvas"); cv.width = 256; cv.height = 112;
@@ -347,7 +341,7 @@ export class RoomLayer {
       this.boxes.add(b);
     }
     // 코르크 보드에 꽂힌 사진(게임 attic-room.js ATTIC_PINBOARD를 m로: x −0.7…0.7, y 1.33…2.25, 판 앞 z 2.862, 앞면 −z).
-    // 칸에 맞추되 손으로 꽂은 것처럼 조금씩 어긋나고 기울게(사용자: 너무 반듯하면 안 됨)
+    // 칸에 맞추되 손으로 꽂은 것처럼 조금씩 어긋나고 기울게(너무 반듯하면 꾸민 티가 난다)
     const R = rng(20261025);
     const tex = new THREE.CanvasTexture(this.faceCanvas("photo")); tex.colorSpace = THREE.SRGBColorSpace;
     const [w, d] = FILE_SIZE.photo, g = new THREE.BoxGeometry(w * .75, .006, d * .75);
@@ -415,7 +409,7 @@ export class RoomLayer {
     this.resize(this.size.w, this.size.h);
     for (const group of Object.values(this.lights)) group.traverse((light) => {
       if (!light.isLight || !light.shadow) return;
-      // only lights built with a shadow (#buildLights); the screen glow must never get one (it streaked the wall, 10-11)
+      // only lights built with a shadow (#buildLights); the screen glow must never get one (it streaks the wall)
       light.userData.castsShadow ??= light.castShadow;
       if (!light.userData.castsShadow) return;
       if (light.isPointLight) light.castShadow = p.effects;
@@ -466,7 +460,7 @@ export class RoomLayer {
   }
 
   // Looking straight at the screen, close enough that its width spans the 16:9 cover plate. Lenses are defined on
-  // that plate (like the painting, which was cover-fitted), so a tall phone sees the middle of the same picture.
+  // that plate, so a tall phone sees the middle of the same picture.
   endPose() {
     const tanH = Math.tan(END_HFOV * DEG / 2);
     const d = this.screenW / (2 * tanH);
@@ -479,8 +473,7 @@ export class RoomLayer {
   // (as the 2D zoom did), the head turns to the screen early, the lens shift and the wide lens give way to the end lens.
   poseAt(t) {
     const S = this.startPose(), E = this.endPose();
-    // 10-24 사용자: 06:33 "너무 갑자기 꺾임" → 06:44 "평면적, 직선 느낌, 쫀득한 맛이 없음". 키프레임 이징처럼:
-    // 천천히 떼고 → 가운데서 붙고 → 화면 앞에서 길게 감속. 고개(Q_EASE)가 몸(GO_EASE)보다 살짝 먼저 돌지만 꺾이지 않게
+    // 키프레임 이징처럼: 천천히 떼고 → 가운데서 붙고 → 화면 앞에서 길게 감속. 고개(Q_EASE)가 몸(GO_EASE)보다 살짝 먼저 돌지만 꺾이지 않게
     // 범위를 넓게 줌. 곡선 모양은 CSS cubic-bezier와 같은 값이라 그대로 비교·조정 가능.
     const go = GO_EASE(t);
     const dS = S.pos.distanceTo(this.screenCenter), dE = E.d;
@@ -526,7 +519,7 @@ export class RoomLayer {
     return P;
   }
 
-  // ───── 11-03 새 첫 화면 ─────
+  // ───── 첫 화면 ─────
   // 노트북만 덩그러니: 노트북·커피잔·공책·책상만 남기고, 빛은 책상 스탠드 하나. 벽 껍데기("Room")는 노트북 노드의
   // 부모라 visible을 끄면 노트북도 사라져서 그 재질만 안 보이게 한다.
   setIntro(on) {
@@ -573,7 +566,7 @@ export class RoomLayer {
     this.hop = h;
   }
 
-  // 「정리 시작해볼까요?」 → 바닥·핀보드·책상 위 파일이 노트북 화면으로 빨려 들어간다(11-06, 예전 터져 나오기의 거꾸로).
+  // 「정리 시작해볼까요?」 → 바닥·핀보드·책상 위 파일이 노트북 화면으로 빨려 들어간다.
   // 화면에 가까운 것부터 차례로: 살짝 떠올랐다가 점점 빨라지며 화면 한가운데로, 작아지며 사라진다. sec = 시작부터 초
   suckAt(sec) {
     if (!this._suck) {
@@ -642,7 +635,7 @@ export class RoomLayer {
   }
 }
 
-// Same two-step render for the inside-the-laptop scene, so a style can be tried on the whole landing at once.
+// Same two-step render for the inside-the-laptop scene, so it shares the room's look.
 export class StyledPass {
   constructor(renderer, style) {
     this.outline = new OutlineEffect(renderer, { ...TUNING.outline }, { ...TUNING.dithering, levels: { ...TUNING.dithering.levels } });

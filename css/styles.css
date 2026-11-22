@@ -1,8 +1,8 @@
-/* 글꼴은 css/fonts.css (10-24: 나눔스퀘어라운드 + 로고 Nunito, Fraunces 뺌) */
+/* 글꼴은 css/fonts.css (나눔스퀘어라운드 + 로고 Nunito) */
 
 :root {
   color-scheme: dark;
-  /* Cozium at night (2026-10-08): the style guide's darkest colour #182c24, cream type, lamp gold accent. */
+  /* Cozium at night: the style guide's darkest colour #182c24, cream type, lamp gold accent. */
   --bg: #182c24;
   --surface: #1e342b;
   --surface-2: #243b31;
@@ -364,7 +364,7 @@ footer { width: min(1600px, 94vw); margin: 0 auto; padding: 0 0 28px; display: f
 }
 .box-label-3d[data-open="true"]::after { content: " ▸"; color: var(--muted); }
 .pile-label-3d { font-size: 11px; color: var(--muted); }
-/* 책상 노트북 위 이름표(다 치웠을 때만 늘 뜸): 모양은 css/time-hint.css. 겨눌 때 힌트는 조준선 위 .time-hint(11-07, 침대와 같은 자리) */
+/* 책상 노트북 위 이름표(다 치웠을 때만 늘 뜸): 모양은 css/time-hint.css. 겨눌 때 힌트는 조준선 위 .time-hint(침대와 같은 자리) */
 .pile-label-3d[data-empty="true"] { opacity: 0.45; }
 /* 책상을 다 치웠을 때 — 다음 무더기가 당신 차례라고 알린다.
    transform은 CSS2DRenderer가 쓰므로 box-shadow만 흔든다. */
@@ -412,7 +412,7 @@ footer { width: min(1600px, 94vw); margin: 0 auto; padding: 0 0 28px; display: f
 .hand-hint strong { color: var(--accent); font-size: 14px; }
 .hand-hint kbd { margin: 0 1px; }
 
-/* 침대를 겨누면 조준선 바로 위에 해/달 힌트(2026-11-06, 모양은 css/time-hint.css) */
+/* 침대를 겨누면 조준선 바로 위에 해/달 힌트(모양은 css/time-hint.css) */
 .board-overlay .time-hint { position: absolute; left: 50%; top: 50%; z-index: 6; transform: translate(-50%, calc(-100% - 18px)); }
 
 /* ── 몰입 모드: 게임이 화면을 채운다. 온보딩은 평소 레이아웃 그대로. ── */
@@ -511,7 +511,7 @@ body.is-playing kbd { color: #fff6e5; background: #37362966; border-color: #d7cb
 .lock-prompt:hover { background: #665b42ee; }
 .crosshair { width: 6px; height: 6px; margin: -3px 0 0 -3px; border: 0; background: #fff8e8; box-shadow: 0 0 4px #55442b80; }
 .crosshair[data-over="box"], .crosshair[data-over="card"] { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #f8edc1; }
-/* 우클릭 던지기 힘 모으기(10-13): 조준선 둘레 고리가 차오른다 */
+/* 우클릭 던지기 힘 모으기: 조준선 둘레 고리가 차오른다 */
 .crosshair[data-charging="true"] {
   width: 30px; height: 30px; margin: -15px 0 0 -15px; box-shadow: none; transition: none;
   background: conic-gradient(#ffe39a calc(var(--charge, 0) * 360deg), #fff8e840 0);
@@ -529,7 +529,7 @@ body.is-playing kbd { color: #fff6e5; background: #37362966; border-color: #d7cb
 .hover-label { background: #f3ebd9f0; color: #3d4433; border-color: #c6bea8; box-shadow: 0 5px 18px #40331d26; }
 .hover-label small { color: #75755e; }
 .arrange-hint { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); max-width: 80%; padding: 12px 20px; border: 1px solid #d8dcc09c; border-radius: 12px; background: #3e4939e8; color: #fff7e5; font-size: 14px; text-align: center; }
-body.is-playing :is(#arrange-toggle, #log-toggle) { background: #514734c9; color: #fff4df; border: 1px solid #fff2cd40; pointer-events: auto; } /* 10-25: 기록 버튼도 같은 모양, 둘 다 위 막대 안에 나란히 */
+body.is-playing :is(#arrange-toggle, #log-toggle) { background: #514734c9; color: #fff4df; border: 1px solid #fff2cd40; pointer-events: auto; } /* 기록 버튼도 같은 모양, 둘 다 위 막대 안에 나란히 */
 body.is-playing #log-toggle[aria-pressed="true"] { background: #6a5e45e8; }
 body.is-playing #arrange-toggle[aria-pressed="true"] { background: #64734de8; border-color: #d4dfb5; }
 .board-viewport[data-arranging="true"] .hover-label { display: none; }
@@ -544,21 +544,21 @@ body.is-playing #arrange-toggle[aria-pressed="true"] { background: #64734de8; bo
   .board-viewport.is-3d .board-overlay[data-walking="true"] .breadcrumb { bottom: 104px; }
 }
 
-/* ── 10-25 설정·기록 창 ──
-   사용자: 오른쪽 패널은 설정 화면이라 보기 어렵다 → ⚙ 「설정」, 「기록」 버튼이 각각 방 위에 창을 띄운다.
-   모양은 정리 시작 화면의 조작 안내 카드(room-intro.css .intro-controls)와 같게(사용자). 흐림 없음. Esc·바깥 클릭·×로 닫힘(app.js). */
+/* ── 설정·기록 창 ──
+   ⚙ 「설정」, 「기록」이 각각 방 위에 창을 띄운다.
+   모양은 정리 시작 화면의 조작 안내 카드(room-intro.css .intro-controls)와 같게. 흐림 없음. Esc·바깥 클릭·×로 닫힘(app.js). */
 .room-sheet { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse 70% 75% at 50% 48%, #1d1b14a6 0%, #17150fd9 100%); color: #f7f1e4; font-family: var(--font-ui); word-break: keep-all; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.25s ease, visibility 0s linear 0.25s; }
 .room-sheet[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.25s ease; } /* 닫히는 0.25초 동안에도 클릭은 바로 뒤로 통과 */
 .sheet-card { box-sizing: border-box; width: 440px; max-width: calc(100vw - 48px); max-height: calc(100vh - 48px); overflow: auto; padding: 15px 22px 18px; border: 1px solid #fff3d624; border-radius: 11px; background: #2c2a21e6; text-align: left; box-shadow: 0 12px 40px #0000004d; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; min-height: 32px; margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid #fff3d624; }
 .sheet-head h3 { margin: 0; color: #9d9479; font-size: 13px; font-weight: 700; letter-spacing: 0.16em; }
-/* 10-25 18:47 사용자: × 가 가운데가 아님 → 글자 × 대신 선 두 개(SVG)를 원 가운데에 */
+/* 닫기: 글자 × 는 글꼴마다 가운데가 어긋나서 선 두 개(SVG)를 원 가운데에 */
 .sheet-close { display: grid; place-items: center; flex: none; width: 32px; height: 32px; margin: 0 -6px 0 12px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: #c9bfa6; cursor: pointer; }
 .sheet-close svg { display: block; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .sheet-close:hover { background: #f7f1e414; color: #f7f1e4; }
 .sheet-close:focus-visible { outline: 2px solid #f7f1e4; outline-offset: 2px; }
 .sheet-rows { display: grid; gap: 14px; }
-/* 설정 한 장: 왼쪽 「화면」, 오른쪽 「조작」 두 칸(10-25 18:47 사용자: 레이아웃이 별로 — 높이 다른 카드 두 장 → 창 하나) */
+/* 설정 한 장: 왼쪽 「화면」, 오른쪽 「조작」 두 칸(높이 다른 카드 두 장보다 창 하나가 정돈돼 보인다) */
 .sheet-settings { width: 920px; }
 .sheet-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
 .sheet-sec { min-width: 0; }

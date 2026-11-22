@@ -204,7 +204,7 @@ test("NativeHelperProvider surfaces helper errors as ProviderError codes", async
   await assert.rejects(unreachable.connect(), (error) => error.code === "HELPER_UNREACHABLE");
 });
 
-test("NativeHelperProvider keeps the helper awake while connected and stops on disconnect (10-20)", async (t) => {
+test("NativeHelperProvider keeps the helper awake while connected and stops on disconnect", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
   const calls = [];
   const fetchImpl = async (url) => { calls.push(url); return { ok: true, json: async () => ({ version: "0.2.0", desktopName: "d" }) }; };
@@ -219,7 +219,7 @@ test("NativeHelperProvider keeps the helper awake while connected and stops on d
   assert.equal(calls.filter((url) => url.endsWith("/hello")).length, 4);
 });
 
-// ── 11-16 Codex 검수 #7: 체험의 이름·충돌 규칙이 Helper와 같아야 한다 ──
+// ── 체험의 이름·충돌 규칙이 Helper와 같아야 한다 ──
 test("체험 이동은 대소문자만 다른 이름도 충돌로 본다", async () => {
   const provider = new MemoryProvider({ delay: false, folders: [{ name: "과제" }] });
   await provider.scan();
@@ -247,7 +247,7 @@ test("웹 이름 검사도 확장자가 붙은 Windows 예약어를 막는다", 
   assert.equal(validateFolderName("console"), null);
 });
 
-test("드롭 중복 검사는 이름이 같은 후보만 isSameEntry로 비교한다 (11-16 검수 #14)", async () => {
+test("드롭 중복 검사는 이름이 같은 후보만 isSameEntry로 비교한다", async () => {
   let calls = 0;
   const handles = Array.from({ length: 200 }, (_, i) => {
     const handle = new FakeFileHandle(`f${i}.txt`, "x");

@@ -1,4 +1,3 @@
-// 11-08: 옛 「웹에서 직접 옮기기」 함수의 테스트는 함수와 함께 _archive/claude-cleanup-20261108/로 옮겼다.
 import assert from "node:assert/strict";
 import test from "node:test";
 

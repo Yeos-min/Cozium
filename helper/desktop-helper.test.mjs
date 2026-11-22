@@ -30,7 +30,7 @@ async function makeOutside() {
   return dir;
 }
 
-// Windows 경로(C:\\…) 규칙이라 Windows에서만 돈다. 다른 OS의 path 모듈은 이 경로를 다르게 풀어서 늘 실패했다(11-08 정리).
+// Windows 경로(C:\\…) 규칙이라 Windows에서만 돈다. 다른 OS의 path 모듈은 이 경로를 다르게 풀어서 늘 실패한다.
 test("isInside keeps Windows paths inside the desktop", { skip: process.platform !== "win32" && "Windows 경로 규칙 — Windows에서만" }, () => {
   assert.equal(isInside("C:\\Users\\u\\Desktop\\a.txt", "C:\\Users\\u\\Desktop"), true);
   assert.equal(isInside("C:\\Users\\u\\Desktop", "C:\\Users\\u\\Desktop"), true);
@@ -180,7 +180,7 @@ test("moveNoOverwrite refuses when the file at the source is not the one we reco
 });
 
 test("retireLink removes only the file it was told about, even if the name was swapped", async () => {
-  // 11-16 검수 #1: 링크를 건 뒤 원본 자리에 새 파일이 들어오면 unlink(src)가 그 새 파일을 지웠다.
+  // 링크를 건 뒤 원본 자리에 새 파일이 들어와도 unlink(src)가 그 새 파일을 지우면 안 된다.
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "cozium-retire-"));
   const src = path.join(dir, "a.txt");
   const dest = path.join(dir, "b.txt");
@@ -335,7 +335,7 @@ test("parseArgs reads flags", () => {
   assert.equal(options.idleMinutes, 3);
 });
 
-test("undo still works after a rescan dropped the moved file from the id table (10-20)", async () => {
+test("undo still works after a rescan dropped the moved file from the id table", async () => {
   const dir = await makeDesktop();
   const session = await createDesktopSession({ desktopPath: dir });
   const scan = await session.scan();
@@ -349,7 +349,7 @@ test("undo still works after a rescan dropped the moved file from the id table (
   assert.equal(await fs.readFile(path.join(dir, "노트.txt"), "utf8"), "hello");
 });
 
-test("the server answers 500 instead of dying when a handler throws something unexpected (10-20)", async () => {
+test("the server answers 500 instead of dying when a handler throws something unexpected", async () => {
   const dir = await makeDesktop();
   const session = await createDesktopSession({ desktopPath: dir });
   session.scan = async () => { throw new TypeError("boom"); };

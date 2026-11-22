@@ -1,5 +1,5 @@
 // outline-effect.js — 게임 화면 후처리 한 장: 외곽선 + 디더링 + 글자 레이어 합성.
-// 외곽선은 깊이·법선이 갑자기 바뀌는 곳에 긋는다. 색은 "주변색"(그 자리 색을 어둡게, 10-11 사용자 선택).
+// 외곽선은 깊이·법선이 갑자기 바뀌는 곳에 긋는다. 색은 "주변색"(그 자리 색을 어둡게).
 // 디더링은 4×4 Bayer로 색 단계를 줄인다(시작값 Fine). 둘 다 설정 창에서 끌 수 있고 기본값은 tuning.js.
 // 자세한 설명: docs/render-effects.md
 import * as THREE from "three";
@@ -65,7 +65,7 @@ const compositeShader = /* glsl */`
       }
       // Only the edge transition is soft; the body of a detected line is opaque.
       float edge = max(smoothstep(depthThreshold * 0.8, depthThreshold * 1.2, depthEdge), smoothstep(normalThreshold, normalThreshold * 1.2, normalEdge));
-      // Ink "around" (10-11, the user's pick on the landing): the line takes the colour under it, darkened,
+      // Ink "around": the line takes the colour under it, darkened,
       // so a green blanket gets a deep green line and the cream wall a dark warm one. inkTint 0 = one fixed colour.
       vec3 around = texture2D(source, vUv).rgb;
       around += texture2D(source, vUv + vec2(outlineStep.x, 0.0)).rgb + texture2D(source, vUv - vec2(outlineStep.x, 0.0)).rgb;
@@ -165,7 +165,7 @@ export class OutlineEffect {
         scene.traverse(object => {
           if (!object.visible || !object.material) return;
           const materials = Array.isArray(object.material) ? object.material : [object.material];
-          // userData.noOutline: the painted sky dome (sky-dome.js) — not a model, no edges (10-25)
+          // userData.noOutline: the painted sky dome (sky-dome.js) — not a model, no edges
           if (!object.isMesh || object.userData.noOutline || materials.every(m => !m.visible || (m.transparent && m.opacity === 0))) {
             object.visible = false;
             hidden.push(object);

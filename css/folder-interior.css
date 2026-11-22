@@ -1,4 +1,4 @@
-/* 상자 안 보기(빈손으로 상자를 누르면). 11-07 사용자 「이런 것도 바꿔야겠네」 → 정리방 UI와 같은 연필 + 크림 종이.
+/* 상자 안 보기(빈손으로 상자를 누르면). 정리방 UI와 같은 연필 + 크림 종이.
    종이 한 장(안쪽 12px 연필 테두리, js/ui/pencil.js data-pen="sheet") 위에 바탕화면처럼 아이콘 + 이름.
    색은 css/room-paper.css의 --pen-* (먹 #2f231a, 옅은 먹 #6b5a4a, 종이 #fbf7ec). */
 .folder-interior {
@@ -53,6 +53,6 @@
 /* 사진은 실제 그림을 종이 테두리 사진처럼 */
 .interior-face.is-photo img { width: 60px; height: 48px; object-fit: cover; border: 3px solid #fffaf0; border-radius: 2px; box-shadow: 0 2px 5px #5a463040; filter: none; }
 .interior-empty { grid-column: 1 / -1; align-self: center; text-align: center; color: var(--pen-ink-2, #6b5a4a); font: 700 15px/1.5 var(--font-ui); padding: 55px 15px; }
-/* css/styles.css의 사이트 아래띠 footer(폭·아래 여백·대문자·자간 .12em)가 새어 들어오지 않게 되돌림 */
+/* css/styles.css의 사이트 아래띠 footer(폭·아래 여백·대문자·자간 .12em)가 새어 들어오지 않게 덮는다 */
 .folder-interior footer { width: auto; margin: 18px 0 0; padding: 0; text-transform: none; letter-spacing: 0; min-height: 42px; color: var(--pen-ink-2, #6b5a4a); font: 700 14px/1.4 var(--font-ui); }
 body.is-playing .folder-interior footer { display: flex; }

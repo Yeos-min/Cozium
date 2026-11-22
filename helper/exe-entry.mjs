@@ -16,7 +16,7 @@ function holdWindow(code) {
   process.stdin.once("data", () => process.exit(code));
 }
 
-// 실행 중 예상 못 한 오류로 꺼질 때도 창이 바로 닫히지 않게 한다(10-20). 이유를 읽고 Enter로 닫는다.
+// 실행 중 예상 못 한 오류로 꺼질 때도 창이 바로 닫히지 않게 한다. 이유를 읽고 Enter로 닫는다.
 for (const event of ["uncaughtException", "unhandledRejection"]) {
   process.on(event, (error) => {
     console.error(`\nHelper가 예상 못 한 오류로 멈췄습니다: ${error?.stack ?? error}`);

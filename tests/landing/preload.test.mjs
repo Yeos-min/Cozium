@@ -2,12 +2,11 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-// The landing (index.html + js/landing-story/story.js). Since 2026-10-11 the first and last rooms are the user's 3D
-// attic (models/room.glb, js/landing-story/room-layer.js); before that they were painted plates (backup in
-// _archive/claude-landing-3d-20261011/). The older Canvas-2D landing lives on in landing-classic.html.
+// The landing (index.html + js/landing-story/story.js). The first and last rooms are the 3D attic
+// (models/room.glb, js/landing-story/room-layer.js).
 const root = new URL("../../", import.meta.url);
 const html = await readFile(new URL("index.html", root), "utf8");
-const css = await readFile(new URL("css/fonts.css", root), "utf8"); // 10-24: 글꼴은 fonts.css 한 곳
+const css = await readFile(new URL("css/fonts.css", root), "utf8"); // 글꼴은 fonts.css 한 곳
 const story = await readFile(new URL("js/landing-story/story.js", root), "utf8");
 const roomLayer = await readFile(new URL("js/landing-story/room-layer.js", root), "utf8");
 
@@ -50,7 +49,7 @@ test("every asset the landing loads exists and three.js comes from the vendored 
   for (const kind of ["document", "photo", "video", "audio", "archive"]) urls.add(`./assets/landing/parts/desktop-v4/faces/${kind}.webp`);
   for (const kind of ["document", "photo", "video", "audio", "archive", "folder-sand"]) urls.add(`./assets/landing/parts/desktop-v4/icons/${kind}.webp`);
   for (const url of urls) await access(new URL(url, root));
-  // 10-11 clean-up: the old landing's pictures (assets/landing/box/, desktop-v3) are no longer in the repository
+  // the removed landing pictures (assets/landing/box/, desktop-v3) must not come back
   for (const url of urls) assert.doesNotMatch(url, /assets\/landing\/(box|parts\/desktop-v3)\//, url);
   const map = JSON.parse(html.match(/<script type="importmap">([^<]+)<\/script>/)[1]);
   assert.equal(map.imports.three, "./vendor/three/three.module.min.js");
@@ -63,15 +62,15 @@ test("every asset the landing loads exists and three.js comes from the vendored 
 
 test("one way in: the tidied room's button goes to the organizer, and back returns to the tidied room", () => {
   const links = [...html.matchAll(/<nav class="cta"[^>]*>([\s\S]*?)<\/nav>/g)].flatMap((m) => [...m[1].matchAll(/href="([^"]+)"/g)].map((l) => l[1]));
-  assert.deepEqual(links, ["./app.html"], "the organizer's own screen offers files, sample and helper (10-09 plan)");
-  assert.match(html, /<a class="end-go" id="endGo" href="\.\/app\.html"/, "10-25: the tidied room's own button (filled) walks into the same organizer");
+  assert.deepEqual(links, ["./app.html"], "the organizer's own screen offers files, sample and helper");
+  assert.match(html, /<a class="end-go" id="endGo" href="\.\/app\.html"/, "the tidied room's own button walks into the same organizer");
   assert.match(html, /<script src="\.\/js\/entry-route\.js"><\/script>/, "old app links that land on index.html still reach the organizer");
   assert.match(story, /history\.replaceState\(null, "", "#end"\)/, "leaving marks this entry so back lands on the last room");
   assert.match(story, /const cameBack = location\.hash === "#end";/);
   assert.match(story, /addEventListener\("pageshow"/, "a page restored from the back-forward cache rests on the tidied room too");
 });
 
-// 11-08: ?lab 렌더 테스트 패널은 디자인 확정 뒤 뺐다 — 다시 끼어들지 않게
+// ?lab 렌더 테스트 패널은 없다 — 다시 끼어들지 않게
 test("the landing has no review panel any more", () => {
   assert.doesNotMatch(story, /render-lab/);
   assert.doesNotMatch(html, /data-lab=/);

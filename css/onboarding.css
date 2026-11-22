@@ -1,14 +1,14 @@
-/* Import screen: the laptop's desktop (2026-10-18, 사용자 선택 "노트북 바탕화면 그대로").
+/* Import screen: the laptop's desktop.
    The landing ends by diving into the laptop screen; this page IS that screen: the same wallpaper, monitor frame and
    taskbar (assets/landing/parts/desktop-v4, taskbar cut into parts in assets/app/desk). The import panel is a window
    on that desktop, the sample and the Helper are desktop icons / taskbar apps, and what you drop shows up as icons.
    Behaviour: js/ui/import-desk.js (windows, clock, dropped icons, leaving into the room). Loaded after styles.css. */
 
-/* 큰 한글 제목: 10-18 주아 → 10-24 나눔스퀘어라운드 EB(디자인 시스템 ①, 주아 안 씀). 글꼴 파일은 css/fonts.css */
+/* 큰 한글 제목: 나눔스퀘어라운드 EB(디자인 시스템 ①). 글꼴 파일은 css/fonts.css */
 
 :root {
   --desk-heading: var(--font-ui);
-  /* 11-08 A안: 초록 먹 → 정리방과 같은 갈색 먹·종이(css/room-paper.css --pen-*) */
+  /* 정리방과 같은 갈색 먹·종이(css/room-paper.css --pen-*) */
   --desk-ink: #2f231a;
   --desk-ink-2: #6b5a4a;
   --desk-paper: #fbf7ec;
@@ -69,7 +69,7 @@ body:not(.is-playing) .app-shell { width: auto; margin: 0; padding: 0; }
 .desk-dropping span { padding: 12px 22px; border-radius: 999px; background: var(--desk-ink); color: var(--desk-paper); font: 600 16px/1 inherit; }
 .desk.is-dragging .desk-dropping { display: grid; }
 
-/* ── windows: 연필 + 크림 종이(11-08 사용자 「정리방처럼 A안으로」 — 설정 창·상자 안 창과 같은 재료) ──
+/* ── windows: 연필 + 크림 종이(설정 창·상자 안 창과 같은 재료) ──
    종이는 여기서 칠하고, 연필 테두리는 js/ui/pencil.js가 깐다(data-pen="sheet" = 안쪽 12px, 단추는 paper·ink).
    제목줄은 색 띠 없이 작은 글자만 — 그 줄을 잡고 끈다(js/ui/import-desk.js · win-frame.js). */
 .win {
@@ -86,7 +86,7 @@ body:not(.is-playing) .app-shell { width: auto; margin: 0; padding: 0; }
   cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none;
 }
 .win-bar:active { cursor: grabbing; }
-.win-bar img { display: none; } /* 옛 앱 타일 그림(작업표시줄에는 그대로 있다) */
+.win-bar img { display: none; } /* 창 제목줄에는 앱 타일 그림을 안 쓴다(작업표시줄에만) */
 .win-title { flex: 1; color: var(--desk-ink-2); font: 800 13px/1 var(--font-ui); opacity: 0.8; }
 .win-close { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; background: none; color: var(--desk-ink); cursor: pointer; }
 .win-close svg:not(.pen) { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
@@ -104,7 +104,7 @@ body:not(.is-playing) .app-shell { width: auto; margin: 0; padding: 0; }
 }
 .win kbd + kbd { margin-left: 4px; }
 
-/* 제목: 먹 글자 + 강조 말에 빨간 연필 밑줄(예전엔 금색 글자) */
+/* 제목: 먹 글자 + 강조 말에 빨간 연필 밑줄 */
 .win-import h1 { margin: 0 0 12px; font: 800 32px/1.25 var(--desk-heading); letter-spacing: -0.01em; color: var(--desk-ink); }
 .win h1 em {
   font: inherit; font-style: normal; color: inherit; padding-bottom: 3px;
@@ -155,7 +155,7 @@ body:not(.is-playing) .app-shell { width: auto; margin: 0; padding: 0; }
 
 .win-fine { margin: 12px 0 0; color: var(--desk-ink-2); font-size: 12.5px; line-height: 1.6; }
 .win-fine strong { color: var(--desk-ink); }
-/* 10-25: 창 아래 줄 — 왼쪽 「← 처음으로」, 오른쪽 「샘플로 둘러보기 →」 (실제 모드에선 샘플이 숨고 처음으로만) */
+/* 창 아래 줄 — 왼쪽 「← 처음으로」, 오른쪽 「샘플로 둘러보기 →」 (실제 모드에선 샘플이 숨고 처음으로만) */
 .win-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; padding-top: 16px; border-top: 1.5px solid #2f231a1f; }
 .win-foot .win-sample { margin: 0; padding: 0; border: 0; }
 
@@ -170,7 +170,7 @@ body:not(.is-playing) .app-shell { width: auto; margin: 0; padding: 0; }
 .win .howto { color: var(--desk-ink-2); font-size: 13px; }
 .win .howto li::marker { color: var(--desk-ink); font-weight: 800; }
 .win-helper .helper-form { grid-template-columns: 96px 1fr auto; gap: 8px; }
-/* 연결 상태 줄: styles.css의 색(#d0e2bc 등)은 어두운 판용이라 크림 창에서 거의 안 보였다(11-07 사용자 캡처) */
+/* 연결 상태 줄: styles.css의 색(#d0e2bc 등)은 어두운 판용이라 크림 창에서 거의 안 보인다 */
 .win-helper .file-preview { color: var(--desk-ink-2); font-size: 13px; }
 .win-helper .file-preview[data-tone="success"] { color: #2f6b45; font-weight: 700; }
 .win-helper .file-preview[data-tone="error"] { color: #9b3d2a; }

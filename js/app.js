@@ -33,8 +33,8 @@ import { StatusPanel } from "./ui/status.js";
 import { FolderInterior } from "./ui/folder-interior.js";
 import { TUNING, UNIT } from "./three/tuning.js";
 
-// 페이지 안 링크(처음으로·이용 안내)는 사이트 뿌리 기준으로 다시 건다(10-18 사용자: 미리보기 서버에서 「처음으로」가
-// Not Found). "./"는 서버가 폴더 주소를 어떻게 푸느냐에 따라 엉뚱한 곳(…/app/index.html)으로 갈 수 있다.
+// 페이지 안 링크(처음으로·이용 안내)는 사이트 뿌리 기준으로 다시 건다(미리보기 서버에서 「처음으로」가 Not Found가 된다).
+// "./"는 서버가 폴더 주소를 어떻게 푸느냐에 따라 엉뚱한 곳(…/app/index.html)으로 갈 수 있다.
 // 이 스크립트(js/app.js)의 자리는 늘 맞으니 거기서 한 칸 위가 사이트 뿌리다.
 const SITE_ROOT = new URL("../", import.meta.url);
 for (const link of document.querySelectorAll('a[href^="./"]')) link.href = new URL(link.getAttribute("href"), SITE_ROOT).href;
@@ -65,10 +65,10 @@ const elements = {
   plan: $("#plan"),
   arrangeToggle: $("#arrange-toggle"),
   finish: $("#finish"),
-  stageSide: $("#settings-sheet"), // 10-25: 설정 창(옛 오른쪽 패널). Esc로 연다 — 11-10부터 새 폴더·기록·소리도 이 안에
+  stageSide: $("#settings-sheet"), // 설정 창. Esc로 연다 — 새 폴더·기록·소리도 이 안에
   logSheet: $("#log-sheet"),
   logToggle: $("#log-toggle"),
-  panelToggle: $("#panel-toggle"), // 위 「톱니바퀴 [Esc]」(11-10)
+  panelToggle: $("#panel-toggle"), // 위 「톱니바퀴 [Esc]」
   progressHud: $("#progress-hud"),
   progressDone: $("#progress-done"),
   progressTotal: $("#progress-total"),
@@ -81,7 +81,7 @@ const store = new SessionStore({
   // -1 = 자동 보충 없음. 책상을 다 치우면 바닥이 드러나고, 다음 무더기는 더미를 눌러 꺼낸다. [임시]
   refillBelow: intParam("refill", -1, -1, 64),
   bounds: playBoundsFor("bottom"),
-  // 다락방(10-11): 사진·메모는 핀보드에서 시작한다. 정원이 차면 바닥. (11-07: 문서 책 더미는 뺌 — 바닥 파일)
+  // 다락방: 사진·메모는 핀보드에서 시작한다. 정원이 차면 바닥. 문서와 나머지는 바닥
   layout: params.get("layout") === "grid" ? {} : {
     mode: "floor", card: ATTIC_CARD, floor: ATTIC_FLOOR_LAYOUT, slotArea: atticSlotArea(UNIT), home: fileHome, homeCapacity: ATTIC_HOME_CAPACITY,
   },
@@ -281,17 +281,17 @@ function updateBar() {
   const complete = total > 0 && done === total;
   if (complete && !completedNoticeShown) {
     completedNoticeShown = true;
-    // 마지막 이동의 「N개를 …에 옮김」 알림(logMove)이 바로 뒤에 덮어쓰므로 한 박자 늦게 띄운다(10-20, 노트북으로 가라는 안내라 꼭 보여야 함)
+    // 마지막 이동의 「N개를 …에 옮김」 알림(logMove)이 바로 뒤에 덮어쓰므로 한 박자 늦게 띄운다(노트북으로 가라는 안내라 꼭 보여야 함)
     setTimeout(() => { if (store.progress.done === total) status.notice(`${total}개를 전부 치웠어요. 책상 위 노트북에서 마무리하세요.`, "success"); }, 0);
   } else if (!complete) {
     completedNoticeShown = false;
   }
-  // 다 치웠으면 저절로 넘어가지 않고 노트북이 부른다(10-20 사용자). 직접 걸어가 누르면 결과 화면.
+  // 다 치웠으면 저절로 넘어가지 않고 노트북이 부른다. 직접 걸어가 누르면 결과 화면.
   board?.setLaptopCall?.(complete);
   const last = store.lastBatch;
   const arranging = board?.arranging;
   elements.arrangeToggle.hidden = !board?.setArranging;
-  elements.arrangeToggle.querySelector(".arrange-label").textContent = arranging ? "상자 배치 모드" : "파일 정리 모드"; // 옆의 <kbd>Tab</kbd>은 그대로(11-07 연필 키캡)
+  elements.arrangeToggle.querySelector(".arrange-label").textContent = arranging ? "상자 배치 모드" : "파일 정리 모드"; // 옆의 <kbd>Tab</kbd>(연필 키캡)은 그대로 둔다
   elements.arrangeToggle.setAttribute("aria-pressed", String(!!arranging));
   elements.undoButton.disabled = pending > 0 || (arranging ? !board.canUndoArrangement : !last);
   elements.undoButton.querySelector(".undo-label").textContent = arranging ? "상자 배치 되돌리기" : last
@@ -320,7 +320,7 @@ function renderPlan() {
 
 let starting = false;
 async function startWith(nextProvider) {
-  // 보드는 한 번만 만든다. 두 번째 시작은 렌더 루프·이벤트를 겹쳐 붙이므로 막는다(11-16 검수 #6).
+  // 보드는 한 번만 만든다. 두 번째 시작은 렌더 루프·이벤트를 겹쳐 붙이므로 막는다.
   if (board || starting) return;
   starting = true;
   try {
@@ -357,13 +357,13 @@ async function startOnce(nextProvider) {
   }
   elements.onboarding.hidden = true;
   elements.stage.hidden = false;
-  // 정리 시작 화면(10-18): 방이 차려지는 동안 로딩, 다 되면 조작 안내. ?intro=0이면 건너뛴다(자동 점검용).
+  // 정리 시작 화면: 방이 차려지는 동안 로딩, 다 되면 조작 안내. ?intro=0이면 건너뛴다(자동 점검용).
   const showIntro = params.get("intro") !== "0";
   if (showIntro) roomIntro.show({ modeText: elements.modePill.textContent, fileCount: provider.files.length });
   elements.newFolderForm.hidden = !canCreateFolder;
   // 게임 화면은 뷰포트를 채운다. 온보딩(나중에는 랜딩 페이지)은 평소 레이아웃 그대로다.
   document.body.classList.add("is-playing");
-  sound.setRoom(true); // 노트북 속(가져오기 화면)은 조용히, 방에 들어오면 음악(11-09 사용자)
+  sound.setRoom(true); // 노트북 속(가져오기 화면)은 조용히, 방에 들어오면 음악
 
   elements.outlineThickness.value = TUNING.outline.thickness;
   elements.dithering.value = TUNING.dithering.preset;
@@ -397,9 +397,9 @@ async function startOnce(nextProvider) {
   );
 }
 
-// 11-07 사용자 A안: 정리방 UI(위·아래 버튼, 키 안내, 설정·기록 창)는 연필 + 크림 종이. 모양은 css/room-paper.css
+// 정리방 UI(위·아래 버튼, 키 안내, 설정·기록 창)는 연필 + 크림 종이. 모양은 css/room-paper.css
 pencilize(elements.stage);
-pencilize(elements.onboarding); // 가져오기·결과 창도 같은 연필 + 크림 종이(11-08 사용자: 정리방처럼 A안으로)
+pencilize(elements.onboarding); // 가져오기·결과 창도 같은 연필 + 크림 종이
 pencilize(elements.finish);
 // 소리(js/sound.js): 설정 창 「소리」 켜기/끄기, 화면 단추마다 「연필 톡」. 방 안의 소리(집기·넣기·던지기·꽂기)는 board-3d.js
 sound.bindToggle($("#sound-toggle"));
@@ -426,7 +426,7 @@ function helperWindowChanged(open) {
   });
 }
 
-// 가져오기 화면 = 노트북 바탕화면(2026-10-18). 보이는 것만 맡고 파일은 Onboarding이 읽는다.
+// 가져오기 화면 = 노트북 바탕화면. 보이는 것만 맡고 파일은 Onboarding이 읽는다.
 const desk = mountImportDesk({ root: elements.onboarding, startSample: () => onboarding.startSample(), onHelperWindow: helperWindowChanged });
 const onboarding = new Onboarding({
   root: elements.onboarding,
@@ -447,7 +447,7 @@ const onboarding = new Onboarding({
 
 store.subscribe(updateBar);
 
-// 10-25 가져오기 화면 「← 처음으로」: 랜딩에서 들어왔으면 브라우저 뒤로(랜딩이 정리된 방에서 기다린다), 아니면 링크대로 랜딩 첫 화면
+// 가져오기 화면 「← 처음으로」: 랜딩에서 들어왔으면 브라우저 뒤로(랜딩이 정리된 방에서 기다린다), 아니면 링크대로 랜딩 첫 화면
 document.getElementById("go-home")?.addEventListener("click", (event) => {
   if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   let fromLanding = false;
@@ -461,7 +461,7 @@ elements.newFolderForm.addEventListener("submit", (event) => {
   if (!name.trim()) return;
   createFolder(name);
   elements.newFolderName.value = "";
-  // 설정 창 안에서 만들었으니(11-10) 창을 닫고 방으로 — 새 상자를 바로 보게. Enter·클릭이 사용자 동작이라 시점도 다시 잡힌다
+  // 설정 창 안에서 만들었으니 창을 닫고 방으로 — 새 상자를 바로 보게. Enter·클릭이 사용자 동작이라 시점도 다시 잡힌다
   closeSheets();
   resumeAfterSheet();
 });
@@ -489,8 +489,8 @@ elements.vertexWobble.addEventListener("change", (event) => {
 
 elements.undoButton.addEventListener("click", undoLastBatch);
 
-// 10-25: 오른쪽 패널 → 방 위에 뜨는 창 둘. 설정(그래픽 + 조작 표), 「기록」 = 정리 계획 + 한 일. 하나만 열린다.
-// 11-10 사용자 「정말 큰 버그」: 방에선 커서가 시점에 잡혀 있어 위 단추를 누를 틈이 없었다 → 새 폴더·기록·소리는 설정 창 안으로.
+// 방 위에 뜨는 창 둘: 설정(그래픽 + 조작 표), 「기록」 = 정리 계획 + 한 일. 하나만 열린다.
+// 방에선 커서가 시점에 잡혀 있어 위 단추를 누를 틈이 없다 → 새 폴더·기록·소리는 설정 창 안에 둔다.
 // 위에는 「파일 정리 모드 [Tab]」과 「톱니바퀴 [Esc]」만 남아 무슨 키인지 보여 준다(커서가 풀렸을 때는 눌러도 된다).
 function setSheet(sheet, button, open, label) {
   sheet.dataset.open = String(open);
@@ -512,7 +512,7 @@ function toggleLog(force) {
   suspendForSheets();
 }
 const sheetOpen = () => elements.stageSide.dataset.open === "true" || elements.logSheet.dataset.open === "true";
-// 창이 떠 있는 동안은 걷기·집기를 막는다(정리 시작 화면과 같은 방식). 닫으면 방을 다시 클릭해 시점을 잡는다
+// 창이 떠 있는 동안은 걷기·집기를 막는다(정리 시작 화면과 같은 방식). 닫은 뒤 시점 다시 잡기는 아래 resumeAfterSheet
 let sheetSuspended = false;
 function suspendForSheets() {
   const open = sheetOpen();
@@ -521,7 +521,7 @@ function suspendForSheets() {
   board.setSuspended(open);
 }
 function closeSheets() { toggleSidePanel(false); toggleLog(false); }
-// 10-25 사용자: 「Esc 누르면 설정 창, 설정 창 닫으면 바로 화면 조작」.
+// Esc 누르면 설정 창, 설정 창 닫으면 바로 화면 조작.
 // 클릭으로 닫으면(사용자 동작 안이라 브라우저가 허락) 곧바로 마우스 시점을 다시 잡는다. Esc로 닫으면 브라우저가 Esc를
 // 사용자 동작으로 치지 않아 시점을 못 잡으므로 방을 한 번 클릭해야 한다. Esc로 락이 풀린 직후 1초쯤은 크롬이 다시 잡기를
 // 거절하므로 그만큼 기다렸다가 잡는다(클릭의 사용자 동작은 몇 초 유지된다).
@@ -557,7 +557,7 @@ function toggleArrangement() {
 elements.arrangeToggle.addEventListener("click", toggleArrangement);
 
 window.addEventListener("keydown", (event) => {
-  // 설정·기록 창이 떠 있으면 Esc로 닫고, 방 조작 키는 받지 않는다(10-25)
+  // 설정·기록 창이 떠 있으면 Esc로 닫고, 방 조작 키는 받지 않는다
   if (!elements.stage.hidden && sheetOpen()) {
     // 락이 풀리며 방금 저절로 연 창을 같은 Esc가 바로 닫지 않게
     if (event.key === "Escape") { event.preventDefault(); if (performance.now() - sheetAutoOpenedAt > 400) closeSheets(); }
@@ -599,7 +599,7 @@ window.addEventListener("keydown", (event) => {
     if (board?.locked) return;
     if (store.level !== null) { store.leaveFolder(); return; }
     store.clearSelection();
-    toggleSidePanel(true); // 10-25: 마우스가 풀린 상태에서 Esc도 설정 창
+    toggleSidePanel(true); // 마우스가 풀린 상태에서 Esc도 설정 창
     return;
   }
   if (event.key === "Backspace" && store.level !== null) {
@@ -607,7 +607,7 @@ window.addEventListener("keydown", (event) => {
     store.leaveFolder();
     return;
   }
-  // 숫자 키(N번 상자에 넣기)는 2026-10-13 사용자 결정으로 뺐다. 상자는 보고 클릭해서 넣는다.
+  // 숫자 키로 상자에 넣기는 없다. 상자는 보고 클릭해서 넣는다.
 });
 
 window.addEventListener("pagehide", () => {
@@ -623,7 +623,7 @@ async function initialize() {
         : "HTTPS나 localhost에서 열어야 해요. file:// 로는 동작하지 않아요.",
     );
   }
-  // 연결 정보: v0.2.2부터는 주소의 # 뒤(서버로 안 감), 그 전 Helper는 ? 뒤(10-20).
+  // 연결 정보: Helper v0.2.2부터는 주소의 # 뒤(서버로 안 감), 그 전 Helper는 ? 뒤 — 둘 다 받는다.
   const fromHash = new URLSearchParams((location.hash ?? "").slice(1)); // 테스트의 가짜 location엔 hash가 없다
   const helperPort = fromHash.get("helper") ?? params.get("helper");
   const helperToken = fromHash.get("token") ?? params.get("token");
@@ -648,7 +648,7 @@ async function initialize() {
 
 initialize();
 
-// ───────────────────────── 정리 끝내기 · 결과 화면 (2026-10-18) ─────────────────────────
+// ───────────────────────── 정리 끝내기 · 결과 화면 ─────────────────────────
 // 다 치울 필요는 없다. "이 정도면 됐다"에서 끝내면 그 상태가 결과다. 체험 모드는 결과 화면에서 Helper로 적용하거나 계획을 저장한다.
 
 /** 지금 방의 상태 → 결과 화면이 보여 줄 것 */
@@ -689,7 +689,7 @@ function buildFinishReport() {
   };
 }
 
-/** 정리 끝내기 = 빈손으로 책상 노트북을 누름(10-20, HUD 단추는 뺐다). 화면 속으로 줌인 → 화면이 꽉 차면 결과 화면. */
+/** 정리 끝내기 = 빈손으로 책상 노트북을 누름. 화면 속으로 줌인 → 화면이 꽉 차면 결과 화면. */
 let diving = false;
 async function openFinish() {
   if (!board || finishDesk.open || pending > 0 || diving) return;

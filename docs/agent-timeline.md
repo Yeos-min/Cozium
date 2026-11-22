@@ -1049,3 +1049,71 @@ js/ui/board-layout.js 새 fileColor(ext, family): pdf 빨강 #ee8a7c · ai 주�
 helper/desktop-helper.mjs VERSION 0.2.3 → 0.2.4(위 #1 이동 변경이 exe에 들어가므로). C·D·GitHub 같은 줄.
 exe 빌드(이 채팅 Linux): Node v22.22.0(npm node-linux-x64) + npm node-win-x64@22.22.0 node.exe — osslsigncode로 OpenJS Foundation 서명, 서명 해시 = 계산 해시 확인(인증서 체인은 루트 없음으로 검증 못 함). 같은 소스도 빌드마다 SHA-256이 달라 v0.2.3 재현 비교는 안 됨.
 결과 CoziumHelper.exe 82.0 MB, SHA-256 282cf97c303b920ec8efdca2f326eb6ab90bae580407a5b135f1f2f7292907bd. exe 안에 0.2.4·retireLink 들어감 확인, 같은 코드 Linux node로 v0.2.4 시작 확인. **Windows에서 exe 실행은 미확인.** 이 세션은 GitHub 릴리스를 만들 권한이 없어(403) exe를 `output\helper\CoziumHelper.exe`(C·D, git 제외)에 둠 → 사용자가 Windows에서 켜 보고 릴리스 v0.2.4에 `CoziumHelper.exe`로 올리고 설명에 SHA-256. PR은 VERSION + 이 기록.
+
+## 2026-11-23 01:10–01:18 KST — Claude(모바일 채팅): 모바일 = 랜딩만, 끝에 「PC에서 실행해 주세요」
+
+계기: 전시를 QR로 한다고 해서 모바일 대응 필요(사용자). 결정(사용자): 모바일은 랜딩 이야기만 그대로 보여 주고, 마지막에 PC에서 실행하라는 안내.
+js/landing-story/story.js: `MOBILE = matchMedia("(hover: none) and (pointer: coarse)")`. 모바일이면 끝 버튼 `#endGo` 글자를 「PC에서 실행해 주세요」로 바꾸고 href 제거(누를 수 없는 안내), `startEnter()`가 아무것도 안 함 → 끝 장면 노트북 누르기·「건너뛰고 바로 시작」의 걸어 들어가기도 막힘(건너뛰기는 정리된 방에서 멈춤). PC는 그대로.
+css/landing-story.css: `.end-go[data-mobile]` 누를 수 없게.
+확인: 헤드리스 iPhone 13 세로·가로 에뮬레이션(SwiftShader)으로 첫 화면 → 말풍선 → 바탕화면 → 담기 → 끝까지 진행, 끝 버튼 글자·href 없음·탭해도 주소 안 바뀜. PC 1440×810은 건너뛰기 → app.html로 들어감(기존 그대로). npm test 203 통과·1 건너뜀·실패 0. **실제 폰 확인 안 함**(터치 끌기·성능·LTE 로딩 시간).
+본 문제(안 고침, 사용자에게 물음): 세로는 양옆이 크게 잘림(첫 화면 머그컵 반쯤), 가로는 「노트북을 눌러 시작하기」가 두 줄로 꺾이고 담기 단계 문구가 내비 밑에 일부 가려짐. 위쪽 내비 「정리방 들어가기」는 모바일에서도 app.html로 감. app.html 직접 열기도 막지 않음.
+D 백업 `_archive/claude-mobile-20261123/`. GitHub 반영은 사용자(sync-to-c → push).
+
+## 2026-11-23 01:40–01:55 KST — Claude(모바일 채팅): 끝 화면 다시 + 세로 안내 + 가로 정리
+
+사용자: 끝 버튼 글자를 바꾸지 말고, 원래 버튼을 누른 뒤 나오는 화면에 「PC에서 즐겨주세요」가 나와야 함 + 잘리는 것 해결(세로는 「가로로 돌려 주세요」 안내를 고름).
+story.js: 01:10 판의 버튼 글자 바꾸기·startEnter 막기를 되돌림. 폰도 「내 바탕화면 정리하러 가기 →」 그대로 → 노트북으로 걸어 들어감 → finishEnter에서 app.html 대신 `.pc-only`(종이색 전체 화면: 「PC에서 즐겨주세요」 / 「내 바탕화면 정리는 PC 브라우저에서 할 수 있어요」 / 주소 yeos-min.github.io/Cozium / 「방으로 돌아가기」 → 정리된 방으로 빠져나옴). 건너뛰기·끝 장면 노트북 누르기도 같은 화면으로.
+폰 세로: `.rotate-hint` 전체 화면(진갈색 #2f231a, 선 그림 폰 + 「가로로 돌려 주세요」 / 「Cozium은 가로 화면에서 볼 수 있어요」), CSS `orientation:portrait` + 터치일 때만 보임.
+폰 가로: 내비가 이야기 시작 때 접힘(PC와 같이, 터치에서도) — 담기 문구를 가리던 것. 「노트북을 눌러 시작하기」 줄바꿈 금지. 터치의 「건너뛰고 바로 시작」은 왼쪽 아래·배율 1(문구 상자와 겹쳤고 너무 작았음).
+css/landing-story.css: `.pc-only`, `.rotate-hint`, `.intro-hit span` nowrap, 터치 `.skip` 위치.
+확인: 헤드리스 iPhone 13 세로(안내만 보임)·가로(첫 화면 → 바탕화면 → 담기 → 끝 → 버튼 → 안내 화면 → 돌아가기). npm test 203 통과·1 건너뜀. PC는 MOBILE이 false라 바뀐 경로 없음. **실제 폰 미확인.** 아직 안 막은 것: 접히기 전 내비 「정리방 들어가기」, app.html 직접 열기.
+
+## 2026-11-23 01:58–02:05 KST — Claude(모바일 채팅): 폰에서 모니터(바탕화면) 위 잘림
+
+사용자: 모니터 화면 뜰 때 위가 잘림. 원인: 폰 가로(390px 높이)에서도 바탕화면 아이콘을 PC 크기(60px, 10×6칸)로 그려서 격자 + 작업 표시줄이 화면에 안 들어감(약 764px 필요).
+story.js layoutWorld: MOBILE일 때 du를 「격자 + 작업 표시줄 + 여백」이 화면 폭·높이에 다 들어가는 크기까지 줄임(바닥으로 넘어가는 3D 아이콘도 du를 따라감). MOBILE 선언을 파일 위쪽(reduced 옆)으로 옮김. PC는 그대로.
+확인: 헤드리스 iPhone 13·Galaxy S9+·iPad 가로에서 모니터 테두리 위까지 다 보이고 바탕화면 → 바닥 넘어감 정상. 폰에선 아이콘 이름 글자는 작아서 거의 안 읽힘(그림으로만 보임). 「건너뛰고 바로 시작」이 바탕화면 장면에서 작업 표시줄 왼쪽 빈 곳에 겹쳐 보임. npm test 203 통과. **실제 폰 미확인.**
+
+## 2026-11-23 02:06–02:12 KST — Claude(모바일 채팅): 「PC에서 즐겨주세요」 화면을 연필 종이로
+
+사용자: 이 화면은 그 종이에 손글씨 같은 디자인으로(정리방 UI·소리 단추의 「크림 종이 + 연필 두 번 그은 테두리」, 11-07 A안).
+story.js: 안내를 `.pc-card`(data-pen="paper") 한 장에 담고 `pencilize(pcOnly)`로 테두리를 깖. 「방으로 돌아가기」는 data-pen="ink"(먹 채움 + 크림 글자, 정리방 「방에 들어가기」와 같은 주 단추).
+css/landing-story.css: `.pc-only` 바탕은 종이색 그대로, 카드·연필 선 색은 css/room-paper.css와 같은 값(#fbf7ec / #2f231a, 선 2.6·1.3).
+확인: 헤드리스 iPhone 13 가로에서 그림 확인. npm test 203 통과. **실제 폰 미확인.**
+
+## 2026-11-23 02:17–02:24 KST — Claude(모바일 채팅): 폰에서 「정리방 들어가기」로 정리방에 들어가지던 버그
+
+사용자 보고. 막은 길 셋: ① 랜딩 위 내비 「정리방 들어가기」 → story.js가 터치 기기면 막고 「PC에서 즐겨주세요」 화면(걸어 들어가기 없이 바로, 「방으로 돌아가기」는 그냥 닫기) ② 이용 안내(help.html)의 같은 링크 ③ 주소로 app.html 직접 열기 → ②③은 새 파일 js/mobile-gate.js(일반 스크립트, app.html CSP 바로 다음에서 맨 먼저 읽음)가 index.html#pc로 돌려보내고, 랜딩은 #pc면 그 화면을 바로 띄움.
+app.html(CRLF): `<script src="./js/mobile-gate.js">` 한 줄 추가 — 외부 파일이라 CSP 지문은 그대로(script-src 'self'). D 원본 백업 `_archive/claude-mobile-20261123/app.html`.
+확인: 헤드리스 iPhone 13 가로에서 내비 탭 → 안내·닫기, app.html 직접 → index.html#pc + 안내, 이용 안내 링크 → 같은 곳. PC 1440×810에서 app.html은 그대로 열림. npm test 203 통과(csp 테스트 포함). **실제 폰 미확인.**
+
+## 2026-11-23 02:33–02:45 KST — Claude(모바일 채팅): Codex 주석 검토 9건 반영(주석만, 동작 변화 없음)
+
+사용자가 Codex 주석 검토 결과를 주며 수정 요청. 코드와 대조해 맞는 것만 고침.
+1. board-3d.js #throwWorld 위 「던져서는 안 들어간다」 옛 주석 한 줄 삭제(바로 아래 주석·코드는 입구로 떨어지면 들어감).
+2. native-helper-provider.js `file: null` 주석: 「썸네일은 다음 단계」 → readThumbnail()으로 필요할 때 받음.
+3. story.js·landing-story.css: 스크롤·휠로 넘긴다는 설명 → 장면 단위 전환(자동 재생·담기·건너뛰기·#end 복귀), 로딩 중엔 pendingTo로 기억.
+4. outline-ink.js 머리 주석: 「선택되면 js/three로 옮길 예정(Codex)」 → 색 설정(setInk) + 예전 셰이더용 호환(enableInk), 주변색 선은 이미 outline-effect.js.
+5. native-helper-provider.js·cleanup-plan.js: 「같은 볼륨 rename / rename 역방향」 → moveNoOverwrite(하드 링크 + retireLink, 안 되는 드라이브는 거부), 되돌리기도 같은 함수.
+6. story.js 맨 위 흐름: 모바일 분기(PC에서 즐겨주세요·가로 안내), 건너뛰기 표시 조건·위치(PC 오른쪽 위 / 터치 왼쪽 아래), 말풍선 1·2 자리.
+7. app.js: 「닫으면 방을 다시 클릭」 → 바로 아래 resumeAfterSheet 설명(클릭으로 닫으면 바로 재연결, Esc는 방 클릭)을 가리킴.
+8. desktop-helper.mjs listDirectory: 「숨김 시스템 파일」 → 심볼릭 링크·정션과 desktop.ini·thumbs.db(SKIP_NAMES). 주석만이라 VERSION·exe 그대로.
+9. app.html·story.js의 room.glb 용량(4.4 MB·4 MB·3 MB) 숫자 삭제(지금 3,138,712 B).
+SEG_MS 주석의 사용자 발언·날짜도 지금 이유만 남김. 나머지 날짜·발언 정리(문체 지적)는 범위가 커서 안 함.
+D 백업 `_archive/claude-comments-20261123/`. node --check 7개 통과, npm test 203 통과(csp 포함). helper·app.html CRLF 유지.
+
+## 2026-11-23 02:46–03:30 KST — Claude(모바일 채팅): 주석에서 날짜·발언·결정 과정 정리(주석만, 동작 변화 없음)
+
+사용자: 주석은 코드가 무슨 역할을 하는지와 사후 관리를 위한 것 — 사적인 이야기(날짜, 누가 뭐라 했는지, 시안 고른 과정)는 지울 것.
+기준: 뺀 것 = 날짜·시각, 「사용자: …」·교수님 발언, A안/B안·시안 선택, Codex·GPT·Claude 같은 작업자 이름, 「검수 #N」 번호, 「예전엔 …였다」 변경 이력, _archive 경로. 남긴 것 = 하는 일, 그렇게 짠 이유(발언에 담긴 이유는 이유만 문장으로), 잘못 고치면 깨지는 곳 경고(파일 안전성·좌표·포인터락·CSP 등). 「사용자 제스처/동작」(브라우저 user activation)은 그대로.
+범위: 사이트 코드·CSS·HTML, helper, tools, tests(테스트 제목의 날짜 포함) 74개. docs/·README·CLAUDE.md·이 타임라인은 기록이라 안 건드림.
+확인: 남은 패턴 검색 0(코드 속 파일 이름 「스크린샷 2026-…」 등 제외), node --check, HTML·CSS 주석 여닫이 수 같음, npm test 203 통과·1 건너뜀(csp 포함), 헤드리스 PC index·app·help + iPhone 가로 index 콘솔 오류 0. 줄바꿈 유지(CRLF: app.html, site-nav.css, helper/desktop-helper.mjs, helper/app-url.test.mjs, tools/serve.mjs).
+D 백업 `_archive/claude-comments2-20261123/`(74개). Helper는 주석만이라 VERSION·exe 그대로.
+
+## 2026-11-23 02:56–03:05 KST — Claude(모바일 채팅): 안 쓰는 코드 지움
+
+사용자: 안 쓰는 죽은 코드 지워. 미리 훑은 결과(안 불러오는 js 파일 0, 다른 파일에서 안 부르는 export는 다 자기 파일 안에서 씀) 중 실제로 도는 일이 없는 것만 뺌.
+js/landing-story/outline-ink.js: enableInk·LINE 삭제(예전 셰이더용 덧씌우기 — 지금 outline-effect.js 셰이더엔 찾는 줄이 없어 늘 아무것도 안 했음). setInk는 outline.color·outline.ink만 정함(셰이더 쪽은 outline-effect.js inkTint).
+js/landing-story/room-layer.js: CAMERAS의 A·B 후보 삭제(style.cam은 늘 "C").
+landing.html(옛 주소 → index.html 이동 페이지)은 코드가 아니라 남김. 이 세션은 D 파일을 지울 수 없음 — 지우려면 사용자가 직접.
+확인: npm test 203 통과·1 건너뜀, 헤드리스 PC 랜딩 첫 방(카메라·외곽선) 그대로·콘솔 오류 0. D 백업 `_archive/claude-deadcode-20261123/`.

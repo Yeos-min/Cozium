@@ -27,7 +27,7 @@ export class FolderShelfAssignments {
 }
 
 /**
- * 정해진 벽 구간을 따라 상자 칸을 놓는다(다락방, 2026-10-11). runs는 attic-room.js의 ATTIC_SHELF_RUNS 꼴.
+ * 정해진 벽 구간을 따라 상자 칸을 놓는다(다락방). runs는 attic-room.js의 ATTIC_SHELF_RUNS 꼴.
  * 같은 order의 구간은 번갈아 채운다(양쪽이 같이 차오르게). 두 단, 아래 단부터.
  * wall "z": z = at인 벽(줄이 x를 따라 감), wall "x": x = at인 벽(줄이 z를 따라 감). 상자 앞면(+Z)이 facing 쪽을 본다.
  */

@@ -1,11 +1,11 @@
-// 소리(11-09): 코드가 부르는 효과음 이름이 js/sound.js에 다 있는지, 배경음악 파일과 반복 구간이 맞는지 잠근다.
+// 소리: 코드가 부르는 효과음 이름이 js/sound.js에 다 있는지, 배경음악 파일과 반복 구간이 맞는지 잠근다.
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-// .pathname은 Windows에서 /C:/... 가 되어 C:\C:\... 를 읽는다. fileURLToPath로 바꾼다(11-16 검수 #9).
+// .pathname은 Windows에서 /C:/... 가 되어 C:\C:\... 를 읽는다. fileURLToPath로 바꾼다.
 const root = fileURLToPath(new URL("..", import.meta.url));
 const source = readFileSync(join(root, "js/sound.js"), "utf8");
 const recipes = source.slice(source.indexOf("const RECIPES"), source.indexOf("const MIN_GAP"));

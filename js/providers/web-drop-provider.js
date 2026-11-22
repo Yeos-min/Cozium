@@ -7,7 +7,7 @@
  * - 이동은 가상이다. 폴더 안의 실제 이름을 읽어 동명 충돌은 진짜처럼 판정한다.
  * - 쓰기 API(createWritable, remove, removeEntry)는 절대 부르지 않는다.
  *
- * 왜 읽기 전용인가: 드롭 핸들의 쓰기 권한은 파일마다 확인창이 뜬다 (18개 → 18번, 실기기 확인 2026-09-02).
+ * 왜 읽기 전용인가: 드롭 핸들의 쓰기 권한은 파일마다 확인창이 뜬다 (18개 → 18번).
  * 실제 반영은 NativeHelperProvider가 한다.
  */
 import { describeFileHandle, resolveDroppedHandles } from "../file-system-service.js";
@@ -47,7 +47,7 @@ export class WebDropProvider extends VirtualMoveProvider {
     for (const entry of entries) {
       const source = entry.source;
       // 이름·종류가 다르면 같은 항목일 수 없다. 비싼 isSameEntry는 그 후보에만 부른다 —
-      // 전부와 비교하면 서로 다른 파일 500개에 124,750번이었다(11-16 검수 #14).
+      // 전부와 비교하면 서로 다른 파일 500개에 124,750번이 된다.
       if (!source || source.kind !== candidate.kind || source.name !== candidate.name) continue;
       if (await handlesMatch(source, candidate)) return true;
     }

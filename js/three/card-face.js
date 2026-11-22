@@ -75,7 +75,7 @@ function makeInkCanvas(width, height) {
   return canvas;
 }
 
-/* ── 문서 카드(11-16 사용자 A2): 정리방 UI와 같은 「연필 + 크림 종이」 ──
+/* ── 문서 카드: 정리방 UI와 같은 「연필 + 크림 종이」 ──
    크림 종이 안쪽에 손으로 두 번 그은 테두리(js/ui/pencil.js와 같은 결), 연필 문서 아이콘(안은 파일 색으로 옅게),
    먹 글자 파일 이름 + 색연필 밑줄, 확장자는 키캡 같은 연필 칩, 크기는 옅은 먹. 색은 board-layout.js fileColor(앱 색).
    선은 종이(map)에, 글자는 글자 층(ink)에 — 후처리(디더·외곽선)에서 글자만 빼려고. */
@@ -131,7 +131,7 @@ function penDocument(ctx, x, y, w, h, seed, color) {
 }
 
 /**
- * 파일 이름 줄바꿈: 확장자(「.blend」)는 한 덩어리로 둬서 「초안.b / lend」처럼 끊기지 않게(11-16).
+ * 파일 이름 줄바꿈: 확장자(「.blend」)는 한 덩어리로 둬서 「초안.b / lend」처럼 끊기지 않게.
  * 넘치면 마지막 줄 끝을 「…」으로 줄이되 확장자는 남긴다.
  */
 export function wrapFileName(ctx, name, maxWidth, maxLines) {
@@ -367,7 +367,7 @@ export function makeCardTexture(THREE, item, color, loadThumbnail) {
 export function makeBoxTexture(THREE, { index, name, subtitle, accent, bodyColor = "#a99775" }) {
   const key = `box|${index}|${name}|${subtitle}|${accent}|${bodyColor}`;
   if (cache.has(key)) return cache.get(key);
-  // subtitle에는 파일 개수가 들어 있어 넣을 때마다 새 텍스처가 생기고 옛것은 그대로 쌓였다(11-16 검수 #13).
+  // subtitle에는 파일 개수가 들어 있어 넣을 때마다 새 텍스처가 생기고 옛것이 쌓이므로 버린다.
   // 상자 하나(번호·이름·색)에는 마지막 텍스처 하나만 남기고 이전 것은 놓는다.
   const slot = `box|${index}|${name}|${accent}|${bodyColor}`;
   const previous = boxSlots.get(slot);
@@ -420,8 +420,8 @@ export function makeBoxTexture(THREE, { index, name, subtitle, accent, bodyColor
 }
 
 /**
- * 다락방 상자(`models/box.glb`) 앞면 손잡이 구멍 아래에 붙이는 이름표. (10-11)
- * 모델 앞면 UV가 아틀라스 조각이라 앞면 전체 대신 작은 판에 그린다. 번호 동그라미는 숫자 키와 함께 뺐다(10-13).
+ * 다락방 상자(`models/box.glb`) 앞면 손잡이 구멍 아래에 붙이는 이름표.
+ * 모델 앞면 UV가 아틀라스 조각이라 앞면 전체 대신 작은 판에 그린다.
  */
 export function makeBoxLabelTexture(THREE, { index, name, subtitle, accent }) {
   const key = `boxlabel|${index}|${name}|${subtitle}|${accent}`;
@@ -441,7 +441,7 @@ export function makeBoxLabelTexture(THREE, { index, name, subtitle, accent }) {
   ctx.strokeStyle = "#6b5a3e";
   ctx.lineWidth = 5;
   ctx.stroke();
-  // 겨눔 색 띠(예전 번호 동그라미 자리)
+  // 겨눔 색 띠
   ctx.fillStyle = accent ?? "#ffdb68";
   roundRect(ctx, 30, 40, 10, 38, 5);
   ctx.fill();
