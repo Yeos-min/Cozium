@@ -31,12 +31,12 @@ export const MODEL_MANIFEST = {
       // model3d: "./models/card-blend.glb",
     },
   },
-  // 배송지 상자. 사용자 모델(10-11): 미터 단위, 원점 = 바닥 가운데, 앞(+Z) = 손잡이 구멍 있는 짧은 면.
+  // 배송지 상자(models/box.glb): 미터 단위, 원점 = 바닥 가운데, 앞(+Z) = 손잡이 구멍 있는 짧은 면.
   // 게임 단위(0.5 m)로 ×2만 한다. 맞춤(fit)을 쓰면 비율이 칸에 맞춰 찌그러진다.
   box: { url: "./models/box.glb", fit: false, scale: 2 },
   // 아직 안 꺼낸 파일 더미
   pile: { url: null },
-  // (10-11) 침대·책상은 다락방 모델(room.glb) 안에 있다. 예전 `bed`(Bed.glb)·`desk` 슬롯은 뺐다.
+  // 침대·책상은 다락방 모델(room.glb) 안에 있어 따로 불러오지 않는다.
 };
 
 /** 모델을 정규화해 넣을 기준 크기 (월드 단위) */
@@ -81,7 +81,7 @@ export async function loadModel(THREE, kind, family) {
   try {
     if (!cache.has(url)) {
       // 로더를 기다리기 **전에** 약속을 캐시에 넣는다. 기다린 뒤에 넣으면 그사이 다른 호출도 캐시가 비었다고 보고
-      // 같은 모델을 또 받았다(상자 20개 동시 → loadAsync 20번, 11-16 검수 #12).
+      // 같은 모델을 또 받는다(상자 20개 동시 → loadAsync 20번).
       cache.set(url, getLoader().then((loader) => loader.loadAsync(url)).then((gltf) => gltf.scene));
     }
     const source = await cache.get(url);

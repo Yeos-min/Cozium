@@ -12,7 +12,7 @@
  *
  * 주의:
  *   - **blob을 만드는 node와 --node로 주는 node.exe의 버전이 같아야 한다.** 다르면 exe가 시작하지 않는다.
- *     2026-10-19 빌드: 둘 다 v22.22.0 (npm 패키지 node-win-x64@22.22.0의 bin/node.exe).
+ *     지금 쓰는 버전: 둘 다 v22.22.0 (npm 패키지 node-win-x64@22.22.0의 bin/node.exe).
  *   - 결과 exe는 서명이 없다. Chrome·SmartScreen 경고가 뜬다(CLAUDE.md §8-6).
  *   - Windows가 아닌 곳에서도 빌드는 되지만, exe 실행 확인은 Windows에서만 된다.
  *   - 결과물(`output/`)은 저장소에 올리지 않는다. GitHub Releases에 CoziumHelper.exe로 올린다.

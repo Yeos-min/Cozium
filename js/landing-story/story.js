@@ -1,6 +1,6 @@
 // story.js — Cozium 랜딩(index.html)의 흐름 전체. 3D 방은 room-layer.js, 이 파일은 순서·입력·노트북 속 바탕화면을 맡는다.
 //
-// 지금 흐름(11-03 새 첫 화면 → 11-06 흐름 뒤집기 → 11-07 손질):
+// 흐름:
 //   1. 어두운 책상 위 노트북만 — 「노트북을 눌러 시작하기」          (intro: laptop → boot)
 //   2. 정면 풀화면 「나의 바탕화면 / 환영합니다」                      (welcome)
 //   3. 깨끗한 바탕화면에서 뒤로 빠지며 아침 다락방 + Cozium 제목.     (reveal → ready)
@@ -9,11 +9,13 @@
 //   5. 바탕화면이 바닥이 되고 폴더가 상자가 된다                      (BEATS: dive → fall)
 //   6. 방문자가 직접 파일을 상자에 넣는다(다 넣을 때까지 기다림)      (try, GATE)
 //   7. 바닥이 드러나고 → 정리된 바탕화면 → 정리된 방                    (clear → back → out, 주소는 #end)
-//   8. 「내 바탕화면 정리하러 가기 →」(또는 노트북 클릭) → 노트북으로 걸어 들어가 app.html
-// 언제든 오른쪽 위 「건너뛰고 바로 시작」. 안내는 오른쪽 아래 연필 말풍선 1·2·3.
+//   8. 「내 바탕화면 정리하러 가기 →」(또는 노트북 클릭) → 노트북으로 걸어 들어가 app.html.
+//      폰·태블릿(MOBILE)은 app.html 대신 「PC에서 즐겨주세요」 화면(showPcOnly). 폰 세로는 「가로로 돌려 주세요」를 덮는다.
+// 이야기가 저절로 넘어가는 동안 「건너뛰고 바로 시작」(PC 오른쪽 위, 터치 왼쪽 아래).
+// 안내 연필 말풍선(1·2·3)은 장면마다 자리가 다르다(1 바탕화면 오른쪽 아래, 2 바닥 오른쪽 위 — frameCaption).
 //
 // 구획(아래 「─── 이름 ───」 줄): helpers · desktop data · DOM · WebGL world · camera poses · progress & input ·
-// the hands-on stop · per-frame scene · 3D room · the way in · 11-03 새 첫 화면 · DOM per frame · loop · site nav · parallax.
+// the hands-on stop · per-frame scene · 3D room · the way in · 첫 화면 · DOM per frame · loop · site nav · parallax.
 // 진짜 파일은 건드리지 않는다. 숫자 하나하나의 이유는 그 자리 주석과 docs/design-system.md.
 import * as THREE from "three";
 import { RoomLayer, StyledPass, TEXT_LAYER, SUCK_END } from "./room-layer.js";
@@ -33,13 +35,13 @@ const inOut = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const outBack = (t) => { const c = 1.6; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
 const W0 = 1672, H0 = 941;
 // The desktop inside the laptop, in CSS px — the same sizes as app.html's import desktop (css/onboarding.css), so the
-// landing's screen and the page it leads to look alike (10-18 user: names under the icons, folders first; then "the
-// landing looks zoomed in: icons, taskbar, bezel"). The plate is cover-fitted (×1.15–1.2 on a usual window), so all of
+// landing's screen and the page it leads to look alike. The plate is cover-fitted (×1.15–1.2 on a usual window), so all of
 // it is drawn at du = 1 / cover plate px per CSS px (layoutWorld) and comes out at these sizes on screen.
 const ICON = 60, CELL = { w: 100, h: 104 }, GRID0 = { x: 44, y: 44 }, COLS = 10, ROWS = 6;
 const CHROME = { frame: 26, bar: 56, barBottom: 30, barSide: 34 };
 let du = 1;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MOBILE = matchMedia("(hover: none) and (pointer: coarse)").matches; // 폰·태블릿(터치 전용): 아래 모바일 분기들
 function rng(seed) { return () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const R = rng(20261006);
 
@@ -65,7 +67,7 @@ const NAMES = {
   archive: ["사진_백업.zip", "자료모음.zip", "카톡_받은파일.zip", "다운로드_정리.zip", "백업_0412.zip", "백업_0503.zip", "폰트팩.zip", "설치파일.zip", "새 압축 파일.zip", "문서_백업.7z"],
 };
 const FOLDERS = [
-  // 폴더는 한 색(갈색·샌드, 10-18 사용자: 초록·갈색 차이에 뜻이 없어 헷갈림 → 통일). 상자 색도 같이.
+  // 폴더는 한 색(갈색·샌드). 색에 뜻이 없으니 섞지 않는다. 상자 색도 같이.
   { name: "사진", tone: "sand", at: [0, 0] }, { name: "문서", tone: "sand", at: [1, 0] },
   { name: "음악·영상", tone: "sand", at: [2, 0] }, { name: "압축파일", tone: "sand", at: [3, 0] },
 ];
@@ -90,17 +92,16 @@ for (const [r, c] of cells) {
   if (folderIndex >= 0) items.push({ folder: folderIndex, kind: "folder", name: FOLDERS[folderIndex].name, px, py });
   else items.push({ ...kindPool.pop(), px, py });
 }
-// A messy desktop is a full one, not a scattered one (user, 10-13: "a computer screen isn't like that"): every icon
-// sits on its grid cell, upright, kinds mixed. (10-08 to 10-13 each icon was nudged ±16 px and tilted ±11°, after the
-// intro video.) Its own seed for the arrival order below, so the rest of the layout keeps its numbers.
+// A messy desktop is a full one, not a scattered one (a real screen keeps icons on the grid): every icon
+// sits on its grid cell, upright, kinds mixed. Its own seed for the arrival order below, so the rest of the layout keeps its numbers.
 const RJ = rng(20261008);
-for (const it of items) { RJ(); RJ(); RJ(); it.deg = 0; } // the old jitter draws, kept so the arrival order stays the same
+for (const it of items) { RJ(); RJ(); RJ(); it.deg = 0; } // three draws per icon are kept so the arrival order below stays the same
 // The screen starts empty; the icons arrive one by one while the camera dives in, closer and closer together.
 // Driven by progress like everything else, so scrolling back takes them away again.
-// 11-06: 바탕화면은 화면이 커진 뒤에만 보이므로(deskNear) 아이콘도 그 뒤 절반에서 들어온다 — 방에서 빨려 들어간 파일이 아이콘이 되는 때
+// 바탕화면은 화면이 커진 뒤에만 보이므로(deskNear) 아이콘도 그 뒤 절반에서 들어온다 — 방에서 빨려 들어간 파일이 아이콘이 되는 때
 const DIVE_LEN = B.dive[1] - B.dive[0];
 const POP = [B.dive[0] + DIVE_LEN * .5, B.dive[0] + DIVE_LEN * .88], POP_LEN = .016;
-// 11-06 사용자 「모니터 화면이 HTML이라 이질감 → 멀리선 빈 화면, 가까이서만」: 노트북 속 바탕화면(HTML)은 화면이 커졌을 때만.
+// 노트북 속 바탕화면(HTML)은 화면이 커졌을 때만 보인다(멀리서 HTML 화면이 3D 방 위에 떠 보이면 어색하다).
 // t = 걸어 들어간 정도(0 방 … 1 화면 앞). 멀리선 3D 화면(room-layer #screenTone)만 보인다
 const deskNear = (t) => smooth(.42, .62, t);
 {
@@ -109,7 +110,7 @@ const deskNear = (t) => smooth(.42, .62, t);
   order.forEach((idx, k) => { items[idx].popP = POP[0] + (POP[1] - POP[0]) * Math.sqrt(k / (order.length - 1)); });
 }
 const files = items.filter((it) => it.kind !== "folder");
-// Desktop pictures (10-13): the user's GPT set, cut to size in assets/landing/parts/desktop-v4/ (README there).
+// Desktop pictures: assets/landing/parts/desktop-v4/ (README there).
 const DESK = "./assets/landing/parts/desktop-v4";
 const iconFile = (it) => it.kind === "folder" ? `${DESK}/icons/folder-${FOLDERS[it.folder].tone}.webp` : `${DESK}/icons/${it.kind}.webp`;
 
@@ -119,7 +120,7 @@ const roomCanvas = $("#room"), poster = $("#poster");
 // back from app.html (see "the way in"): read before anything else rewrites the address
 const cameBack = location.hash === "#end";
 // The 3D room. Its file things use the same faces as the floor scene inside the laptop (drawFace, below).
-// RoomLayer는 생성자에서 WebGL 렌더러를 만든다. 못 만들면 여기서 던져 아래 정지 화면 처리까지 못 갔다(11-16 검수 #8).
+// RoomLayer는 생성자에서 WebGL 렌더러를 만든다. 못 만들면 생성자가 던지므로 여기서 잡아야 정지 화면으로 갈 수 있다.
 // 그때는 같은 모양의 빈 방을 두고, 노트북 속 렌더러도 만들지 않아 정지 화면(noGL)으로 간다.
 let roomError = null;
 const room = (() => {
@@ -144,9 +145,9 @@ function stillRoom(error) {
 const desk = $("#desk"), deskIcons = $("#deskIcons"), deskChrome = $("#deskChrome");
 const introCue = $("#introCue"), introRays = introCue.querySelector(".boil"), introHit = $("#introHit"), welcome = $("#welcome"), bubble = $("#bubble");
 const caption = $("#storyCap"), capSvg = caption.querySelector("svg"), capN = caption.querySelector(".story-n"), capT = caption.querySelector(".story-t"), heroStart = $("#heroStart"), heroEnd = $("#heroEnd"), endGo = $("#endGo"), screenGlow = $("#screenGlow"), title = $("#title"), cta = $("#cta"), startLink = cta.querySelector(".start"), startLabel = cta.querySelector(".start-label"), skipBtn = $("#skip"), veil = $("#veil"), sceneStatus = $("#sceneStatus");
-let pendingTo = null;   // 방 모델이 오기 전에 가려던 곳 — 준비되는 순간 이어서 간다(10-23)
-// 10-23 사용자: 스크롤로 넘기는 이야기는 버림. 첫 화면 「시작해볼까요?」를 누르면 이야기가 저절로 끝까지 흐르고(직접 담기도 시연)
-// 정리된 방에서 노트북으로 걸어 들어가 app.html. 흐르는 동안 「건너뛰고 바로 시작 →」. null = 멈춰 있음.
+let pendingTo = null;   // 방 모델이 오기 전에 가려던 곳 — 준비되는 순간 이어서 간다
+// 자동 재생 상태. 시작하면 이야기가 저절로 흐르고(담기에서는 방문자를 기다림) 정리된 방에서 멈춘다.
+// 흐르는 동안 「건너뛰고 바로 시작 →」. null = 멈춰 있음.
 let auto = null;
 let deskMode = "messy";
 function buildDesk(mode, counts = []) {
@@ -191,19 +192,19 @@ function featherDesk(q) {
 }
 
 let vw = innerWidth, vh = innerHeight, cover = 1;
-// Safe area (user, 10-13): the plate is cover-fitted, so a window wider than 16:9 — a usual browser window, with its
+// Safe area: the plate is cover-fitted, so a window wider than 16:9 — a usual browser window, with its
 // tab and bookmark bars — crops its top and bottom (a taller one, its sides). Three things answer the crop:
 //  · the icon grid moves in by it, and the top-down camera with it (POSE_TOP), so the desktop still hands off to the
 //    floor seamlessly. Each shift stops where the grid (≈ 984 × 640 plate px incl. jitter and names) would run into the
-//    far edge or the taskbar; past that (a phone) the grid simply doesn't fit.
+//    far edge or the taskbar; on a phone the desktop is shrunk to fit instead (MOBILE, layoutWorld).
 //  · the monitor frame and the taskbar sit on the visible part of the window (fitChrome). The frame is the same SVG
 //    drawn as a 9-slice border (corners kept, edges stretched), so a new monitor-frame.svg still just drops in.
 //    During the walk-in they stay on the plate's edges (the laptop's screen edges) and move in as the screen fills.
 const DESK_APP = "./assets/app/desk"; // the import desktop's taskbar parts: bar, five app tiles, tray (app.html)
 let safe = { x: 0, y: 0 }, crop = { x: 0, y: 0 }, chromeK = -1;
-// The chrome's pictures come from DESK here, not from index.html: a browser holding an older index.html next to a
-// newer story.js showed the old taskbar and frame on the new wallpaper (user, 10-13). The taskbar is now the import
-// desktop's (bar stretched from its caps, tiles and tray on it), drawn in CSS px and scaled by du like the icons.
+// The chrome's pictures come from DESK here, not from index.html: a cached older index.html next to a newer story.js
+// would otherwise show a mismatched taskbar and frame. The taskbar is the import desktop's (bar stretched from its caps,
+// tiles and tray on it), drawn in CSS px and scaled by du like the icons.
 const taskbar = document.createElement("div");
 {
   taskbar.className = "taskbar";
@@ -244,13 +245,18 @@ function layoutWorld() {
   vw = stage.clientWidth; vh = stage.clientHeight;
   cover = Math.max(vw / W0, vh / H0);
   du = deskScale(vw, vh) / cover; // 큰 화면(4K)에서는 바탕화면 UI도 같은 비율로 커진다(js/ui/desk-scale.js, 가져오기·결과 화면과 같은 숫자)
+  // 폰: 아이콘 10×6칸 + 작업 표시줄이 낮은 화면(가로 폰 390px 등)에 안 들어가므로 다 들어가는 크기까지 줄인다
+  if (MOBILE) {
+    const needW = GRID0.x * 2 + COLS * CELL.w, needH = GRID0.y * 2 + ROWS * CELL.h + CHROME.barBottom + CHROME.bar + 10;
+    du = Math.min(du, Math.min(vw / needW, vh / needH) / cover);
+  }
   world.style.transform = `translate(${(vw - W0 * cover) / 2}px,${(vh - H0 * cover) / 2}px) scale(${cover})`;
-  // 10-25 디자인 시스템: 히어로·단계 줄·쪽지·건너뛰기는 화면 px(디자인 시스템 크기 그대로). 1280×720보다 작으면 줄이고(최소 .65),
+  // 히어로·단계 줄·쪽지·건너뛰기는 화면 px(디자인 시스템 크기 그대로). 1280×720보다 작으면 줄이고(최소 .65),
   // 1600×900보다 크면 바탕화면 UI와 같은 배율로 키운다(deskScale).
   uiK = vw >= DESK_BASE.w && vh >= DESK_BASE.h ? deskScale(vw, vh) : clamp(Math.min(vw / 1280, vh / 720), .65, 1);
   stage.style.setProperty("--k", uiK.toFixed(3));
   crop = { x: Math.max(0, (W0 - vw / cover) / 2), y: Math.max(0, (H0 - vh / cover) / 2) };
-  // the grid moves in by the crop, but no further than its far edge allows (a phone: it simply doesn't fit)
+  // the grid moves in by the crop, but no further than its far edge allows
   const gridR = (GRID0.x + COLS * CELL.w) * du, gridB = (GRID0.y + ROWS * CELL.h) * du, below = (CHROME.barBottom + CHROME.bar + 10) * du;
   safe = { x: Math.min(crop.x, Math.max(0, W0 - crop.x - gridR)), y: Math.min(crop.y, Math.max(0, H0 - below - crop.y - gridB)) };
   deskIcons.style.transform = `translate(${safe.x.toFixed(1)}px,${safe.y.toFixed(1)}px) scale(${du.toFixed(4)})`;
@@ -377,7 +383,7 @@ function shadedBox(w, h, d, color, { top, front, opacity = 1, fiber = false, ink
 }
 
 // A box has six faces = six draw calls per file. The four edges share one material, so put them in one group:
-// three draw calls per file (10-23, the files → things moment dropped frames). Groups: 0 = edges, 1 = top face, 2 = back.
+// three draw calls per file (six per file dropped frames when the files turn into things). Groups: 0 = edges, 1 = top face, 2 = back.
 function sidesInOneGroup(g) {
   const src = g.index.array, out = [], groups = [];
   const take = (faces, materialIndex) => {
@@ -391,7 +397,7 @@ function sidesInOneGroup(g) {
   return g;
 }
 
-// Draw the whole floor world once, out of sight, right after it is built (10-23). Otherwise every shader program and
+// Draw the whole floor world once, out of sight, right after it is built. Otherwise every shader program and
 // texture is first needed in the middle of the fall — desktop → floor, then icons → things, then folders → boxes —
 // and each first use stalls a frame (measured: 8 → 11 programs, 69 → 86 textures compiled/uploaded mid-animation).
 function warmGL() {
@@ -414,14 +420,14 @@ function shadowTex() {
   }));
 }
 
-// Floor (10-13, user: "the box design and the floor have changed"): the attic's own boards, cut out of room.glb's
+// Floor: the attic's own boards, cut out of room.glb's
 // Room_BaseColor (the floor's UV rectangle, 5.7 × 8.6 m) into assets/landing/room-3d/attic-floor.webp and tiled.
 // The game's scale: a 0.42 m document card is 0.9 units here, so 1 unit ≈ 0.47 m. Boards run into the room (z).
 const FLOOR_TILE = { w: 5.73 / .47, d: 8.62 / .47 }, FLOOR = { x0: -11, x1: 11, z0: -6.3, z1: 9 }, FLOOR_BASE = "#59473a";
-// Walls (10-13, user: "is this the wall colour? it's not like ours"): the attic's plaster — a wall patch of room.glb's
+// Walls: the attic's plaster — a wall patch of room.glb's
 // Room_BaseColor (#f5f0e9, faintly mottled, 2.25 m) in attic-plaster.webp — and its dark timber (Wood beam, #241d18 in
 // the texture, a little lighter here where nothing is lit): a sill along the floor, the knee-wall beam at the attic's
-// 1.19 m (posts between the boxes were tried and taken out, user 10-13). It replaced the painted landing's cream + tan skirting.
+// 1.19 m. No posts between the boxes (with the boxes in front they read as a railing).
 const PLASTER_TILE = 2.25 / .47, PLASTER = "#f5f0e9", TIMBER = "#3a2c22", KNEE_Y = 1.19 / .47, WALL_Z = -6.25;
 // The nameplate on the front of a box.glb box (below the handle hole, as in the game's box-object.js): icon, name,
 // the count. 512 × 292 = the plate's 1.75 : 1.
@@ -445,15 +451,15 @@ const objects = [];      // file things (from desktop icons)
 const folders = [];      // folder icon → box
 let wallpaper, floorMesh, room3d, shadowMap, guide = null;
 const GUIDE_N = 10;
-// Boxes: the user's box.glb (0.514 × 0.493 × 0.682 model units, front with the handle hole at +z) ×2.6, one row on the
-// floor along the back wall — no cabinet, as in the game since 10-11 ("boxes stack, no shelf frames needed").
+// Boxes: models/box.glb (0.514 × 0.493 × 0.682 model units, front with the handle hole at +z) ×2.6, one row on the
+// floor along the back wall — no cabinet, as in the game (boxes stack, no shelf frames).
 const BOX_SCALE = 2.6, BOX = { w: .514 * BOX_SCALE, h: .493 * BOX_SCALE, d: .682 * BOX_SCALE };
 const SHELF_Z = -6.2 + BOX.d / 2, SHELF_Y = 0;
 const slotX = [-3.45, -1.15, 1.15, 3.45];
 
 async function buildGL() {
   const iconKinds = ["document", "photo", "video", "audio", "archive", "folder-sand"];
-  // 10-24: 이름표·상자 이름은 캔버스에 한 번 그려 두는 글자라 나눔스퀘어라운드가 오기 전에 그리면 시스템 글꼴로 굳는다
+  // 이름표·상자 이름은 캔버스에 한 번 그려 두는 글자라 나눔스퀘어라운드가 오기 전에 그리면 시스템 글꼴로 굳는다
   await (document.fonts?.load ? Promise.all(["400 12px NanumSquareRound", "700 12px NanumSquareRound"].map((f) => document.fonts.load(f))).catch(() => {}) : null);
   await Promise.all(iconKinds.map(async (k) => { iconImages[k] = await loader(`${DESK}/icons/${k}.webp`); }));
   const [wallImg, floorImg, plasterImg, boxModel] = await Promise.all([
@@ -470,7 +476,7 @@ async function buildGL() {
   groundTex.colorSpace = THREE.SRGBColorSpace; groundTex.anisotropy = 8; groundTex.wrapS = groundTex.wrapT = THREE.MirroredRepeatWrapping;
   const fw = FLOOR.x1 - FLOOR.x0, fd = FLOOR.z1 - FLOOR.z0;
   groundTex.repeat.set(fw / FLOOR_TILE.w, fd / FLOOR_TILE.d); groundTex.needsUpdate = true;
-  // the floor sits back in depth so the thin things on it never trade depth with it under vertex wobble (10-11 bug)
+  // the floor sits back in depth so the thin things on it never trade depth with it under vertex wobble (it flickered without this)
   floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(fw, fd), basic({ map: groundTex, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 }));
   floorMesh.rotation.x = -Math.PI / 2; floorMesh.position.set((FLOOR.x0 + FLOOR.x1) / 2, 0, (FLOOR.z0 + FLOOR.z1) / 2);
   const base = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), basic({ color: FLOOR_BASE, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 8 }));
@@ -498,9 +504,8 @@ async function buildGL() {
   const timber = (w, h, d, x, y, z) => { const b = shadedBox(w, h, d, TIMBER); b.position.set(x, y, z); room3d.add(b); };
   timber(21, .22, .14, 0, .11, WALL_Z + .07);               // sill
   timber(21, .26, .16, 0, KNEE_Y, WALL_Z + .08);            // knee-wall beam
-  // no posts: with the boxes in front they read as a railing (user, 10-13)
   // a window-light patch on the floor so the room reads as lit from the back-left
-  // soft-edged (a hard-edged quad read as a pane of glass on the dark boards, 10-13)
+  // soft-edged (a hard-edged quad reads as a pane of glass on the dark boards)
   const sunTex = canvasTex(makeCanvas(128, 256, (g, w, h) => {
     const gx = g.createLinearGradient(0, 0, w, 0); gx.addColorStop(0, "rgba(255,243,210,0)"); gx.addColorStop(.3, "rgba(255,243,210,1)"); gx.addColorStop(.7, "rgba(255,243,210,1)"); gx.addColorStop(1, "rgba(255,243,210,0)");
     g.fillStyle = gx; g.fillRect(0, 0, w, h);
@@ -512,7 +517,7 @@ async function buildGL() {
   sun.rotation.set(-Math.PI / 2, 0, -.55); sun.position.set(-6.8, .004, -1.5); room3d.add(sun);
   scene.add(room3d);
   // The floor, the wallpaper and the walls are big quads of four corners each: vertex wobble snapped their corners on
-  // their own, so during the tilt the base plane cut through the floor in flashes (user, 10-13). They don't wobble.
+  // their own, so during the tilt the base plane cut through the floor in flashes. They don't wobble.
   for (const m of [floorMesh, base, wallpaper, ...room3d.children]) m.userData.noSnap = true;
   // light for the boxes only (toon, like the room); everything else here is unlit
   scene.add(new THREE.HemisphereLight("#fff4e2", "#8a6a4a", 2.3));
@@ -628,11 +633,11 @@ function fitFloor() {
 const mixPose = (a, b, t) => Object.fromEntries(Object.keys(a).map((k) => [k, lerp(a[k], b[k], t)]));
 
 // ───────────── progress & input ─────────────
-// The story only ever rests on a finished scene. One scroll gesture plays the whole next transition;
-// the in-between frames are never a place to stop.
+// The story only ever rests on a finished scene. Each step (autoplay, the hands-on stop opening, skip, back from #end)
+// plays one whole transition; the in-between frames are never a place to stop.
 let prog = 0, gateOpen = false, blocked = 0, gateSince = 0, lastNudge = 0, nudges = 0, demoTimer = 0;
 const RESTS = [0, B.dive[1], GATE, B.back[1], 1]; // the cleared floor runs straight on into the tidy desktop
-const SEG_MS = [3000, 3800, 4900, 1900];           // RESTS[i] → RESTS[i + 1]; the dive was 1.7 s, felt rushed next to the intro video (2026-10-08); 10-24 2.8 → 3.6 → 3.0 s (사용자: 휙휙 → 1.2배 빠르게)
+const SEG_MS = [3000, 3800, 4900, 1900];           // RESTS[i] → RESTS[i + 1] 구간 길이(ms). 짧으면 장면이 휙 지나가 읽을 틈이 없다
 const BACK_MS = 1450;                              // empty floor → tidy desktop
 let tween = null, arrivedAt = 0, autoClearAt = 0;
 const atRest = () => !tween && RESTS.some((r) => Math.abs(r - prog) < 1e-4);
@@ -647,8 +652,7 @@ function travelMs(a, b) {
 }
 function goTo(to, durMs = 0) {
   if (to == null || noGL) return;
-  // 10-23 교수님 피드백("스크롤 안내가 가끔 안 뜬다"): room.glb(3 MB)가 오기 전엔 안내도 없고 스크롤도 먹지 않았다.
-  // 이제 안내는 처음부터 뜨고, 그사이 스크롤하면 기억했다가 준비되면 바로 넘어간다.
+  // 방 모델(room.glb)이 아직 안 왔으면 가려던 곳만 기억했다가, 준비되는 순간 이어서 간다(pendingTo).
   if (!room.ready) { if (to > prog) pendingTo = to; return; }
   if (!gateOpen && to > GATE) {
     if (prog >= GATE - 1e-4) { blockedAttempt(); return; }
@@ -699,7 +703,7 @@ function step(dir) {
   const list = dir > 0 ? RESTS : [...RESTS].reverse();
   goTo(list.find((r) => (dir > 0 ? r > prog + 1e-4 : r < prog - 1e-4)) ?? null);
 }
-// 스크롤·휠·화살표 키로 넘기기는 10-23에 없앰 — 이야기는 「시작해볼까요?」 버튼이 끝까지 틀어 준다(아래 autoplayTick).
+// 스크롤·휠·화살표 키로는 넘기지 않는다 — 이야기는 시작 말풍선을 누르면 저절로 흐른다(아래 autoplayTick).
 
 // ───────────── the hands-on stop ─────────────
 const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -863,7 +867,7 @@ function autoDemo() {
     demoTimer = 0;
     const held = hand.list; hand.list = [];
     depositInto(held, box);
-    // one pile per Enter (10-23: no more pile-after-pile show — the visitor does the rest)
+    // one pile per Enter — the visitor does the rest
   }, 750);
 }
 function resetTry() {
@@ -1141,15 +1145,14 @@ function roomQuad(t) {
 }
 const insidePass = renderer ? new StyledPass(renderer, room.style) : null;
 // 방 그림 효과(카메라·빛·재질·외곽선·디더·흔들림)는 room-layer.js의 기본값 하나로 고정.
-// 그 값을 고르던 ?lab 「렌더 테스트」 패널은 디자인이 확정돼 11-08에 뺐다(_archive/claude-cleanup-20261108/).
 const roomLook = { ...room.style, rays: true, inside: true };
 room.setStyle(roomLook); insidePass?.set(roomLook);
 
-// ───────────── the way in: the button → into the laptop → app.html (10-09 plan, 10-11 3D) ─────────────
+// ───────────── the way in: the button → into the laptop → app.html ─────────────
 // One button on the tidied room. It plays the walk-in once more, into the tidied laptop; when the screen fills the
 // frame the browser goes to app.html. Before leaving, this page's address becomes #end, so the browser's back button
 // returns to the tidied room rather than to the start of the story. A modified click (new tab) is left alone.
-const ENTER_MS = 2500; // 10-24 사용자 "이렇게까지 스피디하게?" 1.9 → 3.0 s → "1.2배 빠르게" 2.5 s
+const ENTER_MS = 2500; // 노트북으로 걸어 들어가는 시간. 짧으면 급하게 빨려 들어가는 느낌이 난다
 const APP_MISSING = stage.dataset.app === "missing"; // the claude.ai review copy has no app.html
 let enter = null;
 function enterU(now) {
@@ -1170,11 +1173,49 @@ cta.addEventListener("click", (e) => {
   if (enter || auto) return;
   if (Math.abs(prog - 1) < 1e-4 && !tween) { startEnter(); return; } // back on the tidied room (#end): just walk in
   auto = { t0: performance.now(), kick: 0 };
-  if (topNav && matchMedia("(hover: hover) and (pointer: fine)").matches) navSet(false); // 10-25: 이야기가 시작되면 내비를 접는다
+  if (topNav && (MOBILE || matchMedia("(hover: hover) and (pointer: fine)").matches)) navSet(false); // 이야기가 시작되면 내비를 접는다(폰도 — 가로 화면에서 문구·건너뛰기를 가린다)
 });
-// 10-25 끝 장면: 「내 바탕화면 정리하러 가기 →」 또는 노트북을 눌러 걸어 들어간다
+// 끝 장면: 「내 바탕화면 정리하러 가기 →」 또는 노트북을 눌러 걸어 들어간다
 let endQuad = null; // the laptop screen on the tidied room (plate px), only while resting there
 const restingAtEnd = () => !enter && !auto && !tween && Math.abs(prog - 1) < 1e-4;
+// 모바일: 랜딩 이야기는 PC와 똑같이 보여 주되, 끝 버튼(또는 노트북·건너뛰기)으로 노트북에 걸어 들어간
+// 뒤 정리방(app.html)으로 넘어가는 대신 「PC에서 즐겨주세요」 화면을 띄운다(finishEnter). 「방으로 돌아가기」로 다시 정리된 방.
+// 폰 세로: 가로 구도라 양옆이 크게 잘려서 가로로 돌리라는 안내를 덮는다(보이고 숨는 건 CSS 미디어 쿼리)
+if (MOBILE) {
+  const r = document.createElement("div");
+  r.className = "rotate-hint"; r.setAttribute("role", "note");
+  r.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="22" y="10" width="20" height="36" rx="4"/><path d="M28 41h8"/>'
+    + '<path d="M14 50q14 10 32 4"/><path d="M41 49l5 5-6 3"/></svg><b>가로로 돌려 주세요</b><span>Cozium은 가로 화면에서 볼 수 있어요</span>';
+  document.body.append(r);
+}
+let pcOnly = null;
+function showPcOnly(from = "walk") {
+  if (!pcOnly) {
+    pcOnly = document.createElement("div");
+    pcOnly.className = "pc-only"; pcOnly.setAttribute("role", "dialog"); pcOnly.setAttribute("aria-labelledby", "pcOnlyT");
+    // 정리방 UI와 같은 「크림 종이 + 연필 두 번 그은 테두리」(js/ui/pencil.js) 한 장, 돌아가기는 먹 단추
+    pcOnly.innerHTML = '<div class="pc-card" data-pen="paper"><h2 id="pcOnlyT">PC에서 즐겨주세요</h2><p>내 바탕화면 정리는 PC 브라우저에서 할 수 있어요</p>'
+      + '<p class="pc-url">yeos-min.github.io/Cozium</p><button type="button" class="pc-back" data-pen="ink">방으로 돌아가기</button></div>';
+    pcOnly.querySelector(".pc-back").addEventListener("click", () => {
+      pcOnly.dataset.on = "false";
+      if (pcOnly.dataset.from === "nav") { // 내비·주소로 바로 연 경우: 걸어 들어간 적이 없으니 그냥 닫는다
+        if (location.hash === "#pc") try { history.replaceState(null, "", location.pathname + location.search); } catch {}
+        return;
+      }
+      enter = { t0: performance.now(), dur: reduced ? 0 : ENTER_MS * .7, back: true }; veil.style.opacity = "0";
+    });
+    stage.append(pcOnly);
+    pencilize(pcOnly);
+  }
+  pcOnly.hidden = false; pcOnly.dataset.from = from;
+  requestAnimationFrame(() => { pcOnly.dataset.on = "true"; });
+}
+// 폰에서 위 내비 「정리방 들어가기」도 정리방 대신 같은 안내 화면.
+// 이용 안내·주소로 app.html을 열면 js/mobile-gate.js가 index.html#pc로 돌려보낸다.
+if (MOBILE) {
+  document.querySelector('#topNav a[href$="app.html"]')?.addEventListener("click", (e) => { e.preventDefault(); showPcOnly("nav"); });
+  if (location.hash === "#pc") showPcOnly("nav");
+}
 endGo.addEventListener("click", (e) => {
   if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   if (noGL || stage.dataset.room === "failed") return;
@@ -1205,24 +1246,24 @@ skipBtn.addEventListener("click", () => {
   jump(1);
   requestAnimationFrame(() => requestAnimationFrame(startEnter)); // the tidied room is drawn once, then the walk-in
 });
-// ───────────── 11-03 새 첫 화면 ─────────────
-// 사용자: 「무슨 사이트인지 처음에 알게 하는 게 제일 중요」 + 「첫 화면에 3D가 돋보이게」.
+// ───────────── 첫 화면 ─────────────
+// 무슨 사이트인지 처음에 알 수 있게, 3D가 돋보이게.
 // laptop  노트북만 덩그러니(책상 스탠드 빛, 연필 강조선, 가끔 통통) — 노트북을 누르면
 // boot    카메라가 노트북 화면 앞으로
 // welcome 정면 풀화면 「나의 바탕화면 / 환영합니다」(윈도우 로그인 배치, 우리 색)
 // reveal  아무것도 없는 깨끗한 바탕화면에서 뒤로 빠지며 아침 다락방 + Cozium(이야기 트랙 dive를 거꾸로).
-//         방바닥·핀보드·책상엔 파일이 널려 있다(11-06)
+//         방바닥·핀보드·책상엔 파일이 널려 있다
 // ready   노트북 말풍선 「정리 시작해볼까요?」 — 누르면
-// suck    널린 파일이 노트북 화면으로 빨려 들어가고(11-06 사용자, 예전 「터져 나오기」의 거꾸로) 카메라가 그대로
+// suck    널린 파일이 노트북 화면으로 빨려 들어가고 카메라가 그대로
 //         노트북 속으로 → 어질러진 바탕화면(아이콘이 하나씩) → 상자에 넣기(GATE)… 원래 이야기대로
 const intro = { phase: cameBack || noGL ? "done" : "laptop", t0: performance.now(), readyAt: 0, dove: false };
-const BOOT_MS = 1700, WELCOME_MS = 3400; // 11-03 사용자: 환영 화면이 너무 짧음
+const BOOT_MS = 1700, WELCOME_MS = 3400; // 환영 화면은 글을 읽을 만큼 머문다
 const DESK_FULL = B.dive[1] - 2e-4; // 방 → 노트북 걸어 들어가기의 끝, 바탕화면(HTML)이 화면을 꽉 채운 자리
 const HOP_LANDS = [[.26, .55], [.52, .2]]; // 노트북 통통이 책상에 닿는 때(초)와 소리 크기
 let hopTau = 0;
-let bubbleHot = false, glow = 0; // 11-07 사용자: 「시작해볼까요」에 올리면 노트북 화면이 살짝 켜짐
+let bubbleHot = false, glow = 0; // 말풍선에 올리면 노트북 화면이 살짝 켜진다
 const SUCK_DIVE = 1.5; // 빨려 들어가기 시작 몇 초 뒤 카메라가 노트북으로 걸어 들어가기 시작(남은 파일이 카메라 앞을 지나 화면으로)
-let deskEmpty = false; // 11-06 사용자 「처음 바탕화면엔 아무것도 없는 깔끔한 상태」: 아이콘 없이 배경화면·작업 표시줄만
+let deskEmpty = false; // 첫 바탕화면은 깔끔한 상태: 아이콘 없이 배경화면·작업 표시줄만
 function introSet(phase) {
   intro.phase = phase; intro.t0 = performance.now();
   stage.dataset.intro = phase;
@@ -1248,12 +1289,12 @@ introHit.addEventListener("click", () => {
   introSet("boot");
 });
 for (const [ev, on] of [["pointerenter", true], ["pointerleave", false], ["focus", true], ["blur", false]]) bubble.addEventListener(ev, () => { bubbleHot = on; });
-// 「···」이 「정리 시작해볼까요?」로 부풀 때 퐁(11-09 사용자). 누를 때 소리는 index.html data-sfx="go"
+// 「···」이 「정리 시작해볼까요?」로 부풀 때 퐁. 누를 때 소리는 index.html data-sfx="go"
 bubble.addEventListener("pointerenter", (e) => { if (intro.phase === "ready" && e.pointerType !== "touch") sound.play("pop", { ifRunning: true }); });
 bubble.addEventListener("click", () => {
   if (intro.phase !== "ready") return;
   auto = { t0: performance.now(), kick: 0 };
-  if (topNav && matchMedia("(hover: hover) and (pointer: fine)").matches) navSet(false);
+  if (topNav && (MOBILE || matchMedia("(hover: hover) and (pointer: fine)").matches)) navSet(false);
   if (reduced) { introFinish(); return; } // 움직임 줄이기: 파일은 바로 사라지고 이야기는 autoplayTick이 이어 감
   introSet("suck");
 });
@@ -1271,7 +1312,7 @@ function introTick(now) {
     // 가끔 통통(2.6초마다, 파일 더미 튀는 것과 같은 말)
     const tau = (now / 1000) % 2.6;
     room.setHop(tau < .7 ? Math.abs(Math.sin(tau * Math.PI / .26)) * Math.exp(-tau * 5) * .03 : 0);
-    // 책상에 닿는 순간(.26초 큰 통, .52초 작은 통) 소리(11-09 사용자). 첫 클릭 전엔 브라우저가 허락할 때만 난다
+    // 책상에 닿는 순간(.26초 큰 통, .52초 작은 통) 소리. 첫 클릭 전엔 브라우저가 허락할 때만 난다
     for (const [at, gain] of HOP_LANDS) if (hopTau < at && tau >= at) sound.play("laptop", { gain, ifRunning: true });
     hopTau = tau;
   }
@@ -1279,7 +1320,7 @@ function introTick(now) {
   if (ph === "welcome" && sec * 1000 >= WELCOME_MS) {
     // 방을 켜고(아침, 어질러진 방) 깨끗한 바탕화면이 화면을 꽉 채운 자리에서 시작해 뒤로 빠진다
     room.setIntro(false); room.poseFn = null; room.showFiles(); deskEmpty = true;
-    jump(DESK_FULL); // 11-07 사용자 「환영합니다 다음이 빈 바탕화면이 아님」: B.dive[1]은 노트북 속 3D 장면(아이콘 있음)의 시작이라 그 바로 앞
+    jump(DESK_FULL); // 환영 화면 다음은 빈 바탕화면이어야 한다: B.dive[1]은 노트북 속 3D 장면(아이콘 있음)의 시작이라 그 바로 앞
     welcome.dataset.on = "false";
     introSet("reveal");
   }
@@ -1306,7 +1347,7 @@ function introTick(now) {
   const gT = ph === "ready" && bubbleHot ? .8 : 0;
   if (glow !== gT) { glow += (gT - glow) * .14; if (Math.abs(gT - glow) < .01) glow = gT; room.setGlow(glow); }
   if (!bubble.hidden && q) {
-    // 말풍선은 노트북 화면 오른쪽 위(11-03 사용자가 그림으로 잡아 준 자리). 꼬리 끝(상자 왼쪽 아래 14, 84)이 화면 오른쪽 위
+    // 말풍선은 노트북 화면 오른쪽 위. 꼬리 끝(상자 왼쪽 아래 14, 84)이 화면 오른쪽 위
     // 모서리 바로 위에. zoom(--k) 안이라 좌표를 k로 나눔
     const tr = q[1], k = uiK;
     bubble.style.zoom = String(k);
@@ -1332,7 +1373,7 @@ function placeCue(q) {
   const x0 = Math.min(tl[0], bl[0]) - w * .1, x1 = Math.max(tr[0], br[0]) + w * .1, y0 = Math.min(tl[1], tr[1]) - 6, y1 = Math.max(bl[1], br[1]) + h * 1.45;
   Object.assign(introHit.style, { left: `${x0}px`, top: `${y0}px`, width: `${x1 - x0}px`, height: `${y1 - y0}px` });
 }
-// 10-23 20:40 사용자: 장면 사이 이동은 저절로, 담기는 방문자가 직접("여전히 사용자 참여가 중요").
+// 장면 사이 이동은 저절로, 담기는 방문자가 직접(직접 해 봐야 무슨 게임인지 안다).
 // 바탕화면(문구) → 방(문구, 더미가 통통 튐 — 시연 없음) → 다 넣으면 정리된 바탕화면(문구) → 정리된 방 + 버튼.
 const CAP_READ = 2300; // 문구 하나 읽을 시간
 function autoplayTick(now) {
@@ -1353,9 +1394,7 @@ addEventListener("keydown", (e) => {
   if (Math.abs(prog - GATE) > 1e-4 || tween || gateOpen || !tryActive() || demoTimer || demoNext || hand.active) return;
   nudge(); autoDemo();
 });
-// On-screen words for the three stops (10-23 사용자 문구).
-// 10-25 디자인 시스템: 문구는 늘 오른쪽 아래 종이 쪽지 한 장, 앞에 단계 번호(16:26 사용자: 위 단계 줄 대신 「쪽지에 1. 2. 3.」).
-// 11-06 사용자 B: 연필 말풍선. 11-07 사용자: 꼬리 없이, 자리는 시안에서 골라 줌 —
+// On-screen words for the three stops: 연필 말풍선(꼬리 없음) 한 장, 앞에 단계 번호 1. 2. 3. 자리는 장면마다 —
 //   1. 바탕화면·3. 정리된 바탕화면 = 오른쪽 아래(작업 표시줄 위) / 2. 상자 장면 = 오른쪽 위 벽(아래 파일 더미를 안 가리게)
 const CAPTIONS = [[B.dive[1], "1.", "당신의 파일을\n방으로 옮겨요", "low"], [GATE, "2.", "파일들을\n상자에 넣어봐요", "high"], [B.back[1], "3.", "바탕화면이\n깨끗해졌어요!", "low"]];
 const CAP_W = 300, CAP_H = 100; // 말풍선 크기(CSS px, --k 배율 전)
@@ -1389,6 +1428,7 @@ function finishEnter(now) {
   if (enter.back) { enter = null; return; }
   enter.done = true;
   try { history.replaceState(null, "", "#end"); } catch { /* a viewer may refuse; back then starts the story over */ }
+  if (MOBILE) { showPcOnly(); return; } // 폰은 정리방 대신 안내 화면
   if (APP_MISSING) {
     // review copy: say where it would go, then step back out into the room
     showNote("여기서 정리방(app.html)으로 넘어가요. 검토 사본에는 없어서 방으로 돌아올게요.");
@@ -1430,7 +1470,7 @@ function frameDOM(p, counts) {
       const m = quadMatrix(W0, H0, quad);
       desk.style.transform = deskChrome.style.transform = m; featherDesk(quad);
     }
-    desk.style.opacity = q3 ? String(deskNear(dive)) : "0"; // 11-06: 멀리선 3D 빈 화면, 화면이 커지면 바탕화면
+    desk.style.opacity = q3 ? String(deskNear(dive)) : "0"; // 멀리선 3D 빈 화면, 화면이 커지면 바탕화면
     for (const it of items) {
       const el = it.el; if (!el) continue;
       const a = deskEmpty ? 0 : (p - it.popP) / POP_LEN;
@@ -1465,7 +1505,7 @@ function frameDOM(p, counts) {
       const quad = q3.map((pt, i) => [lerp(pt[0], FULL[i][0], w), lerp(pt[1], FULL[i][1], w)]);
       desk.style.transform = deskChrome.style.transform = quadMatrix(W0, H0, quad); featherDesk(quad);
     }
-    // 10-25 끝 장면(확정 A): 노트북은 화면 빛만 숨 쉬고, 눌러도 들어간다
+    // 끝 장면: 노트북은 화면 빛만 숨 쉬고, 눌러도 들어간다
     endQuad = q3 && out >= 1 && !enter && !tween ? q3 : null;
     if (endQuad) {
       const cx = endQuad.reduce((a, q) => a + q[0], 0) / 4, cy = endQuad.reduce((a, q) => a + q[1], 0) / 4;
@@ -1473,7 +1513,7 @@ function frameDOM(p, counts) {
       const gw = sw * 1.5, gh = sh * 1.7;
       screenGlow.style.cssText = `left:${(cx - gw / 2).toFixed(1)}px;top:${(cy - gh / 2).toFixed(1)}px;width:${gw.toFixed(1)}px;height:${gh.toFixed(1)}px`;
     }
-    desk.hidden = false; desk.style.opacity = String(deskNear(walk)); // 11-06: 정리된 방에서도 멀리선 빈 화면
+    desk.hidden = false; desk.style.opacity = String(deskNear(walk)); // 정리된 방에서도 멀리선 빈 화면
     deskChrome.style.opacity = String(Math.max(1 - smooth(.1, .3, out), smooth(.55, .9, eu)));
     fitChrome(Math.max(1 - smooth(0, .2, out), smooth(.8, 1, eu)));
   }
@@ -1487,11 +1527,11 @@ function frameDOM(p, counts) {
   const tIn = (p < .5 ? 1 - smooth(.012, .05, p) : smooth(.72, .92, out)) * (1 - smooth(0, .2, enterU(performance.now()))) * introHero;
   title.style.opacity = String(tIn);
   title.style.visibility = tIn < .01 ? "hidden" : "visible";
-  // 10-25 디자인 시스템(원칙 4): 같은 자리, 다른 내용 — 첫 방은 로고 + 「시작해볼까요?」(테두리), 정리된 방(#end)은
+  // 같은 자리, 다른 내용 — 첫 방은 로고 + 「시작해볼까요?」(테두리), 정리된 방(#end)은
   // 「방이 깨끗해졌어요」 + 「내 바탕화면 정리하러 가기 →」(채움). 이야기가 흐르는 동안은 버튼 없음.
   const atEnd = !noGL && p >= .5;
   if (heroStart.hidden !== atEnd) { heroStart.hidden = atEnd; heroEnd.hidden = !atEnd; }
-  cta.hidden = !(noGL || stage.dataset.room === "failed"); // 11-03: 시작은 노트북 말풍선. 링크는 3D가 없을 때만
+  cta.hidden = !(noGL || stage.dataset.room === "failed"); // 시작은 노트북 말풍선. 링크는 3D가 없을 때만
   endGo.hidden = !(atEnd && p >= B.out[0] && out > .7 && !auto);
   cta.inert = endGo.inert = !!enter;
   skipBtn.hidden = !auto || !!enter;
@@ -1520,7 +1560,7 @@ function announce(p) {
   for (const [r, text] of SCENE_TEXT) if (Math.abs(r - p) < 1e-4) { sceneStatus.textContent = text; return; }
 }
 
-// ───────────── 소리(11-09 사용자): 다락방이 보일 때만 음악 ─────────────
+// ───────────── 소리: 다락방이 보일 때만 음악 ─────────────
 // 노트북 속(바탕화면·바닥 체험·깨끗해진 바탕화면)과 걸어 들어가기는 조용히. 첫 화면(노트북만)·환영 화면도 조용히.
 // 방 → 노트북 걸어 들어가기(dive)의 절반을 넘으면 페이드 아웃, 돌아 나올 때(out) 페이드 인. 소리 모양·크기는 js/sound.js
 const soundBtn = $("#soundToggle");
@@ -1572,7 +1612,7 @@ function resize() {
   if (renderer) {
     // the inside-the-laptop scene follows the room's device quality (render-quality.js): same pixel cap and scale
     const q = room.quality;
-    // 방과 같은 픽셀 예산(maxPixels)까지 적용한다. DPR만 막으면 4K 화면에서 low도 약 829만 px였다(11-16 검수 #11).
+    // 방과 같은 픽셀 예산(maxPixels)까지 적용한다. DPR만 막으면 4K 화면에서 low도 약 829만 px가 된다.
     renderer.setPixelRatio(renderPixelRatio(vw, vh, devicePixelRatio || 1, q.profile, q.scale));
     renderer.setSize(vw, vh, false); insidePass?.resize();
   }
@@ -1589,11 +1629,11 @@ else buildGL().then(() => {
   // after the first room is on screen, while the visitor reads it (the canvas is still hidden, nothing flashes)
   (globalThis.requestIdleCallback ?? ((f) => setTimeout(f, 300)))(() => { if (prog < B.fall[0]) warmGL(); }, { timeout: 1500 });
 }).catch((e) => console.error("landing GL", e));
-// room.glb (4 MB); the poster shows the same camera until they are in, then fades out
+// room.glb; the poster shows the same camera until they are in, then fades out
 facesReady.then(() => room.load("./models/room.glb")).then(() => {
   room.setStyle(roomLook);
   stage.dataset.room = "ready";
-  if (pendingTo != null) { const to = pendingTo; pendingTo = null; arrivedAt = 0; goTo(to); } // scrolled while it loaded
+  if (pendingTo != null) { const to = pendingTo; pendingTo = null; arrivedAt = 0; goTo(to); } // asked to move on while it loaded
   if (cameBack) restAtEnd();
   setTimeout(() => { poster.style.opacity = "0"; }, 60);
   setTimeout(() => room.warm(), 400); // after the first frames, before anyone reaches the last room
@@ -1619,7 +1659,7 @@ if (topNav && matchMedia("(hover: hover) and (pointer: fine)").matches) {
   navCloseLater(NAV_HOLD);
   addEventListener("pointermove", (e) => {
     if (e.pointerType !== "mouse") return;
-    if (!navOpen()) { if (e.clientY <= NAV_EDGE && !hand.active && !hand.list.length && !auto) navSet(true); } // 10-25: 이야기 중엔 안 내려옴(오른쪽 위 「건너뛰고」를 가리지 않게)
+    if (!navOpen()) { if (e.clientY <= NAV_EDGE && !hand.active && !hand.list.length && !auto) navSet(true); } // 이야기 중엔 안 내려옴(오른쪽 위 「건너뛰고」를 가리지 않게)
     else if (e.clientY > topNav.offsetHeight + 24 && !navTimer) navCloseLater(NAV_LEAVE);
   }, { passive: true });
   topNav.addEventListener("pointerenter", () => { if (navOpen()) { clearTimeout(navTimer); navTimer = 0; } });
@@ -1628,7 +1668,7 @@ if (topNav && matchMedia("(hover: hover) and (pointer: fine)").matches) {
   topNav.addEventListener("focusout", () => navCloseLater(NAV_LEAVE));
 }
 
-// ───────────── mouse parallax (10-13, user) ─────────────
+// ───────────── mouse parallax ─────────────
 // The room camera leans a little towards the pointer (room-layer.js LOOK). Mouse only; reduced motion keeps it still;
 // leaving the window or the tab puts it back to straight ahead.
 if (!reduced && matchMedia("(hover: hover) and (pointer: fine)").matches) {

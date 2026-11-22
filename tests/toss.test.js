@@ -3,7 +3,7 @@ import test from "node:test";
 import { tossLanding, tossPlan, tossPose } from "../js/three/toss.js";
 import { TUNING } from "../js/three/tuning.js";
 
-// 손을 떠난 카드의 포물선 (2026-10-13). 도착점은 무게와 상관없이 겨눈 자리, 가벼울수록 높고 느리게.
+// 손을 떠난 카드의 포물선. 도착점은 무게와 상관없이 겨눈 자리, 가벼울수록 높고 느리게.
 const toss = TUNING.card.toss;
 const from = { x: 0, y: 1.6, z: 0, spin: 0 };
 const to = { x: 3, y: 0, z: 0, spin: 0.4 };
@@ -27,7 +27,7 @@ test("light files fly higher and slower, heavy files lower and quicker, and heav
   assert.ok(tossLanding(1, toss).vy > tossLanding(0, toss).vy);
 });
 
-test("no tissue-paper flutter: nothing sways sideways (10-13 21시 사용자)", () => {
+test("no tissue-paper flutter: nothing sways sideways", () => {
   for (const weight of [0, 1]) {
     const plan = tossPlan(from, to, weight, toss);
     const maxSide = Math.max(...Array.from({ length: 41 }, (_, i) => Math.abs(tossPose(from, to, weight, i / 40, plan, toss).z)));

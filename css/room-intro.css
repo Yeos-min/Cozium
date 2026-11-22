@@ -1,4 +1,4 @@
-/* 정리 시작 화면(2026-10-18): 로딩 → 조작 안내 → 「방에 들어가기」. js/ui/room-intro.js */
+/* 정리 시작 화면: 로딩 → 조작 안내 → 「방에 들어가기」. js/ui/room-intro.js */
 .room-intro {
   --ri-ink: #f7f1e4;
   --ri-muted: #c9bfa6;
@@ -68,7 +68,7 @@
   border: 1px solid #e9dfc46b; border-radius: 4px; background: #f7f1e414; box-shadow: 0 1px 0 #00000059;
   color: #fff6e5; font-family: inherit; font-size: 11.5px; font-weight: 700; line-height: 1;
 }
-/* 마우스 그림은 연필(js/ui/pencil.js mouseIcon, css/room-paper.css .pen-mouse) — 11-07 */
+/* 마우스 그림은 연필(js/ui/pencil.js mouseIcon, css/room-paper.css .pen-mouse) */
 
 .intro-enter {
   margin-top: 22px; padding: 14px 28px; border: 0; border-radius: 10px; cursor: pointer;

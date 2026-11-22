@@ -1,7 +1,7 @@
-/* Cozium landing (2026-10-07): built from the reviewed animatic v9 (docs/prototypes/landing-animatic.html). Script: js/landing-story/story.js */
-/* 글꼴은 css/fonts.css (10-24: 나눔스퀘어라운드 + 로고 Nunito) */
+/* Cozium landing. Script: js/landing-story/story.js */
+/* 글꼴은 css/fonts.css (나눔스퀘어라운드 + 로고 Nunito) */
 :root{
-  /* One fixed full-bleed stage. A wheel / swipe / key plays the next finished scene; one hands-on stop in the middle. */
+  /* One fixed full-bleed stage. The story plays scene to scene on its own; one hands-on stop in the middle (story.js). */
   --ink:#254c43; --cta:#2f231a; --paper:#eae3ce; --cream:#f3edd3; --cta-ink:#faf4e3; --mark:#d9b768;
   --display:var(--font-logo);
   --ui:var(--font-ui);
@@ -27,7 +27,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);ove
 .desk>.icons{position:absolute;inset:0;transform-origin:0 0}
 /* The vector desktop sits on a painted screen: feather its edge a few screen pixels so it melts into the soft bezel. --fe is set per frame in the plate's own units. */
 .desk{--fe:6px;mask-image:linear-gradient(to right,transparent,#000 var(--fe),#000 calc(100% - var(--fe)),transparent),linear-gradient(to bottom,transparent,#000 var(--fe),#000 calc(100% - var(--fe)),transparent);mask-composite:intersect}
-/* 10-18: the import desktop's sizes in CSS px (app.html, css/onboarding.css): icon 60, name 12 px in two lines under
+/* The import desktop's sizes in CSS px (app.html, css/onboarding.css): icon 60, name 12 px in two lines under
    it. #deskIcons is scaled by 1/cover (story.js du) so they come out at these sizes on screen; the 3D floor draws the
    same names on its text layer (nameLabel) */
 .desk .item{position:absolute;width:60px;height:60px;transform-origin:30px 30px}
@@ -40,18 +40,18 @@ canvas.gl{position:absolute;inset:0;width:100%;height:100%;display:block}
 .stage[data-try="open"] canvas.gl{cursor:grab}
 .stage[data-try="open"][data-holding="true"] canvas.gl{cursor:grabbing}
 .cta{display:flex;justify-content:flex-start;gap:12px;margin-top:28px;pointer-events:auto}
-/* ── 10-25 디자인 시스템 확정(2차 투표) ──
-   첫 화면과 끝 장면은 같은 자리 — 화면 왼쪽 위 여백선(72px, 내비 아래 120px) — 에 다른 내용(원칙 4). 11-03 위 가운데 + 외곽선을 해 봤다가 사용자: 「다시 롤백, 왼쪽 정렬 아웃라인 없이」.
+/* ── 히어로(첫 화면·끝 장면 글자) ──
+   첫 화면과 끝 장면은 같은 자리 — 화면 왼쪽 위 여백선(72px, 내비 아래 120px) — 에 다른 내용(디자인 시스템 원칙 4).
    .world(1672×941 그림 단위) 밖에서 화면 px로 놓고, --k(story.js layoutWorld)로 작은 화면은 줄이고 4K는 바탕화면 UI와 같이 키운다.
-   3D 위 글자는 「빛」: 크림 글자 + 둘레 번짐(진하기 45, 10-24 사용자). 유리(반투명 + 흐림)는 전부 뺌(1차 메모). */
+   3D 위 글자는 「빛」: 크림 글자 + 둘레 번짐(진하기 45)으로 낮 장면에서도 읽힌다. 유리(반투명 + 흐림)는 쓰지 않는다. */
 .hero{position:absolute;left:72px;top:120px;z-index:3;zoom:var(--k,1);max-width:640px;color:#f8f1dc;text-shadow:0 1px 2px #0009,0 0 12px rgb(28 18 12 / .45),0 0 28px rgb(28 18 12 / .32);pointer-events:none}
 .hero-start[hidden],.hero-end[hidden],.end-go[hidden]{display:none}
 .hero h1{margin:0;font:900 101px/.9 var(--display);letter-spacing:-.025em;text-shadow:0 2px 0 #2a1d1255,0 0 12px rgb(28 18 12 / .45),0 0 28px rgb(28 18 12 / .32)} /* logo-hero */
-.hero-start p{margin:22px 0 0;font:700 20px/1.6 var(--ui);letter-spacing:.02em} /* lead — 10-23 교수님: 무슨 앱인지 첫 화면에서 바로 */
+.hero-start p{margin:22px 0 0;font:700 20px/1.6 var(--ui);letter-spacing:.02em} /* lead — 무슨 앱인지 첫 화면에서 바로 알게 */
 .hero-end h2{margin:0;font:800 40px/1.25 var(--ui);letter-spacing:.01em} /* display */
 .hero-end p{margin:12px 0 0;font:700 20px/1.5 var(--ui);letter-spacing:.02em} /* lead */
-/* 10-25 18:25 사용자: 끝 장면 버튼도 첫 화면과 같은 디자인(원칙 3 같은 역할은 같은 모양). 예전 문제는 문구가 같았던 것이지 모양이 아니었음.
-   → 「시작해볼까요?」와 「내 바탕화면 정리하러 가기 →」 둘 다 테두리 큰 버튼(56px, 크림 1.5px, 흐림 없음). 다른 건 문구뿐 */
+/* 끝 장면 버튼도 첫 화면과 같은 디자인(원칙 3: 같은 역할은 같은 모양).
+   「시작해볼까요?」와 「내 바탕화면 정리하러 가기 →」 둘 다 테두리 큰 버튼(56px, 크림 1.5px, 흐림 없음). 다른 건 문구뿐 */
 .cta .start,.end-go{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 32px;border:1.5px solid #f3edd3;border-radius:999px;background:transparent;color:#f8f1dc;box-shadow:0 0 26px rgb(28 18 12 / .27);text-shadow:inherit;text-decoration:none;font:700 16px/1 var(--ui);letter-spacing:.04em;overflow:hidden;cursor:pointer;transition:background .2s}
 .cta .start:hover,.cta .start:focus-visible,.end-go:hover,.end-go:focus-visible{background:rgb(243 237 211 / .14)}
 .end-go{margin-top:28px;pointer-events:auto}
@@ -61,8 +61,7 @@ canvas.gl{position:absolute;inset:0;width:100%;height:100%;display:block}
 .screen-glow[data-on="true"]{opacity:1;animation:screen-breathe 2.6s ease-in-out infinite}
 @keyframes screen-breathe{0%,100%{opacity:.55}50%{opacity:1}}
 .stage[data-hot="true"]{cursor:pointer}
-/* 단계 표시 — 10-25 16:26 사용자: 위 단계 줄은 빼고 「1. 2. 3. 적고 텍스트」.
-   11-06 사용자 B: 쪽지 대신 시작 말풍선과 같은 연필 말풍선. 11-07 사용자: 꼬리 없음, 1·3은 오른쪽 아래, 2는 오른쪽 위.
+/* 단계 표시 — 「1. 2. 3.」 번호 + 문구를 시작 말풍선과 같은 연필 말풍선에(꼬리 없음). 1·3은 오른쪽 아래, 2는 오른쪽 위.
    자리는 story.js(placeCaption) */
 .story-bubble{position:absolute;left:0;top:0;z-index:3;zoom:var(--k,1);width:300px;height:100px;margin:0;pointer-events:none;opacity:0;transition:opacity .25s ease}
 .story-bubble[data-on="true"]{opacity:1;transition:opacity .45s cubic-bezier(.2,.7,.2,1)}
@@ -72,23 +71,22 @@ canvas.gl{position:absolute;inset:0;width:100%;height:100%;display:block}
 .story-bubble .s{stroke-width:2.6}.story-bubble .s2{stroke-width:1.3;opacity:.6}
 .story-bubble .sb-text{position:absolute;left:26px;top:18px;margin:0;display:flex;align-items:baseline;gap:12px;color:#2f231a;font:800 24px/32px var(--ui);letter-spacing:.01em;white-space:pre-line}
 .story-n{flex:none;font:900 24px/32px var(--display);letter-spacing:-.02em;color:#b5574a} /* 단계 번호: 로고 글꼴(Nunito 900) */
-/* 「건너뛰고 바로 시작 →」 = 고스트(도구). 10-25 17:01 사용자: 더 위 오른쪽 구석, 글자 더 작게 → 화면 모서리 16·20px, 13px(디자인 시스템 최소).
-   이야기 중에는 내비가 내려오지 않는다(story.js). 터치 화면은 내비가 늘 떠 있어서 그 아래 */
+/* 「건너뛰고 바로 시작 →」 = 고스트(도구). 화면 오른쪽 위 구석(16·20px), 13px(디자인 시스템 최소), 올리기 전엔 옅게.
+   이야기 중에는 내비가 내려오지 않는다(story.js). 터치 화면은 왼쪽 아래(아래 @media) */
 .skip{position:absolute;right:20px;top:16px;z-index:3;zoom:var(--k,1);min-height:30px;padding:0 10px;border:0;border-radius:999px;background:transparent;color:#f8f1dc;text-shadow:0 1px 2px #0009,0 0 12px rgb(28 18 12 / .45);font:700 13px/1 var(--ui);letter-spacing:.02em;cursor:pointer;opacity:.5;transition:background .2s,color .3s,opacity .2s}
-.skip:hover,.skip:focus-visible{opacity:1} /* 10-25 18:11 사용자: 올리기 전까진 더 옅게 */
-@media (hover:none),(pointer:coarse){.skip{top:76px}}
+.skip:hover,.skip:focus-visible{opacity:1}
+@media (hover:none),(pointer:coarse){.skip{zoom:1;opacity:.75;top:auto;right:auto;left:calc(16px + env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px))}} /* 터치: 왼쪽 아래(가로 폰에선 오른쪽 위가 문구 상자와 겹친다) */
 .skip:hover{background:rgb(243 237 211 / .16)}
 .stage[data-tone="ink"] .skip{color:#2f231a;text-shadow:none}
 .stage[data-tone="ink"] .skip:hover{background:rgb(47 35 26 / .08)}
 @media (prefers-reduced-motion:reduce){.screen-glow[data-on="true"]{animation:none;opacity:.8}.story-bubble,.story-bubble[data-on="true"]{transition:opacity .3s}}
 .cta a{display:inline-flex;align-items:center;text-decoration:none;min-height:46px;padding:0 20px;border:1px solid #254c4333;border-radius:5px;font:13px/1.4 var(--ui);letter-spacing:.025em;cursor:pointer}
 .cta a:focus-visible{outline:2px solid var(--cta);outline-offset:4px}
-/* 10-23 사용자: 스크롤로 넘기는 이야기를 버리고 첫 화면 버튼 하나 「시작해볼까요?」 → 누르면 이야기가 저절로 흐른 뒤 노트북으로 걸어 들어감.
-   10-25 사용자: 빗자루·쓰레받기 애니메이션은 「싼티 난다」 → 폐기. 올리면 바탕만 살짝 밝아진다. */
+/* 「시작해볼까요?」 링크: 3D가 없을 때만 보인다(story.js). 올리면 바탕만 살짝 밝아진다. */
 .cta .start:focus-visible{outline-color:#f3edd3}
 .cta .start[data-waiting="true"]{pointer-events:none;opacity:.85}
 .skip:focus-visible{outline:2px solid currentColor;outline-offset:3px}
-/* 11-09 소리 켜기/끄기: 오른쪽 아래 구석(위쪽은 내비가 내려와 덮는다). 23:32 사용자 「글자 없이 다른 단추와 통일」 →
+/* 소리 켜기/끄기: 오른쪽 아래 구석(위쪽은 내비가 내려와 덮는다). 글자 없이
    정리방 ⚙·소리 단추와 똑같이: 42px 네모 종이 + 연필 두 번 그은 테두리(js/ui/pencil.js, 말풍선과 같은 색) + ⚙와 같은 선 아이콘 */
 .sound-toggle{position:absolute;right:20px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:3;zoom:var(--k,1);display:grid;place-items:center;width:42px;height:42px;padding:0;border:0;background:none;color:#2f231a;cursor:pointer;isolation:isolate;transition:transform .15s}
 .sound-toggle[hidden]{display:none}
@@ -106,7 +104,7 @@ canvas.gl{position:absolute;inset:0;width:100%;height:100%;display:block}
 /* The site nav lives in css/site-nav.css (shared with help.html); its show/hide timing is in story.js. */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
-/* ── 3D room (2026-10-11, from docs/prototypes/landing-3d/landing-3d.css) ── */
+/* ── 3D room ── */
 canvas.room{position:absolute;inset:0;width:100%;height:100%;display:block;will-change:filter,opacity}
 .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .5s ease;pointer-events:none}
 .stage[data-room="failed"] .poster{opacity:1!important}
@@ -121,7 +119,7 @@ canvas.room{position:absolute;inset:0;width:100%;height:100%;display:block;will-
 .enter-note{position:absolute;left:50%;bottom:calc(36px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:calc(100% - 32px);margin:0;padding:10px 14px;border-radius:6px;background:#faf4e3f2;border:1px solid #254c4340;color:#254c43;font:13px/1.5 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;text-align:center;opacity:0;transition:opacity .3s;pointer-events:none;z-index:6}
 .enter-note[data-on="true"]{opacity:1}
 
-/* ── 11-03 새 첫 화면(story.js intro) ──
+/* ── 첫 화면(story.js intro) ──
    ① 노트북만 덩그러니: 노트북 위 연필 강조선(떨리는 선 = 방의 흔들림과 같은 리듬) + 아래 「노트북을 눌러 시작하기」 */
 .intro-cue{position:absolute;inset:0;z-index:4;pointer-events:none;opacity:0;transition:opacity .5s ease}
 .intro-cue[data-on="true"]{opacity:1}
@@ -131,7 +129,7 @@ canvas.room{position:absolute;inset:0;width:100%;height:100%;display:block;will-
 .intro-rays .boil{animation:boil .5s steps(1) infinite;transform-box:fill-box;transform-origin:50% 100%}
 @keyframes boil{0%{transform:none}33%{transform:translate(.7px,-.6px) rotate(.4deg)}66%{transform:translate(-.6px,.5px) rotate(-.35deg)}}
 .intro-hit{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;padding:0;border:0;background:transparent;color:#f3e3bd;font:800 21px/1 var(--ui);letter-spacing:.03em;cursor:pointer;pointer-events:auto;text-shadow:0 0 14px rgb(255 190 110 / .25)}
-.intro-hit span{transform:translateY(0);transition:transform .25s}
+.intro-hit span{white-space:nowrap;transform:translateY(0);transition:transform .25s} /* 폰 가로에서도 한 줄 */
 .intro-hit:hover span,.intro-hit:focus-visible span{transform:translateY(-2px)}
 .intro-hit:focus-visible{outline:2px dashed #f3e3bd;outline-offset:6px;border-radius:8px}
 .intro-under{width:260px;height:14px;overflow:visible}
@@ -145,7 +143,7 @@ canvas.room{position:absolute;inset:0;width:100%;height:100%;display:block;will-
 .welcome p{display:flex;align-items:center;gap:16px;margin:22px 0 0;font:700 34px/1 var(--ui);zoom:var(--k,1)}
 .welcome i{width:30px;height:30px;border-radius:50%;background:conic-gradient(#f8f1dc 0 70%,transparent 0);-webkit-mask:radial-gradient(circle,transparent 9px,#000 10px);mask:radial-gradient(circle,transparent 9px,#000 10px);animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(1turn)}}
-/* ③ 노트북 말풍선(11-03 사용자 선택 B: 연필 손그림). 꼬리가 왼쪽 아래 — 노트북 화면 오른쪽 위 모서리를 가리킴.
+/* ③ 노트북 말풍선(연필 손그림). 꼬리가 왼쪽 아래 — 노트북 화면 오른쪽 위 모서리를 가리킴.
    평소엔 작은 「···」가 가끔 통통, 올리거나(키보드 포커스) 누르면 넓은 말풍선에 「정리 시작해볼까요?」. 마우스 없는 화면은 늘 펼침 */
 .bubble{position:absolute;z-index:4;width:226px;height:84px;margin:0;padding:0;border:0;background:none;cursor:pointer;opacity:0;transition:opacity .4s}
 .bubble[data-on="true"]{opacity:1}
@@ -167,3 +165,25 @@ canvas.room{position:absolute;inset:0;width:100%;height:100%;display:block;will-
 @keyframes bob{0%,70%,100%{transform:translateY(0)}78%{transform:translateY(-10px)}86%{transform:translateY(0)}92%{transform:translateY(-4px)}}
 @media (hover:none){.bubble .b-idle{opacity:0}.bubble .b-open{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.intro-rays .boil,.welcome i,.bubble[data-bob="true"]{animation:none}}
+/* 모바일: 노트북에 걸어 들어간 뒤 정리방 대신 뜨는 안내. 종이색 바탕 위에 정리방 UI와 같은
+   「크림 종이 + 연필 두 번 그은 테두리」 한 장(js/ui/pencil.js, css/room-paper.css와 같은 색), 돌아가기는 먹 단추 */
+.pc-only{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:var(--paper);color:#2f231a;text-align:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.pc-only[data-on="true"]{opacity:1;pointer-events:auto}
+.pc-card{display:flex;flex-direction:column;align-items:center;max-width:100%;padding:34px 44px 30px;box-sizing:border-box;isolation:isolate;position:relative}
+.pc-only svg.pen{position:absolute;left:0;top:0;z-index:-1;overflow:visible;pointer-events:none}
+.pc-only svg.pen .f{fill:#fbf7ec}.pc-only svg.pen .fi{fill:#2f231a}
+.pc-only svg.pen .s,.pc-only svg.pen .s2{fill:none;stroke:#2f231a;stroke-linecap:round;stroke-linejoin:round}
+.pc-only svg.pen .s{stroke-width:2.6}.pc-only svg.pen .s2{stroke-width:1.3;opacity:.6}
+.pc-card h2{margin:0;font:800 28px/1.3 var(--ui);letter-spacing:.01em}
+.pc-card p{margin:12px 0 0;font:700 16px/1.5 var(--ui);letter-spacing:.02em}
+.pc-card .pc-url{margin-top:4px;color:#6b5a4a;font-weight:400;user-select:text;-webkit-user-select:text}
+.pc-card .pc-back{margin-top:26px;min-height:46px;padding:0 26px;border:0;background:transparent;color:#f8f1dc;font:700 15px/1 var(--ui);letter-spacing:.04em;cursor:pointer;position:relative;isolation:isolate}
+.pc-card .pc-back:focus-visible{outline:2px dashed #2f231a;outline-offset:5px;border-radius:12px}
+/* 폰 세로: 「가로로 돌려 주세요」(story.js가 터치 기기에만 만든다) */
+.rotate-hint{display:none}
+@media (orientation:portrait) and (hover:none) and (pointer:coarse){
+  .rotate-hint{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;background:#2f231a;color:#f3edd3;text-align:center}
+  .rotate-hint svg{width:88px;height:88px;margin-bottom:8px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .rotate-hint b{font:800 24px/1.3 var(--ui);letter-spacing:.01em}
+  .rotate-hint span{font:700 15px/1.5 var(--ui);opacity:.75}
+}

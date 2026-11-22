@@ -2,12 +2,12 @@
  * NativeHelperProvider — Enhanced Desktop Mode. 127.0.0.1에서 도는 Desktop Helper의 클라이언트.
  *
  * 웹은 절대경로를 모른다. Helper가 준 id(`f_…`, `d_…`)로만 말한다. (Helper 설계 §6)
- * 이동은 Helper가 같은 볼륨 rename으로 즉시 끝내고, 되돌리기는 rename 역방향이다.
- * 덮어쓰기 없음, 삭제 없음. 항목별 결과.
+ * 이동·되돌리기는 Helper의 덮어쓰기 방지 이동(moveNoOverwrite: 하드 링크를 건 뒤 원본 이름을 retireLink로 정리,
+ * 하드 링크가 안 되는 드라이브는 거부)을 쓴다. 덮어쓰기 없음, 삭제 없음. 항목별 결과.
  *
  * 연결은 세 갈래다.
  *   1. 찾아가기(v0.2.3): 열어 둔 화면이 고정 포트(HELPER_PORT)를 몇 초마다 두드리다가 Helper가 켜지면 /v1/pair로 토큰을 받는다.
- *      사용자는 exe만 켜면 된다 — 새 탭도, 포트·토큰 입력도 없다(11-07 사용자: exe 켜는 게 번거롭고 튜토리얼 맥락이 끊김).
+ *      사용자는 exe만 켜면 된다 — 새 탭도, 포트·토큰 입력도 없다.
  *   2. 주소로 받기: Helper가 연 탭의 #helper=PORT&token=…(v0.2.1까지는 ?helper=…).
  *   3. 손으로 넣기: Helper 창에 나온 포트와 토큰.
  * 모든 요청에 `Authorization: Bearer <token>`. Helper는 Origin 허용 목록과 토큰을 둘 다 검사한다.
@@ -164,7 +164,7 @@ export class NativeHelperProvider extends FileSystemProvider {
       type: raw.type ?? "",
       lastModified: raw.lastModified ?? 0,
       extension: getExtension(raw.name),
-      file: null, // 썸네일은 다음 단계 (Authorization 헤더 때문에 <img src>로는 못 받는다)
+      file: null, // 이미지는 readThumbnail()으로 필요할 때 받는다(Authorization 헤더가 필요해 <img src>로는 못 받는다)
     };
     this.#files.set(item.id, item);
     return item;
@@ -176,7 +176,7 @@ export class NativeHelperProvider extends FileSystemProvider {
     this.#version = hello.version ?? null;
     this.#desktopName = hello.desktopName ?? this.#desktopName;
     // Helper는 요청이 15분 없으면 스스로 꺼진다. 방에서 오래 머물거나 결과 화면을 읽는 동안 꺼지지 않게
-    // 페이지가 열려 있는 동안만 가볍게 인사한다(10-20). 페이지가 닫히면 bye, 죽어도 Helper의 타이머가 끈다.
+    // 페이지가 열려 있는 동안만 가볍게 인사한다. 페이지가 닫히면 bye, 죽어도 Helper의 타이머가 끈다.
     clearInterval(this.#keepAlive);
     if (this.#keepAliveMs > 0) {
       this.#keepAlive = setInterval(() => { this.#request("GET", "/hello").catch(() => {}); }, this.#keepAliveMs);

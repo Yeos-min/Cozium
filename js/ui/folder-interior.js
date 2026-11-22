@@ -1,6 +1,6 @@
 /**
  * 상자 안 보기. 읽어 온 파일도 정리는 세션 안에서만 수행한다.
- * 11-07 사용자 「이런 것도 바꿔야겠네」: 정리방 UI와 같은 연필 + 크림 종이(css/folder-interior.css, js/ui/pencil.js),
+ * 정리방 UI와 같은 연필 + 크림 종이(css/folder-interior.css, js/ui/pencil.js),
  * 파일은 바탕화면과 같은 아이콘 그림(layout.js deskIconFor), 말투는 「~해요」.
  */
 import { DESK_ICONS, deskIconFor } from "./layout.js";

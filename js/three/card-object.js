@@ -94,7 +94,7 @@ export class CardObject {
     this.width = width = footprint.width;
     this.depth = depth = footprint.height;
     this.form = style.kind;
-    this.color = fileColor(item.extension, item.family); // 윗면 아이콘·밑줄과 옆면 색(11-16: 앱 색)
+    this.color = fileColor(item.extension, item.family); // 윗면 아이콘·밑줄과 옆면 색(앱 색)
     this.disposed = false;
 
     const baseThickness = TUNING.card.thickness * style.thickness;
@@ -297,7 +297,7 @@ export class CardObject {
       if (this.delay > 0) return;
       this.delay = 0;
     }
-    // 다 멈춘 카드(상자에 들어간 카드 등)는 값이 그대로면 계산을 건너뛴다(11-16 검수 #13).
+    // 다 멈춘 카드(상자에 들어간 카드 등)는 값이 그대로면 계산을 건너뛴다.
     // 상태·목표·표시 상태 중 하나라도 바뀌면(place, 선택, 튕김 등) 비교가 어긋나 다시 움직인다.
     if (this.#rest && !this.flight && this.#stillAtRest()) return;
     this.#rest = null;

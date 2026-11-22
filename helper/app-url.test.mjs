@@ -13,7 +13,7 @@ test("helper preserves a GitHub Pages repository path", () => {
     "https://example.github.io/cozium/app.html#helper=12345&token=test-only");
 });
 
-test("credentials ride in the fragment (never sent to the server); other query stays, stale query credentials go (10-20)", () => {
+test("credentials ride in the fragment (never sent to the server); other query stays, stale query credentials go", () => {
   const result = new URL(buildAppUrl("https://example.com/cozium/app.html?view=2d&helper=1&token=old#board", 12345, "test + only"));
   assert.equal(result.pathname, "/cozium/app.html");
   assert.equal(result.searchParams.get("view"), "2d");

@@ -1,5 +1,5 @@
 /**
- * import-desk.js — 가져오기 화면 = 노트북 바탕화면 (2026-10-18, 사용자 선택).
+ * import-desk.js — 가져오기 화면 = 노트북 바탕화면.
  *
  * 랜딩이 노트북 화면으로 들어가 끝나는데, 그 바탕화면이 곧 이 화면이다. 여기는 보이는 것만 맡는다:
  * 창 끌기·앞으로 오기, 작업표시줄 시계, Helper 트레이 불, 드롭한 항목을 바탕화면 아이콘으로 깔기, 방으로 떠나는 연출.
@@ -44,7 +44,7 @@ export function mountImportDesk({ root, startSample, onHelperWindow = () => {} }
   const front = (win) => {
     for (const other of root.querySelectorAll(".win")) other.classList.toggle("is-front", other === win);
   };
-  // 위치는 바탕화면 단위(client/offset)로 잰다(zoom이 걸려도 맞게. 지금은 안 건다 — 10-18 사용자: 큰 화면 배율은 랜딩만).
+  // 위치는 바탕화면 단위(client/offset)로 잰다(zoom이 걸려도 맞게. 지금은 안 건다 — 큰 화면 배율은 랜딩만).
   const deskBox = () => ({ width: desk.clientWidth, height: desk.clientHeight });
   const zoom = () => desk.currentCSSZoom || 1;
   const clampInto = (win, left, top) => {
@@ -76,7 +76,7 @@ export function mountImportDesk({ root, startSample, onHelperWindow = () => {} }
   }
 
 
-  // 창 가장자리·모서리를 끌어 크기 바꾸기(10-18, 결과 창과 같은 손잡이)
+  // 창 가장자리·모서리를 끌어 크기 바꾸기(결과 창과 같은 손잡이)
   for (const win of [importWin, helperWin]) enableResize(win, { container: desk, minW: 340, minH: 240, inset: { left: 30, top: 30, right: 30, bottom: 56 + 30 + 12 } });
 
   const openHelper = () => {

@@ -10,7 +10,7 @@ const furniture = [
   { x: 7.45, z: -3.7, width: 1.4, depth: 1.4 },
 ];
 const bounds = { minX: -7.5, maxX: 7.5, minZ: -4.7, maxZ: 4.7 };
-// a row of folder boxes along the back wall, as wide as the room (the old 30-folder shelves)
+// a row of folder boxes along the back wall, as wide as the room (30 folders)
 const shelves = Array.from({ length: 8 }, (_, i) => ({ x: -6.3 + i * 1.8, z: 4.6, width: 1.9, depth: 1.44 }));
 const context = { bounds, radius: 0.7, obstacles: [...furniture, ...shelves] };
 

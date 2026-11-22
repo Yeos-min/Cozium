@@ -1,5 +1,5 @@
 /**
- * finish-desk.js — 정리 결과 = 정리된 노트북 바탕화면 (2026-10-18, 사용자 선택).
+ * finish-desk.js — 정리 결과 = 정리된 노트북 바탕화면.
  *
  * 랜딩 → 노트북 바탕화면(가져오기) → 다락방 → 다시 그 바탕화면으로 나온다. 처음엔 정리 전 모습이고,
  * 옮긴 파일이 각자 폴더로 날아 들어가 안 치운 파일만 남는다. 오른쪽 창이 결과(다 치웠어요 / 여기까지 정리했어요).
@@ -16,7 +16,7 @@ import { applyPlan, checkPlan, clearPendingPlan, pathLabel, planFileName, remain
 const CELL = { w: 100, h: 104 };
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const fileIcon = (name) => deskIconFor(extensionOf(name));
-/** 폴더는 모든 화면에서 한 색(갈색·샌드, 10-18 사용자). 초록·갈색을 섞으면 뜻이 있는 줄 안다. */
+/** 폴더는 모든 화면에서 한 색(갈색·샌드). 초록·갈색을 섞으면 뜻이 있는 줄 안다. */
 const folderIcon = () => `${ICONS}folder-sand.webp`;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, reduced() ? 0 : ms));
 const el = (tag, className, text) => {
@@ -25,7 +25,7 @@ const el = (tag, className, text) => {
   if (text != null) node.textContent = text;
   return node;
 };
-/** 단추(11-08 A안 연필 + 크림 종이): 주 단추(win-go)는 먹으로 채우고, 나머지(win-button·win-link 칩)는 종이. 테두리는 js/ui/pencil.js */
+/** 단추(연필 + 크림 종이): 주 단추(win-go)는 먹으로 채우고, 나머지(win-button·win-link 칩)는 종이. 테두리는 js/ui/pencil.js */
 const button = (className, text) => {
   const node = el("button", className, text);
   node.type = "button";
@@ -168,7 +168,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
   const paintNudge = (node, n) => { node.style.translate = `${n.x.toFixed(1)}px ${n.y.toFixed(1)}px`; node.style.rotate = `${n.r.toFixed(1)}deg`; };
 
   /**
-   * 마무리: 아이콘 자동 정렬(10-18 사용자 선택). 비뚤어진 폴더가 왼쪽 위부터 차례로 「탁」 격자에 맞춰 서고,
+   * 마무리: 아이콘 자동 정렬. 비뚤어진 폴더가 왼쪽 위부터 차례로 「탁」 격자에 맞춰 서고,
    * 다 치웠을 때는 다 선 뒤 바탕화면 아이콘이 한 번 숨 쉬듯 커졌다 돌아온다.
    */
   async function arrange(id) {
@@ -260,7 +260,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
         if (id !== runId) return;
         counts.set(item.to, (counts.get(item.to) ?? 0) + 1);
         gulp(target, counts.get(item.to));
-        sound.play("gulp"); // 쏙 — 줄줄이 들어가면 드르르륵(11-09 사용자, js/sound.js)
+        sound.play("gulp"); // 쏙 — 줄줄이 들어가면 드르르륵(js/sound.js)
         counter.bump();
       }, delay + duration - 40);
     });
@@ -369,7 +369,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
       return;
     }
     if (state === "connect") {
-      // v0.2.3: 이 화면이 Helper를 기다린다. 사용자는 exe만 켜면 되고, 켜지면 여기서 바로 이어진다(새 탭·입력 없음).
+      // 이 화면이 Helper(v0.2.3+)를 기다린다. 방문자는 exe만 켜면 되고, 켜지면 여기서 바로 이어진다(새 탭·입력 없음).
       box.append(el("p", "finish-apply-head", "Desktop Helper를 켜 주세요"));
       const steps = el("ol", "howto");
       const a = el("a", null, "CoziumHelper.exe");
@@ -377,7 +377,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
       const s1 = el("li"); s1.append(a, "를 받아 실행해요.");
       steps.append(
         s1,
-        el("li", null, "경고창이 뜨면 「추가 정보」 → 「실행」을 눌러요. 서명 안 된 학생 프로젝트라 뜨는 경고예요."), // 창 제목은 Windows 버전마다 달라 적지 않는다(11-07 사용자)
+        el("li", null, "경고창이 뜨면 「추가 정보」 → 「실행」을 눌러요. 서명 안 된 학생 프로젝트라 뜨는 경고예요."), // 창 제목은 Windows 버전마다 달라 적지 않는다
         el("li", null, "브라우저가 「이 기기의 다른 앱 및 서비스에 액세스」를 물으면 「허용」을 눌러요."),
       );
       const waiting = el("p", "finish-apply-progress finish-apply-wait", "Helper를 기다리는 중… 켜지면 이 화면에서 바로 이어져요.");
@@ -426,7 +426,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
     }
     if (state === "ready") {
       const where = helper.desktopName ?? "바탕화면";
-      // 누르기 전에 Helper 폴더를 읽어 계획의 파일이 실제로 거기 있는지 센다(10-19: 하위 폴더 안 파일을 끌어 온 계획이 0개로 끝남).
+      // 누르기 전에 Helper 폴더를 읽어 계획의 파일이 실제로 거기 있는지 센다(하위 폴더 안 파일을 끌어 온 계획은 적용할 게 0개일 수 있다).
       if (!extra.check) {
         box.append(el("p", "finish-apply-head", `‘${where}’에 연결됨`), el("p", "finish-apply-progress", "폴더에 파일이 있는지 확인하는 중…"));
         const id = ++checkRun;
@@ -538,7 +538,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
         },
       });
       if (applied.moved.length) {
-        // 옮긴 것만 계획에서 뺀다. 실패·직접 옮길 것은 남겨 다음에 다시 열 수 있게(11-16 검수 #2).
+        // 옮긴 것만 계획에서 뺀다. 실패·직접 옮길 것은 남겨 다음에 다시 열 수 있게.
         const rest = remainingPlan(report.plan, applied);
         if (rest) savePendingPlan(rest);
         else clearPendingPlan();
@@ -568,7 +568,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
     busy = true;
     try {
       const result = await undoApplied(applied, helper);
-      // 못 돌린 배치는 버리지 않는다 — 파일 잠금이 풀리면 다시 누를 수 있게(11-16 검수 #3).
+      // 못 돌린 배치는 버리지 않는다 — 파일 잠금이 풀리면 다시 누를 수 있게.
       applied = result.pendingBatchIds.length ? { ...applied, batchIds: result.pendingBatchIds } : null;
       // 되돌린 파일은 다시 바탕화면 위에 있다. 계획을 처음 모양으로 다시 보관해 둔다.
       if (result.restored.length && report.plan) savePendingPlan(report.plan);
@@ -601,7 +601,7 @@ export function mountFinishDesk({ root, onBack, connectHelper, waitForHelper = n
       return !root.hidden;
     },
     /** report: app.js가 만든 결과. connected: 이미 연결된 Helper(가져오기 화면에서 계획을 열었을 때). */
-    /** from: "laptop"이면 방의 노트북 화면 속으로 들어온 것 — 어두운 막 없이 바탕화면이 바로 이어진다(10-20). */
+    /** from: "laptop"이면 방의 노트북 화면 속으로 들어온 것 — 어두운 막 없이 바탕화면이 바로 이어진다. */
     show(next, { connected = null, from = null } = {}) {
       report = next;
       helper = connected ?? helper;

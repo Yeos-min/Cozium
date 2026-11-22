@@ -1,4 +1,4 @@
-// 문서 카드 이름 줄바꿈(11-16): 확장자는 한 덩어리로 — 「초안.b / lend」처럼 끊기지 않게.
+// 문서 카드 이름 줄바꿈: 확장자는 한 덩어리로 — 「초안.b / lend」처럼 끊기지 않게.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { wrapFileName } from "../js/three/card-face.js";

@@ -156,7 +156,7 @@ export class Board3D {
   #shelfSlots = [];
   #launchCount = 0; // 한 번에 손을 떠나는 카드들의 차례(시간차)
   #launchReset = 0;
-  /** 우클릭을 누르고 있는 동안: { start(ms) }. 떼면 던진다(10-13 21시). */
+  /** 우클릭을 누르고 있는 동안: { start(ms) }. 떼면 던진다. */
   #charge = null;
   #lastClient = null;
   #hintFlash = 0;
@@ -172,7 +172,7 @@ export class Board3D {
   #homeSlots = new HomeSlots();
   #homePoses = new Map();
 
-  /** 빈손으로 노트북을 누르면(10-20 정리 끝내기). 다 치웠으면 노트북이 부른다(#laptopCalling). */
+  /** 빈손으로 노트북을 누르면(정리 끝내기). 다 치웠으면 노트북이 부른다(#laptopCalling). */
   #onLaptop;
   #laptopCalling = false;
   #laptopLabel = null;
@@ -243,7 +243,7 @@ export class Board3D {
   }
 
   /**
-   * 방이 다 차려질 때까지(정리 시작 로딩 화면, 10-18). onStep(단계, 0…1)로 진행을 알린다.
+   * 방이 다 차려질 때까지(정리 시작 로딩 화면). onStep(단계, 0…1)로 진행을 알린다.
    * 단계: room(다락방 모델 받기·풀기) → boxes(상자 모델) → shaders(첫 화면 셰이더 미리 굽기) → floor(첫 프레임).
    * 실패해도 멈추지 않는다 — 방이 안 오면 빈 방, 상자가 안 오면 나무 상자로 간다.
    */
@@ -292,7 +292,7 @@ export class Board3D {
     return this.#placement;
   }
 
-  /** 입력이 막혀 있는가(정리 시작 화면·설정 창 등). app.js가 Esc로 락이 풀린 것과 일부러 푼 것을 가른다(10-25) */
+  /** 입력이 막혀 있는가(정리 시작 화면·설정 창 등). app.js가 Esc로 락이 풀린 것과 일부러 푼 것을 가른다 */
   get suspended() { return this.#suspended; }
 
   get arranging() { return this.#arranging; }
@@ -432,7 +432,7 @@ export class Board3D {
     if (placement === this.#placement) return;
     this.#placement = placement;
     this.#kit.setPlacement(placement);
-    // 1인칭(다락방): 파일 바닥은 방 모델에 맞춘 사각형이다(attic-room.js). 나머지 배치는 예전 보드.
+    // 1인칭(다락방): 파일 바닥은 방 모델에 맞춘 사각형이다(attic-room.js). 나머지 배치는 평면 보드(playBoundsFor).
     this.#store.setBounds(this.walking && placement === "far" ? atticFloorBounds(UNIT) : playBoundsFor(placement));
     this.sync();
   }
@@ -464,7 +464,7 @@ export class Board3D {
 
     this.#breadcrumb = document.createElement("div");
     this.#breadcrumb.className = "breadcrumb";
-    this.#breadcrumb.dataset.pen = "paper"; // 11-07 연필 종이(js/ui/pencil.js, css/room-paper.css)
+    this.#breadcrumb.dataset.pen = "paper"; // 연필 종이(js/ui/pencil.js, css/room-paper.css)
 
     this.#marquee = document.createElement("div");
     this.#marquee.className = "marquee";
@@ -495,7 +495,7 @@ export class Board3D {
     this.#handHint.className = "hand-hint";
     this.#handHint.dataset.pen = "paper";
     this.#handHint.hidden = true;
-    // 조준선 위 연필 힌트: 침대 = 해/달(11-06), 노트북 = 체크 「눌러서 정리 끝내기」(11-07 — 위쪽 알약이 눈에 안 띈다는 사용자 피드백)
+    // 조준선 위 연필 힌트: 침대 = 해/달, 노트북 = 체크 「눌러서 정리 끝내기」(화면 위쪽 안내는 시선 밖이라 잘 안 보인다)
     this.#timeHint = document.createElement("div");
     this.#timeHint.className = "time-hint";
     this.#timeHint.dataset.on = "false";
@@ -614,7 +614,7 @@ export class Board3D {
       this.#shelfPager.replaceChildren(button("이전 구역", -1), label, button("다음 구역", 1));
     }
     const shelfSlots = shelf ? targets.map(target => available[assigned.get(target.id) % available.length]) : [];
-    // 선반 틀이 없으니(다락방, 10-11) 위 칸 상자는 아래 칸에 상자가 있을 때만 그 높이에 뜬다. 아래가 비면 바닥으로 내린다.
+    // 선반 틀이 없으니(다락방) 위 칸 상자는 아래 칸에 상자가 있을 때만 그 높이에 뜬다. 아래가 비면 바닥으로 내린다.
     const lowerOf = (slot) => available.find(candidate => candidate.x === slot.x && candidate.z === slot.z && candidate.y < slot.y);
     const restingY = new Map(shelfSlots.map(slot => {
       const lower = lowerOf(slot);
@@ -757,7 +757,7 @@ export class Board3D {
 
   /**
    * 다락방의 처음 자리(핀보드)에 있는 파일의 자세. 저장소는 home만 표시하고 칸은 장면이 정한다.
-   * 같은 파일은 같은 칸을 유지한다. (11-07: 책 더미는 뺌 — 문서도 그냥 바닥 파일)
+   * 같은 파일은 같은 칸을 유지한다. 문서도 바닥 파일이다.
    */
   #syncHomes() {
     const byHome = new Map([["pinboard", []]]);
@@ -773,7 +773,7 @@ export class Board3D {
     }
   }
 
-  /** 손을 떠난 카드가 내려앉았다: 상자 안이면 「툭」, 핀보드면 「틱」, 바닥이면 「탁」(11-09, js/sound.js) */
+  /** 손을 떠난 카드가 내려앉았다: 상자 안이면 「툭」, 핀보드면 「틱」, 바닥이면 「탁」(js/sound.js) */
   #landSound(id) {
     const entry = this.#store.entry(id);
     if (!entry) return;
@@ -792,7 +792,7 @@ export class Board3D {
 
     if (this.#drag?.ids.has(entry.id)) return; // 손에 들려 있다
 
-    // 1인칭 손을 막 떠났다(내려놓기·상자에 넣기·핀보드): 스프링으로 빨려 들지 않고 포물선으로 날아간다(10-13).
+    // 1인칭 손을 막 떠났다(내려놓기·상자에 넣기·핀보드): 스프링으로 빨려 들지 않고 포물선으로 날아간다.
     if (card.inHand && !store.isSelected(entry.id)) {
       card.inHand = false;
       const thrown = this.#throwPaths.get(entry.id);
@@ -892,7 +892,7 @@ export class Board3D {
     const crumb =
       level === null
         ? store.visibleTargets.length
-          ? "" // 11-07 사용자: 늘 떠 있을 필요 없음 → 상자를 빈손으로 겨눌 때만 조준선 위 「눌러서 폴더 열기」(#updateTimeHint)
+          ? "" // 늘 띄우지 않는다 — 상자를 빈손으로 겨눌 때만 조준선 위 「눌러서 폴더 열기」(#updateTimeHint)
           : "폴더가 없어요 · Esc 설정에서 「새 폴더」로 만들어요"
         : `${store.folderLabel(level)} · Esc 뒤로`;
     if (this.#breadcrumb.textContent !== crumb) this.#breadcrumb.textContent = crumb;
@@ -1063,7 +1063,7 @@ export class Board3D {
 
     const held = this.#store.selection;
     if (event.button === 2) {
-      // 핀보드를 겨누면 바로 꽂는다. 아니면 누르는 동안 힘을 모았다가 떼는 순간 보는 방향으로 던진다(10-13 21시).
+      // 핀보드를 겨누면 바로 꽂는다. 아니면 누르는 동안 힘을 모았다가 떼는 순간 보는 방향으로 던진다.
       if (held.length) {
         if (this.#aimsAtPinboard(this.#aim(event))) this.#placeHeldAt(event);
         else this.#charge = { start: performance.now() };
@@ -1090,9 +1090,9 @@ export class Board3D {
       this.#gathering = TUNING.firstPerson.gather.sweep;
       return;
     }
-    // 좌클릭은 상자에 넣기만 한다(10-13 22시 사용자: 좌클릭으로도 던져지는 건 버그). 바닥에 두는 건 우클릭 던지기.
+    // 좌클릭은 상자에 넣기만 한다(좌클릭으로 던져지면 안 된다). 바닥에 두는 건 우클릭 던지기.
     if (held.length) { this.#hintFlash = performance.now() + 1800; return; }
-    // 빈손으로 노트북 = 정리 끝내기(10-20), 침대 = 시간이 흐른다(낮 ↔ 밤, 10-13). 둘 다 겨누면 가까운 쪽.
+    // 빈손으로 노트북 = 정리 끝내기, 침대 = 시간이 흐른다(낮 ↔ 밤). 둘 다 겨누면 가까운 쪽.
     const fixture = this.#aimedFixture(this.#aim(event));
     if (fixture === "laptop") this.#onLaptop?.();
     else if (fixture === "bed") this.#kit.toggleNight();
@@ -1127,7 +1127,7 @@ export class Board3D {
     const aim = this.#aim(event);
     const store = this.#store;
     let held = store.selection;
-    // 핀보드를 겨누면 사진·메모는 다시 꽂는다(10-11 사용자: 떼면 다시 못 붙이던 것). 칸이 모자라거나 다른 종류는 바닥으로.
+    // 핀보드를 겨누면 사진·메모는 다시 꽂는다. 칸이 모자라거나 다른 종류는 바닥으로.
     if (this.#aimsAtPinboard(aim)) {
       const pinned = new Set(store.setHome(held.filter((id) => fileHome(store.entry(id)?.item) === "pinboard"), "pinboard"));
       held = held.filter((id) => !pinned.has(id));
@@ -1189,7 +1189,7 @@ export class Board3D {
     });
   }
 
-  // ───────────────────────── 던지기 (10-13 21시) ─────────────────────────
+  // ───────────────────────── 던지기 ─────────────────────────
 
   /** 던질 방향(겨눈 곳으로 가는 광선)과 손 자리. 커서 모드면 커서 쪽으로. */
   #throwAim() {
@@ -1202,9 +1202,8 @@ export class Board3D {
     return { dir, handPos };
   }
 
-  /** 벽·천장·가구·상자. 상자는 앞(방 가운데 쪽)으로 밀어낸다 — 던져서는 안 들어간다(사용자 결정). */
   /**
-   * 벽·천장·가구, 그리고 지금 보이는 상자. 상자는 입구로 떨어지면 그 폴더에 들어간다(catch = 폴더 id, 10-13 22시).
+   * 벽·천장·가구, 그리고 지금 보이는 상자. 상자는 입구로 떨어지면 그 폴더에 들어간다(catch = 폴더 id).
    * 상자는 장애물 목록이 아니라 실제 상자 자리에서 잰다(옮겨 둔 상자의 원래 칸이 유령처럼 받지 않게).
    */
   #throwWorld() {
@@ -1444,7 +1443,7 @@ export class Board3D {
     this.#updateLaptopLabel(laptop);
     const box = held === 0 && walking && this.#locked && !this.#suspended && this.#crosshair.dataset.over === "box";
     this.#updateTimeHint(this.#arranging ? null : bed ? "bed" : laptop ? "laptop" : box ? "box" : null);
-    // 11-07: 침대·노트북은 조준선 위 연필 힌트가 같은 말을 하므로 아래 안내는 손에 파일을 들었을 때만
+    // 침대·노트북은 조준선 위 연필 힌트가 같은 말을 하므로 아래 안내는 손에 파일을 들었을 때만
     this.#handHint.hidden = this.#arranging || !walking || held === 0;
     if (held > 0 && walking) {
       const pin = this.#locked && this.#aimsAtPinboard(this.#aim(null));

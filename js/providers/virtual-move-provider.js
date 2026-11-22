@@ -12,7 +12,7 @@
 
 import { FileSystemProvider, ProviderError, emptyImport, folderLabel, validateFolderName } from "./file-system-provider.js";
 
-/** Windows 이름은 대소문자를 가리지 않는다. Helper와 같은 규칙으로 충돌을 판정한다(11-16 검수 #7). */
+/** Windows 이름은 대소문자를 가리지 않는다. Helper와 같은 규칙으로 충돌을 판정한다. */
 const nameKey = (name) => String(name).toLocaleLowerCase("en-US");
 
 const nameCollator = new Intl.Collator("ko", { numeric: true, sensitivity: "base" });
@@ -57,7 +57,7 @@ export class VirtualMoveProvider extends FileSystemProvider {
   }
 
   /**
-   * 정리 계획(10-18): 처음 자리와 지금 자리가 다른 파일. 자리는 폴더 경로(이름 배열, [] = 바탕화면).
+   * 정리 계획: 처음 자리와 지금 자리가 다른 파일. 자리는 폴더 경로(이름 배열, [] = 바탕화면).
    * 체험 모드에서는 이것을 나중에 Helper가 실제로 옮긴다(js/state/cleanup-plan.js).
    */
   get moves() {
@@ -273,7 +273,7 @@ export class VirtualMoveProvider extends FileSystemProvider {
     if (siblings.some((folder) => nameKey(folder.name) === nameKey(trimmed))) {
       throw new ProviderError("DESTINATION_EXISTS", `'${trimmed}' 폴더가 이미 있습니다.`);
     }
-    // 같은 자리의 파일 이름도 막는다. Helper(mkdir)는 이름이 겹치면 실패한다(11-16 검수 #7).
+    // 같은 자리의 파일 이름도 막는다. Helper(mkdir)는 이름이 겹치면 실패한다.
     const taken = parentId ? await this._namesIn(parentId) : new Set(this.files.filter((file) => (this._placement.get(file.id) ?? null) === null).map((file) => nameKey(file.name)));
     if (taken.has(nameKey(trimmed))) {
       throw new ProviderError("DESTINATION_EXISTS", `'${trimmed}'과(와) 같은 이름의 파일이 이미 있습니다.`);

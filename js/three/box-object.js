@@ -69,7 +69,7 @@ export class BoxObject {
     this.parts.add(this.front);
     this.textOverlay = makeTextOverlay(THREE, this.front, null, 4);
 
-    // Four separate rims leave the box genuinely OPEN (the old slab was a lid).
+    // Four separate rims leave the box genuinely OPEN (one slab would read as a lid).
     this.rim = new THREE.Group();
     for (const sign of [-1, 1]) {
       const horizontal = new THREE.Mesh(new THREE.BoxGeometry(width + 0.02, 0.035, wall), this.rimMaterial);
@@ -126,7 +126,7 @@ export class BoxObject {
   }
 
   /**
-   * 사용자 상자 모델(10-11). 재질을 상자마다 복제해서 몸통은 폴더 색, 테두리는 겨눔 빛을 받는다.
+   * 상자 모델(models/box.glb). 재질을 상자마다 복제해서 몸통은 폴더 색, 테두리는 겨눔 빛을 받는다.
    * 앞면 UV가 아틀라스 조각이라 이름은 손잡이 구멍 아래 작은 판(nameplate)에 붙인다.
    */
   async #swapInModel() {
@@ -156,7 +156,7 @@ export class BoxObject {
     plateGeometry.addGroup(0, Infinity, 0);
     this.plateMaterial = surfaceMaterial({ color: "#ffffff", roughness: 0.9, metalness: 0 });
     // 정점 흔들림(Wobble)은 화면에서 정점을 몇 px씩 옮긴다. 앞면 큰 삼각형과 작은 판이 서로 다르게 옮겨져
-    // 깊이가 엇갈리면 판에 상자 몸통이 삼각형으로 뚫고 나온다(10-11 사용자 제보). 판을 조금 띄우고
+    // 깊이가 엇갈리면 판에 상자 몸통이 삼각형으로 뚫고 나온다. 판을 조금 띄우고
     // 기울기에 비례해 앞으로 당기는 polygonOffset을 준다. 글씨는 판보다 한 단계 더 앞으로.
     this.plateMaterial.polygonOffset = true;
     this.plateMaterial.polygonOffsetFactor = -4;

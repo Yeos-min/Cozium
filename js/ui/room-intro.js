@@ -1,5 +1,5 @@
 /**
- * room-intro.js — 정리 시작 화면 (2026-10-18 사용자: "정리 시작 처음 화면에 조작방법 간단한 설명, 그리고 로딩화면도 필요해").
+ * room-intro.js — 정리 시작 화면: 로딩 + 조작 방법 간단한 설명.
  *
  * 두 박자다.
  *   loading — 가져오기 화면이 어두워진 그 색(#2b2a21)에서 이어진다. 방 모델 받기 → 상자 → 셰이더 → 첫 프레임 진행 막대.
@@ -35,10 +35,10 @@ export function mountRoomIntro({ root, onEnter }) {
   const bar = $(".intro-bar"), fill = $(".intro-bar > span"), stepLabel = $("#intro-step"), percent = $("#intro-percent");
   const tip = $("#intro-tip"), mode = $("#intro-mode"), enterButton = $("#intro-enter");
   for (const el of root.querySelectorAll("i.mouse")) el.innerHTML = mouseIcon(el.dataset.btn);
-  pencilize(root); // 11-07 사용자 A안: 조작 안내도 연필 + 크림 종이(css/room-paper.css)
+  pencilize(root); // 조작 안내도 연필 + 크림 종이(css/room-paper.css)
 
-  // 화면 크기에 맞춰 키운다(10-18 사용자: "너무 작다"). 1280 × 720을 1로, 큰 모니터일수록 같은 비율로 커진다.
-  // 11-07 사용자 「너무 꽉 참, 여백이 없음」: 조작 안내 종이가 화면 높이의 80%를 넘지 않게 줄인다(offsetHeight = 배율 전 크기).
+  // 화면 크기에 맞춰 키운다. 1280 × 720을 1로, 큰 모니터일수록 같은 비율로 커진다.
+  // 여백이 남게: 조작 안내 종이가 화면 높이의 80%를 넘지 않게 줄인다(offsetHeight = 배율 전 크기).
   const sheet = $(".intro-ready");
   const fit = () => {
     let k = Math.min(2.6, Math.max(1, Math.min(innerWidth / 1280, innerHeight / 720)));

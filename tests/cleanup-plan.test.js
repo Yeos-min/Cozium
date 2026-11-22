@@ -89,7 +89,7 @@ test("Helper로 적용: 있는 폴더·하위 폴더·새 폴더, 없는 파일�
   assert.ok(helper.state.files.every((f) => !f.in));
 });
 
-test("checkPlan counts only files that sit directly in the Helper folder (10-19: files dragged from inside a subfolder)", async () => {
+test("checkPlan counts only files that sit directly in the Helper folder (files dragged from inside a subfolder)", async () => {
   const plan = buildPlan({ moves: [
     { name: "a.png", size: 10, from: [], to: ["사진"] },
     { name: "B.txt", size: 5, from: [], to: ["문서"] },
@@ -104,7 +104,7 @@ test("checkPlan counts only files that sit directly in the Helper folder (10-19:
   assert.equal(checkPlan(plan, []).present.length, 0);
 });
 
-// ── 11-16 Codex 검수 #2~#5 ──
+// ── 부분 적용·되돌리기 실패·0바이트·나눠 보내기 ──
 
 test("0바이트였던 파일이 지금 다른 크기면 다른 파일로 보고 옮기지 않는다", async () => {
   const helper = fakeHelper({ files: [{ name: "빈.txt", size: 99 }], folders: [{ name: "과제" }] });

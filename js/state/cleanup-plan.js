@@ -1,9 +1,9 @@
 /**
- * cleanup-plan.js — 정리 계획 (2026-10-18, 사용자: "다 정리 안 해도 이 정도면 됐다 할 때 끝내고, 그 상태로 바탕화면에 적용").
+ * cleanup-plan.js — 정리 계획. 다 치우지 않아도 원할 때 끝내고, 그 상태를 실제 바탕화면에 적용할 수 있게 한다.
  *
  * 체험 모드(드롭)는 읽기 전용이라 방에서 한 정리는 가상이다. 끝낼 때 그 결과를 "계획"으로 남기고,
  * Desktop Helper가 연결되면 그 계획대로 실제로 옮긴다. 옮기는 건 늘 Helper의 이동 규칙 그대로다(§5-1):
- * 덮어쓰기 없음, 같은 볼륨만, 항목별 결과, 되돌리기는 rename 역방향.
+ * 덮어쓰기 방지 이동(moveNoOverwrite), 같은 볼륨만, 항목별 결과, 되돌리기도 같은 이동 함수로 거꾸로.
  *
  * 계획에는 경로가 없다. 이름과 크기, 폴더 이름의 줄(["과제", "3D"])만 있다. 웹은 절대경로를 모른다(§5-2).
  * Helper는 바탕화면 바로 위의 파일만 볼 수 있어서(폴더 안 파일 목록이 없다), 폴더 안에서 꺼냈거나 폴더끼리 옮긴 파일은
@@ -51,7 +51,7 @@ export function parsePlan(input) {
 /** Helper가 한 요청에 받는 파일 수(helper/desktop-helper.mjs MAX_BATCH). 넘으면 요청 전체가 거부된다. */
 export const HELPER_BATCH_LIMIT = 500;
 
-/** 0바이트도 유효한 크기다(11-16 검수 #4): 계획 때 0이던 파일이 지금 99바이트면 다른 파일로 본다. */
+/** 0바이트도 유효한 크기다: 계획 때 0이던 파일이 지금 99바이트면 다른 파일로 본다. */
 const sizeChanged = (move, file) => Number.isFinite(move.size) && file.size !== move.size;
 const moveKey = (name, to) => `${lower(name)}\u0001${pathKey(to)}`;
 
@@ -74,7 +74,7 @@ export function splitPlan(plan) {
 }
 
 /**
- * 적용하기 전에 계획의 파일이 Helper가 보는 폴더 바로 위에 있는지 센다(2026-10-19).
+ * 적용하기 전에 계획의 파일이 Helper가 보는 폴더 바로 위에 있는지 센다.
  * 웹 드롭은 파일이 원래 어디 있었는지 모른다 — 탐색기에서 하위 폴더를 열고 그 안 파일을 끌어 놓으면
  * 계획에는 "바탕화면 위 파일"로 남지만 Helper는 거기서 못 찾는다. 그걸 단추를 누르기 전에 알려 주려고 쓴다.
  * 판정은 applyPlan과 같다: 이름(대소문자 무시) + 크기.
@@ -163,7 +163,7 @@ export async function applyPlan(plan, helper, { onProgress = () => {} } = {}) {
 
   let done = 0;
   for (const [folderId, group] of groups) {
-    // Helper는 요청당 HELPER_BATCH_LIMIT개까지 받는다. 넘기면 전부 거부되므로 나눠 보낸다(11-16 검수 #5).
+    // Helper는 요청당 HELPER_BATCH_LIMIT개까지 받는다. 넘기면 전부 거부되므로 나눠 보낸다.
     for (let start = 0; start < group.ids.length; start += HELPER_BATCH_LIMIT) {
       const ids = group.ids.slice(start, start + HELPER_BATCH_LIMIT);
       onProgress({ step: "move", done, total: taken.size, folder: pathLabel(group.to) });
@@ -186,7 +186,7 @@ export async function applyPlan(plan, helper, { onProgress = () => {} } = {}) {
 }
 
 /**
- * 적용 뒤에 남길 계획: 실제로 옮긴 항목만 빼고, 실패·직접 옮길 것·건너뛴 것은 남긴다(11-16 검수 #2).
+ * 적용 뒤에 남길 계획: 실제로 옮긴 항목만 빼고, 실패·직접 옮길 것·건너뛴 것은 남긴다.
  * 전부 옮겼으면 null — 보관한 계획을 지워도 된다.
  */
 export function remainingPlan(plan, report) {
@@ -206,7 +206,7 @@ export function remainingPlan(plan, report) {
 /**
  * 방금 적용한 것을 되돌린다(rename 역방향). 새로 만든 폴더는 지우지 않는다 — 삭제 기능은 없다(§9).
  * pendingBatchIds: 하나라도 못 돌린 배치. Helper는 못 돌린 항목을 같은 배치 id로 남겨 두므로
- * 그 id로 다시 시도할 수 있다(11-16 검수 #3).
+ * 그 id로 다시 시도할 수 있다.
  */
 export async function undoApplied(report, helper) {
   const restored = [], failed = [], pendingBatchIds = [];

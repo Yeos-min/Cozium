@@ -33,7 +33,7 @@ createServer(async (request, response) => {
     let pathname = decodeURIComponent(url.pathname);
     if (pathname.endsWith("/")) pathname += "index.html";
     const filePath = normalize(join(root, pathname));
-    // startsWith(root)는 C:\dev\Cozium-other 같은 형제 폴더도 통과시킨다. 상대 경로로 판정한다(11-16 검수 #15).
+    // startsWith(root)는 C:\dev\Cozium-other 같은 형제 폴더도 통과시킨다. 상대 경로로 판정한다.
     const inside = relative(root, filePath);
     if (inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside)) {
       response.writeHead(403).end();

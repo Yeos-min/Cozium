@@ -14,7 +14,7 @@ test("new forms recognize mixed-case extensions while PDF and unknown files keep
   assert.equal(fileForm("JpEg"), "photo");
   assert.equal(fileForm("TXT"), "note");
   assert.equal(fileForm("md"), "note");
-  // 11-07 사용자: 문서도 책이 아니라 그냥 파일(책 더미 뺌)
+  // 문서도 책이 아니라 그냥 파일
   for (const extension of ["pdf", "DOCX", "hwp", "blend", "pptx", "custom", "", undefined]) {
     assert.equal(fileForm(extension), "card");
     assert.deepEqual(fileFootprint(extension, CARD), CARD);

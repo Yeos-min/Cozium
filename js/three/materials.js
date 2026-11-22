@@ -1,8 +1,8 @@
 /**
- * materials.js — 표면 재질을 한곳에서 만든다. (Claude, 2026-10-11)
+ * materials.js — 표면 재질을 한곳에서 만든다.
  *
- * 랜딩과 같은 그림(사용자 선택 10-11): 툰 3단(MeshToonMaterial + 3칸 그라데이션). `TUNING.render.material`을
- * "pbr"로 바꾸면 예전처럼 MeshStandardMaterial로 돌아간다. 거칠기·금속은 툰에 없는 값이라 넘기지 않는다.
+ * 랜딩과 같은 그림: 툰 3단(MeshToonMaterial + 3칸 그라데이션). `TUNING.render.material`을
+ * "pbr"로 바꾸면 MeshStandardMaterial로 돌아간다. 거칠기·금속은 툰에 없는 값이라 넘기지 않는다.
  * 불러온 모델(방, 상자)의 PBR 재질은 `toonFrom`으로 같은 규칙에 맞춘다.
  */
 import * as THREE from "../../vendor/three/three.module.min.js";
@@ -42,7 +42,7 @@ export function toonFrom(material) {
     color: material.color?.clone() ?? new THREE.Color("#ffffff"),
     emissive: material.emissive?.clone() ?? new THREE.Color("#000000"),
     emissiveMap: material.emissiveMap ?? null,
-    // 노멀맵은 넘기지 않는다(10-25): 3단 툰 경계에 회벽 요철이 섞여 벽에 들쭉날쭉한 명암 얼룩이 생겼다. 랜딩(room-layer.js)도 안 넘김
+    // 노멀맵은 넘기지 않는다: 3단 툰 경계에 회벽 요철이 섞여 벽에 들쭉날쭉한 명암 얼룩이 생겼다. 랜딩(room-layer.js)도 안 넘김
     transparent: material.transparent,
     opacity: material.opacity,
     alphaTest: material.alphaTest,

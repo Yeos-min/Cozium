@@ -1,10 +1,10 @@
-/* Site navigation shared by the landing (index.html) and the help page (help.html), 2026-10-08.
-   Everything sits together on the left: logo, 이용 안내, 정리방 들어가기 (user request, 2026-10-08).
+/* Site navigation shared by the landing (index.html) and the help page (help.html).
+   Everything sits together on the left: logo, 이용 안내, 정리방 들어가기.
    On the landing it shows on arrival, tucks up after 3 s and comes back when the pointer reaches the top edge
-   (js/landing-story/story.js). On the help page it simply stays. Dark bar with cream type, no blur, no shadow (user request
-   2026-10-09: the ivory bar was too light). Colour: the monitor frame's wood #463529 (2026-10-18 user: the main colour is
-   brown now, not green; green stays only where it is needed, e.g. the landing's call to action). Was #182c24. */
-/* 글꼴은 css/fonts.css (10-24) */
+   (js/landing-story/story.js). On the help page it simply stays. Dark bar with cream type, no blur, no shadow (a light bar
+   disappears on the landing). Colour: the monitor frame's wood #463529 — brown is the main colour; green only where it
+   is needed. */
+/* 글꼴은 css/fonts.css */
 .site-nav{
   --nav-ink:#f3edd3; --nav-paper:#2f231af7; --nav-line:#f3edd31f;
   position:fixed;top:0;left:0;right:0;z-index:20;height:64px;padding:0 36px;box-sizing:border-box;

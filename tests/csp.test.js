@@ -1,4 +1,4 @@
-// app.html의 보안 정책(CSP, 2026-10-20)이 실제 페이지와 어긋나지 않는지 잠근다. CLAUDE.md §8-9.
+// app.html의 보안 정책(CSP)이 실제 페이지와 어긋나지 않는지 잠근다. CLAUDE.md §8-9.
 // importmap을 고치면 sha256이 바뀐다 — 이 테스트가 실패하면 메시지의 값으로 app.html의 script-src를 바꾼다.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

@@ -1,6 +1,6 @@
-/* 정리방 UI — 연필 + 크림 종이(2026-11-07 사용자 A안).
+/* 정리방 UI — 연필 + 크림 종이.
    랜딩의 연필 말풍선과 같은 재료로 위·아래 버튼, 키 안내, 손에 든 파일 안내, 폴더 안 표시, 설정·기록 창, 정리 시작 조작 안내를 맞춘다.
-   테두리 그림은 js/ui/pencil.js가 [data-pen] 요소마다 깐다(svg.pen). 이 파일은 styles.css·room-intro.css 다음에 읽혀 예전 어두운 판을 덮는다.
+   테두리 그림은 js/ui/pencil.js가 [data-pen] 요소마다 깐다(svg.pen). 이 파일은 styles.css·room-intro.css 다음에 읽혀 그 파일들의 어두운 판을 덮는다.
    색: 먹 #2f231a, 옅은 먹 #6b5a4a, 종이 #fbf7ec, 빨간 연필 #b5574a(마우스 누르는 쪽). */
 
 :root {
@@ -28,7 +28,7 @@ kbd[data-pen] svg.pen .s2 { stroke-width: 1; opacity: 0.5; }
 .pen-mouse .s2 { stroke-width: 1; opacity: 0.55; }
 .pen-mouse .hot { fill: var(--pen-red); opacity: 0.85; }
 
-/* 키캡: 글자 가운데, 양옆 같은 여백(11-07 사용자: 오른쪽 여백이 없어 보임) */
+/* 키캡: 글자 가운데, 양옆 같은 여백 */
 body.is-playing kbd, .room-intro kbd, .room-sheet kbd {
   display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
   min-width: 26px; height: 26px; padding: 0 8px; margin: 0;
@@ -58,17 +58,17 @@ body.is-playing :is(#arrange-toggle, #log-toggle)[aria-pressed="true"] svg.pen .
 body.is-playing :is(#arrange-toggle)[aria-pressed="true"] kbd { color: var(--pen-paper); }
 body.is-playing :is(#arrange-toggle)[aria-pressed="true"] kbd svg.pen .s, body.is-playing #arrange-toggle[aria-pressed="true"] kbd svg.pen .s2 { stroke: var(--pen-paper); }
 body.is-playing #sound-toggle { width: 42px; padding: 0; justify-content: center; }
-/* 톱니바퀴 [Esc](11-10): 「파일 정리 모드 [Tab]」과 같은 종이 칩, 아이콘은 소리 단추와 같은 선(20px · 2px) */
+/* 톱니바퀴 [Esc]: 「파일 정리 모드 [Tab]」과 같은 종이 칩, 아이콘은 소리 단추와 같은 선(20px · 2px) */
 body.is-playing #panel-toggle { padding: 0 10px 0 14px; }
 body.is-playing #panel-toggle .gear { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linejoin: round; }
-/* 11-09 소리 켜기/끄기(js/sound.js): 네모 종이 단추, 선 아이콘(20px · 2px · 채움 없음). 켜짐 = 물결, 꺼짐 = ×
-   (23:32 사용자: 글자 없이 다른 단추와 통일). 11-10부터 설정 창 「정리 › 소리」 줄에 있다 */
+/* 소리 켜기/끄기(js/sound.js): 네모 종이 단추, 선 아이콘(20px · 2px · 채움 없음), 글자 없음. 켜짐 = 물결, 꺼짐 = ×.
+   설정 창 「정리 › 소리」 줄에 있다 */
 body.is-playing #sound-toggle .sound-ic { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #sound-toggle[data-sound="on"] .off, #sound-toggle[data-sound="off"] .on { display: none; }
 body.is-playing #undo-button { position: fixed; right: 28px; bottom: 24px; }
 body.is-playing #undo-button .undo-label { max-width: 220px; }
 body.is-playing .pen-field { display: inline-flex; align-items: center; }
-/* 설정 창 「정리」 줄(11-10): 새 폴더 [이름 칸][만들기] · 기록 [보기] · 소리 [켜기/끄기]. 칸은 화면 품질 선택칸과 같은 연필 종이 칸 */
+/* 설정 창 「정리」 줄: 새 폴더 [이름 칸][만들기] · 기록 [보기] · 소리 [켜기/끄기]. 칸은 화면 품질 선택칸과 같은 연필 종이 칸 */
 .sheet-row.new-folder-form { grid-template-columns: 110px minmax(0, 1fr) auto; }
 .sheet-row.new-folder-form .pen-field { grid-column: auto; display: flex; height: 42px; }
 .sheet-row.new-folder-form input {

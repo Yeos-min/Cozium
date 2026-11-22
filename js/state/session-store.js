@@ -16,8 +16,8 @@ import { floorSlotCount, placeFloorItems } from "../ui/floor-layout.js";
 export const SELECTABLE_STATUSES = new Set(["idle", "conflict", "error"]);
 export const BOARD_STATUSES = new Set(["idle", "conflict", "error", "moving"]);
 /**
- * 한 번에 둘 수 있는 상자(폴더) 수. 다락방 처마 벽 두 줄 × 두 단 = 20칸이고, 방을 더 넓히지 않는다(2026-10-13 사용자:
- * 큰 공간은 cozy와 안 맞는다). 넘는 폴더는 이번에 상자로 안 가져온다 — 파일은 그대로 다 온다.
+ * 한 번에 둘 수 있는 상자(폴더) 수. 다락방 처마 벽 두 줄 × 두 단 = 20칸이고, 방을 더 넓히지 않는다(큰 공간은
+ * cozy와 안 맞는다). 넘는 폴더는 이번에 상자로 안 가져온다 — 파일은 그대로 다 온다.
  */
 export const MAX_BOXES = 20;
 
@@ -457,7 +457,7 @@ export class SessionStore {
   // ───────────────────────── 위치 ─────────────────────────
 
   /**
-   * 파일을 처음 자리(핀보드)로 되돌린다(다락방, 10-11). 그 자리의 정원(layout.homeCapacity)까지만.
+   * 파일을 처음 자리(핀보드)로 되돌린다(다락방). 그 자리의 정원(layout.homeCapacity)까지만.
    * 칸은 장면이 정한다. 바닥 좌표는 그대로 둔다(나중에 내려놓으면 덮어쓴다).
    * @returns {string[]} 실제로 그 자리에 간 id
    */

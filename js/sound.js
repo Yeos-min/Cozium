@@ -1,4 +1,4 @@
-// 소리(2026-11-09 사용자): 배경음악은 다락방이 보일 때만, 노트북 속(바탕화면·결과 화면)은 조용히.
+// 소리: 배경음악은 다락방이 보일 때만, 노트북 속(바탕화면·결과 화면)은 조용히.
 // 노트북으로 들어가면 페이드 아웃, 방으로 나오면 그 자리부터 페이드 인. 효과음은 파일 없이 Web Audio로 합성한다.
 // 랜딩(js/landing-story/story.js)과 정리방(js/app.js)이 같이 쓴다.
 //
@@ -20,21 +20,21 @@ const STORE_KEY = "cozium.sound";
 
 const MARIMBA = [[1, 1], [3.9, 0.25], [9.2, 0.06]];
 
-/** 효과음 레시피(11-08 소리 고르기 페이지에서 고른 것 + 11-09 손본 것). v = 높이 ±6% 흔들기, k = 크기(기본 1) */
+/** 효과음 레시피. v = 높이 ±6% 흔들기, k = 크기(기본 1) */
 const RECIPES = {
-  box: (v, k) => boxHit(v, k), // A 툭 — 종이상자. 여러 장이면 툭 → 톡톡톡 이어짐(boxHit)
-  // B 스윽(11-09 사용자 「너무 날카로움, 무더기로 들으니 가벼움」): 높은 쉭 → 낮은 사락 + 손에 쥐는 묵직한 바닥음.
+  box: (v, k) => boxHit(v, k), // 툭 — 종이상자. 여러 장이면 툭 → 톡톡톡 이어짐(boxHit)
+  // 스윽: 높은 쉭 → 낮은 사락 + 손에 쥐는 묵직한 바닥음.
   // 연달아 집으면 조금씩 작고 낮게(pickRun)
   pick: (v, k) => {
     burst({ type: "bandpass", f: 900 * v, f2: 1500 * v, q: 0.7, dur: 0.2, gain: 0.38 * k, attack: 0.045 });
     burst({ type: "lowpass", f: 520 * v, dur: 0.12, gain: 0.26 * k, attack: 0.02 });
     tone({ f: 120 * v, f2: 85 * v, dur: 0.1, gain: 0.2 * k, at: 0.02 });
   },
-  throw: (v, k) => { burst({ type: "lowpass", f: 1400 * v, dur: 0.06, gain: 0.55 * k }); tone({ f: 140 * v, f2: 90 * v, dur: 0.07, gain: 0.35 * k }); }, // C 착지 탁
-  pin: (v, k) => { burst({ type: "bandpass", f: 4200 * v, q: 3, dur: 0.025, gain: 0.6 * k }); tone({ f: 320 * v, f2: 220 * v, dur: 0.06, gain: 0.35 * k, at: 0.01 }); }, // A 틱 — 압정
-  ui: (v, k) => burst({ type: "bandpass", f: 2600 * v, q: 2, dur: 0.03, gain: 0.45 * k }), // A 연필 톡
-  done: (v, k) => { tone({ f: 523 * v, dur: 0.5, gain: 0.3 * k, partials: MARIMBA }); tone({ f: 784 * v, dur: 0.8, gain: 0.3 * k, at: 0.16, partials: MARIMBA }); }, // A 딩동
-  // 11-09 새로: 랜딩 첫 화면 노트북이 책상에 통 — 나무에 닿는 낮은 울림 + 플라스틱 딸깍
+  throw: (v, k) => { burst({ type: "lowpass", f: 1400 * v, dur: 0.06, gain: 0.55 * k }); tone({ f: 140 * v, f2: 90 * v, dur: 0.07, gain: 0.35 * k }); }, // 착지 탁
+  pin: (v, k) => { burst({ type: "bandpass", f: 4200 * v, q: 3, dur: 0.025, gain: 0.6 * k }); tone({ f: 320 * v, f2: 220 * v, dur: 0.06, gain: 0.35 * k, at: 0.01 }); }, // 틱 — 압정
+  ui: (v, k) => burst({ type: "bandpass", f: 2600 * v, q: 2, dur: 0.03, gain: 0.45 * k }), // 연필 톡
+  done: (v, k) => { tone({ f: 523 * v, dur: 0.5, gain: 0.3 * k, partials: MARIMBA }); tone({ f: 784 * v, dur: 0.8, gain: 0.3 * k, at: 0.16, partials: MARIMBA }); }, // 딩동
+  // 랜딩 첫 화면 노트북이 책상에 통 — 나무에 닿는 낮은 울림 + 플라스틱 딸깍
   laptop: (v, k) => {
     tone({ f: 190 * v, f2: 140 * v, dur: 0.11, gain: 0.42 * k, partials: [[1, 1], [2.6, 0.25]] });
     burst({ type: "lowpass", f: 1800 * v, dur: 0.035, gain: 0.3 * k });
@@ -191,7 +191,7 @@ function tone({ f = 200, f2 = null, dur = 0.12, gain = 0.5, at = 0, attack = 0.0
 
 /**
  * 상자에 들어가는 한 장. 붙어서 여러 번 오면(한꺼번에 여러 장 넣기) 줄을 세워 툭 → 톡 · 톡 · 톡으로 잦아든다
- * (11-09 사용자 「한번에 여러 파일 넣을 때 한번 툭하고 끝나니까 이상함」). 0.6초 넘게 밀리면 그 뒤는 버린다.
+ * (한 번 툭하고 끝나면 여러 장이 들어간 느낌이 안 난다). 0.6초 넘게 밀리면 그 뒤는 버린다.
  */
 function boxHit(v, k) {
   const now = ctx.currentTime;

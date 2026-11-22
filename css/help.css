@@ -1,5 +1,5 @@
-/* 글꼴은 css/fonts.css — 10-24 주아 → 나눔스퀘어라운드 EB */
-/* Help page (help.html), 2026-10-08. Same paper, ink and type as the landing; one readable column, no cards. */
+/* 글꼴은 css/fonts.css (제목 나눔스퀘어라운드 EB) */
+/* Help page (help.html). Same paper, ink and type as the landing; one readable column, no cards. */
 :root{
   --ink:#254c43; --text:#2f3a33; --muted:#5f6a5f; --paper:#f3ecd8; --sheet:#f8f3e4; --line:#254c432e; --mark:#c99a4b;
   --ui:var(--font-ui);
